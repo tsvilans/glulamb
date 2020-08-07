@@ -1,0 +1,185 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{05279F4B-0F9A-4B26-84F0-938A942BE2A3}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>GluLamb.GH</RootNamespace>
+    <AssemblyName>GluLamb.GH</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>false</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..\bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>..\bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Eto, Version=2.5.0.0, Culture=neutral, PublicKeyToken=552281e97c755530, processorArchitecture=MSIL">
+      <HintPath>..\packages\RhinoCommon.6.22.20028.13281\lib\net45\Eto.dll</HintPath>
+    </Reference>
+    <Reference Include="GH_IO, Version=6.22.20028.13280, Culture=neutral, PublicKeyToken=6a29997d2e6b4f97, processorArchitecture=MSIL">
+      <HintPath>..\packages\Grasshopper.6.22.20028.13281\lib\net45\GH_IO.dll</HintPath>
+    </Reference>
+    <Reference Include="Grasshopper, Version=6.22.20028.13280, Culture=neutral, PublicKeyToken=dda4f5ec2cd80803, processorArchitecture=MSIL">
+      <HintPath>..\packages\Grasshopper.6.22.20028.13281\lib\net45\Grasshopper.dll</HintPath>
+    </Reference>
+    <Reference Include="Rhino.UI, Version=6.22.20028.13280, Culture=neutral, PublicKeyToken=552281e97c755530, processorArchitecture=MSIL">
+      <HintPath>..\packages\RhinoCommon.6.22.20028.13281\lib\net45\Rhino.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="RhinoCommon, Version=6.22.20028.13280, Culture=neutral, PublicKeyToken=552281e97c755530, processorArchitecture=MSIL">
+      <HintPath>..\packages\RhinoCommon.6.22.20028.13281\lib\net45\RhinoCommon.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Analyze\Cmpt_AnalyzeLamellaBending2.cs" />
+    <Compile Include="Analyze\Cmpt_DeLaminate.cs" />
+    <Compile Include="Analyze\Cmpt_EstimateK.cs" />
+    <Compile Include="Analyze\Cmpt_GlulamParameters.cs" />
+    <Compile Include="Analyze\Cmpt_MeshGrainDeviation.cs" />
+    <Compile Include="Analyze\Cmpt_MeshGrainDirection.cs" />
+    <Compile Include="Create\Cmpt_CreateGlulam.cs" />
+    <Compile Include="Create\Cmpt_CreateGlulamDataFromWidthHeight.cs" />
+    <Compile Include="Create\Cmpt_GlulamData.cs" />
+    <Compile Include="GluLambGoo.cs" />
+    <Compile Include="GlulamParameter.cs" />
+    <Compile Include="Map\Cmpt_BidirVector2Color.cs" />
+    <Compile Include="Map\Cmpt_GetFrame.cs" />
+    <Compile Include="Map\Cmpt_GetFrameAtParameter.cs" />
+    <Compile Include="Map\Cmpt_GetFrameList.cs" />
+    <Compile Include="Map\Cmpt_MapToGlulamSpace.cs" />
+    <Compile Include="Modify\Cmpt_GetEdgePoints.cs" />
+    <Compile Include="Modify\Cmpt_GetGlulamFace.cs" />
+    <Compile Include="Modify\Cmpt_GetGlulamSideSrf.cs" />
+    <Compile Include="Modify\Cmpt_InflateGlulam.cs" />
+    <Compile Include="Modify\Cmpt_OffsetGlulam.cs" />
+    <Compile Include="Modify\Cmpt_SplitGlulam.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_Assembly_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GluLamb.GHInfo.cs" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GluLamb\GluLamb.csproj">
+      <Project>{370875bf-239c-464f-970f-0ceb9d412fd8}</Project>
+      <Name>GluLamb</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_BlankNormalToSrf_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_BlankWithGuides_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_Delaminate_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_FibreCutting_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_FreeformGlulam_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_GetGlulamSrf_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_GlulamFromBeam_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_InflateGlulam_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_OffsetGlulam_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_StraightGlulam_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_Workpiece_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_Bisector_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_CurvatureAnalysis_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_FibreDeviation_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_FibreDirection_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_GlulamData_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_GlulamEdges_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_GlulamFrame_24x24.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\glulamb_Vector2Color_24x24.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="..\packages\RhinoCommon.6.22.20028.13281\build\net45\RhinoCommon.targets" Condition="Exists('..\packages\RhinoCommon.6.22.20028.13281\build\net45\RhinoCommon.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\RhinoCommon.6.22.20028.13281\build\net45\RhinoCommon.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\RhinoCommon.6.22.20028.13281\build\net45\RhinoCommon.targets'))" />
+    <Error Condition="!Exists('..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets'))" />
+  </Target>
+  <Import Project="..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets" Condition="Exists('..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets')" />
+  <PropertyGroup>
+    <PostBuildEvent>Copy "$(TargetPath)" "$(TargetDir)$(ProjectName).gha"
+Erase "$(TargetPath)"</PostBuildEvent>
+  </PropertyGroup>
+</Project>

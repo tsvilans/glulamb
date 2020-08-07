@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29609.76
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GluLamb", "GluLamb\GluLamb.csproj", "{370875BF-239C-464F-970F-0CEB9D412FD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GluLamb.GH", "GluLamb.GH\GluLamb.GH.csproj", "{05279F4B-0F9A-4B26-84F0-938A942BE2A3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{370875BF-239C-464F-970F-0CEB9D412FD8}.Debug|x64.ActiveCfg = Debug|x64
+		{370875BF-239C-464F-970F-0CEB9D412FD8}.Debug|x64.Build.0 = Debug|x64
+		{370875BF-239C-464F-970F-0CEB9D412FD8}.Release|x64.ActiveCfg = Release|x64
+		{370875BF-239C-464F-970F-0CEB9D412FD8}.Release|x64.Build.0 = Release|x64
+		{05279F4B-0F9A-4B26-84F0-938A942BE2A3}.Debug|x64.ActiveCfg = Debug|x64
+		{05279F4B-0F9A-4B26-84F0-938A942BE2A3}.Debug|x64.Build.0 = Debug|x64
+		{05279F4B-0F9A-4B26-84F0-938A942BE2A3}.Release|x64.ActiveCfg = Release|x64
+		{05279F4B-0F9A-4B26-84F0-938A942BE2A3}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9A29B931-5E2E-4EF6-9605-BF0E208D4447}
+	EndGlobalSection
+EndGlobal
