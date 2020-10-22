@@ -237,7 +237,9 @@ namespace GluLamb
             double hH = Data.NumHeight * Data.LamHeight / 2 + offset;
             double[] DivParams = new double[] { CL.Domain.Min, CL.Domain.Max };
 
-            GenerateCorners(offset);
+            m_section_corners = CornerGenerator(offset);
+
+
 
             Curve[][] LoftCurves = new Curve[4][];
 

@@ -180,6 +180,14 @@
   <Import Project="..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets" Condition="Exists('..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets')" />
   <PropertyGroup>
     <PostBuildEvent>Copy "$(TargetPath)" "$(TargetDir)$(ProjectName).gha"
-Erase "$(TargetPath)"</PostBuildEvent>
+Erase "$(TargetPath)"
+
+set GhPath=%25AppData%25\Grasshopper\Libraries\GluLamb\
+echo %25GhPath%25
+mkdir %25GhPath%25
+
+REM Copy files to GH path
+Copy "$(TargetDir)$(ProjectName).gha" "%25GhPath%25$(ProjectName).gha"
+Copy "$(TargetDir)GluLamb.dll" "%25GhPath%25GluLamb.dll"</PostBuildEvent>
   </PropertyGroup>
 </Project>

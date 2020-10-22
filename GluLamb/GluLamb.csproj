@@ -75,6 +75,10 @@
     <Compile Include="Glulam\SingleCurvedGlulam.cs" />
     <Compile Include="Glulam\Stick.cs" />
     <Compile Include="Glulam\StraightGlulam.cs" />
+    <Compile Include="Structure\Connection.cs" />
+    <Compile Include="Structure\Element.cs" />
+    <Compile Include="Structure\ElementGroup.cs" />
+    <Compile Include="Structure\Structure.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="Glulam\GlulamBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -93,4 +97,8 @@
     <Error Condition="!Exists('..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets'))" />
   </Target>
   <Import Project="..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets" Condition="Exists('..\packages\Grasshopper.6.22.20028.13281\build\net45\Grasshopper.targets')" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>
