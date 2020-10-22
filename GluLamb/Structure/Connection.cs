@@ -34,8 +34,8 @@ namespace GluLamb
         public Line Discretize()
         {
             return new Line(
-              ElementA.Beam.Centreline.PointAt(ParameterA),
-              ElementB.Beam.Centreline.PointAt(ParameterB));
+              ElementA.GetConnectionPoint(ParameterA),
+              ElementB.GetConnectionPoint(ParameterB));
         }
     }
 }

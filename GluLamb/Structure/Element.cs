@@ -10,16 +10,21 @@ namespace GluLamb
     public class Element
     {
         public string Name;
-        public Glulam Beam;
         public List<Connection> Connections;
-        private Plane m_plane;
+        protected Plane m_plane;
 
-        public Element(Glulam g, string name = "")
+        public Element(string name = "")
         {
-            Beam = g;
             Connections = new List<Connection>();
             Name = name;
-            m_plane = Beam.GetPlane(Beam.Centreline.Domain.Mid);
+            m_plane = Plane.WorldXY;
+        }
+
+        public Element(Plane handle, string name = "")
+        {
+            Connections = new List<Connection>();
+            Name = name;
+            m_plane = handle;
         }
 
         public Plane Handle
@@ -34,20 +39,14 @@ namespace GluLamb
             }
         }
 
-        public Polyline Discretize(double length)
+        public virtual GeometryBase Discretize(double length)
         {
-            var t = Beam.Centreline.DivideByLength(length, true).ToList();
-            foreach (var conn in Connections)
-            {
-                if (conn.ElementA == this)
-                    t.Add(conn.ParameterA);
-                else if (conn.ElementB == this)
-                    t.Add(conn.ParameterB);
-            }
+            return null;
+        }
 
-            t.Sort();
-
-            return new Polyline(t.Select(x => Beam.Centreline.PointAt(x)));
+        public virtual Point3d GetConnectionPoint(double t)
+        {
+            return m_plane.Origin;
         }
 
         public Element GetConnected(int index)
@@ -68,6 +67,38 @@ namespace GluLamb
                 return conn.ElementB;
             return conn.ElementA;
 
+        }
+    }
+
+    public class BeamElement : Element
+    {
+        public BeamBase Beam;
+
+        public BeamElement(BeamBase beam)
+        {
+            Beam = beam;
+            m_plane = Beam.GetPlane(Beam.Centreline.Domain.Mid);
+        }
+
+        public override GeometryBase Discretize(double length)
+        {
+            var t = Beam.Centreline.DivideByLength(length, true).ToList();
+            foreach (var conn in Connections)
+            {
+                if (conn.ElementA == this)
+                    t.Add(conn.ParameterA);
+                else if (conn.ElementB == this)
+                    t.Add(conn.ParameterB);
+            }
+
+            t.Sort();
+
+            return new PolylineCurve(t.Select(x => Beam.Centreline.PointAt(x)));
+        }
+
+        public override Point3d GetConnectionPoint(double t)
+        {
+            return Beam.Centreline.PointAt(t);
         }
     }
 
