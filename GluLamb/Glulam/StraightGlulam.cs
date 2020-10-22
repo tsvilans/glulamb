@@ -279,6 +279,9 @@ namespace GluLamb
             brep.JoinNakedEdges(Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
             brep = brep.CapPlanarHoles(Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
 
+            //brep.UserDictionary.Set("glulam", GetArchivableDictionary());
+
+
             return brep;
         }
 
