@@ -83,7 +83,11 @@ namespace GluLamb
 
         public override GeometryBase Discretize(double length)
         {
-            var t = Beam.Centreline.DivideByLength(length, true).ToList();
+            var t = Beam.Centreline.DivideByLength(length, false).ToList();
+
+            t.Insert(0, Beam.Centreline.Domain.Min);
+            t.Add(Beam.Centreline.Domain.Max);
+
             foreach (var conn in Connections)
             {
                 if (conn.ElementA == this)
