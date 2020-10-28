@@ -6,15 +6,20 @@ using System.Threading.Tasks;
 
 namespace GluLamb
 {
-    public class ElementGroup
+    public class ElementGroup: List<Element>
     {
         public string Name;
-        private List<Element> m_elements;
+        //private List<Element> m_elements;
 
         public ElementGroup(string name = "ElementGroup")
         {
             Name = name;
-            m_elements = new List<Element>();
+            //m_elements = new List<Element>();
+        }
+        /*
+        public int Count
+        {
+            get { return m_elements.Count; }
         }
 
         public Element this[int key]
@@ -38,5 +43,6 @@ namespace GluLamb
         {
             m_elements.Clear();
         }
+        */
     }
 }

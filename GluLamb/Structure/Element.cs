@@ -12,12 +12,14 @@ namespace GluLamb
         public string Name;
         public List<Connection> Connections;
         protected Plane m_plane;
+        public GeometryBase Geometry;
 
         public Element(string name = "")
         {
             Connections = new List<Connection>();
             Name = name;
             m_plane = Plane.WorldXY;
+            Geometry = null;
         }
 
         public Element(Plane handle, string name = "")
@@ -66,7 +68,6 @@ namespace GluLamb
             if (conn.ElementA == this)
                 return conn.ElementB;
             return conn.ElementA;
-
         }
     }
 

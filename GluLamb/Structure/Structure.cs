@@ -10,11 +10,13 @@ namespace GluLamb
     {
         public List<Connection> Connections;
         public List<Element> Elements;
+        public Dictionary<string, List<Element>> Groups;
 
         public Structure()
         {
             Connections = new List<Connection>();
             Elements = new List<Element>();
+            Groups = new Dictionary<string, List<Element>>();
         }
 
         public static Structure FromBeamElements(List<BeamElement> elements, double searchDistance, double overlapDistance)

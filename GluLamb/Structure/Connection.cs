@@ -31,6 +31,12 @@ namespace GluLamb
             Name = name;
         }
 
+        public static void Disconnect(Connection conn)
+        {
+            conn.ElementA.Connections.Remove(conn);
+            conn.ElementB.Connections.Remove(conn);
+        }
+
         public Line Discretize()
         {
             return new Line(
