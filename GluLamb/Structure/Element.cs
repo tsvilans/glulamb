@@ -29,6 +29,12 @@ namespace GluLamb
             m_plane = handle;
         }
 
+        public Element Duplicate()
+        {
+            // TODO
+            return this;
+        }
+
         public Plane Handle
         {
             get
