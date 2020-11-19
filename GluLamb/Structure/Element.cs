@@ -11,12 +11,15 @@ namespace GluLamb
     {
         public string Name;
         public List<Connection> Connections;
+        public List<Plane> Handles;
+
         protected Plane m_plane;
         public GeometryBase Geometry;
 
         public Element(string name = "")
         {
             Connections = new List<Connection>();
+            Handles = new List<Plane>();
             Name = name;
             m_plane = Plane.WorldXY;
             Geometry = null;
@@ -75,16 +78,32 @@ namespace GluLamb
                 return conn.ElementB;
             return conn.ElementA;
         }
+
+        public virtual void Transform(Rhino.Geometry.Transform xform)
+        {
+            Geometry.Transform(xform);
+            m_plane.Transform(xform);
+
+            for (int i = 0; i < Handles.Count; ++i)
+            {
+                Handles[i].Transform(xform);
+            }
+        }
     }
 
     public class BeamElement : Element
     {
         public BeamBase Beam;
 
-        public BeamElement(BeamBase beam)
+        public BeamElement(BeamBase beam, string name="BeamElement") : base(name)
         {
             Beam = beam;
             m_plane = Beam.GetPlane(Beam.Centreline.Domain.Mid);
+        }
+
+        public BeamElement(BeamBase beam, Plane handle, string name = "BeamElement") : base(handle, name)
+        {
+            Beam = beam;
         }
 
         public override GeometryBase Discretize(double length)
@@ -110,6 +129,11 @@ namespace GluLamb
         public override Point3d GetConnectionPoint(double t)
         {
             return Beam.Centreline.PointAt(t);
+        }
+        public override void Transform(Rhino.Geometry.Transform xform)
+        {
+            base.Transform(xform);
+            Beam.Transform(xform);
         }
     }
 
