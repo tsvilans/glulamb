@@ -280,123 +280,158 @@ namespace GluLamb.GH
         }
         #endregion
     }
-    /*
-    public class GH_GlulamWorkpiece : GH_Goo<GlulamWorkpiece>, IGH_PreviewData
+
+    public class GH_Element : GH_Goo<Element>
     {
-        public GH_GlulamWorkpiece() { this.Value = null; }
-        public GH_GlulamWorkpiece(GH_GlulamWorkpiece goo) { this.Value = goo.Value; }
-        public GH_GlulamWorkpiece(GlulamWorkpiece native) { this.Value = native; }
-        public override IGH_Goo Duplicate() => new GH_GlulamWorkpiece(this);
-        public override bool IsValid => true;
-        public override string TypeName => "GluLamb Workpiece";
-        public override string TypeDescription => "GluLamb Workpiece";
-        public override string ToString() => Value.ToString(); //this.Value.ToString();
+        #region Constructors
+        public GH_Element() : this(null) { }
+        public GH_Element(Element native) { this.Value = native; }
+
+        public override IGH_Goo Duplicate()
+        {
+            if (Value == null)
+                return new GH_Element();
+            else
+                return new GH_Element(Value.Duplicate());
+        }
+        #endregion
+
+        public static Element ParseGlulam(object obj)
+        {
+            if (obj is GH_Element)
+                return (obj as GH_Element).Value;
+            else
+                return obj as Element;
+        }
+        public override string ToString()
+        {
+            if (Value == null) return "Null glulam element";
+            return Value.ToString();
+        }
+
+        public override string TypeName => "GlulamElementGoo";
+        public override string TypeDescription => "GlulamElementGoo";
         public override object ScriptVariable() => Value;
 
+        public override bool IsValid
+        {
+            get
+            {
+                if (Value == null) return false;
+                return true;
+            }
+        }
+        public override string IsValidWhyNot
+        {
+            get
+            {
+                if (Value == null) return "No data";
+                return string.Empty;
+            }
+        }
+
+        #region Casting
         public override bool CastFrom(object source)
         {
-            if (source is GlulamWorkpiece)
+            if (source == null) return false;
+            if (source is Element glulam)
             {
-                Value = source as GlulamWorkpiece;
+                Value = glulam;
                 return true;
             }
-            if (source is GH_GlulamWorkpiece)
+            if (source is GH_Element ghGlulam)
             {
-                Value = (source as GH_GlulamWorkpiece).Value;
+                Value = ghGlulam.Value;
                 return true;
             }
-            if (source is Glulam)
-            {
-                Value = new GlulamWorkpiece(new BasicAssembly(source as Glulam));
-                return true;
-            }
-            if (source is GH_Glulam)
-            {
-                Value = new GlulamWorkpiece(new BasicAssembly((source as GH_Glulam).Value));
-                return true;
-            }
-
             return false;
         }
 
         public override bool CastTo<Q>(ref Q target)
         {
-            if (typeof(Q).IsAssignableFrom(typeof(GH_Mesh)))
-            {
-                Mesh[] meshes = Value.GetMesh();
-                Mesh m = new Mesh();
-                for (int i = 0; i < meshes.Length; ++i)
-                {
-                    m.Append(meshes[i]);
-                }
-                object mesh = new GH_Mesh(m);
+            if (Value == null) return false;
 
-                target = (Q)mesh;
-                return true;
-            }
-            if (typeof(Q).IsAssignableFrom(typeof(GlulamWorkpiece)))
-            {
-                object blank = Value;
-                target = (Q)blank;
-                return true;
-            }
-            if (typeof(Q).IsAssignableFrom(typeof(GH_Brep)))
-            {
-                Brep[] breps = Value.GetBrep();
-                Brep b = new Brep();
-                for (int i = 0; i < breps.Length; ++i)
-                {
-                    b.Append(breps[i]);
-                }
-                object brep = new GH_Brep(b);
-                target = (Q)brep;
-                return true;
-            }
-            //if (typeof(Q).IsAssignableFrom(typeof(GH_)))
-            if (typeof(Q).IsAssignableFrom(typeof(GH_Curve)))
-            {
-                Curve[] crvs = Value.Blank.GetAllGlulams().Select(x => x.Centreline).ToArray();
-                //target = crvs.Select(x => new GH_Curve(x)).ToList() as Q;
-                object crv = new GH_Curve(crvs.FirstOrDefault());
-                target = (Q)(crv);
-                return true;
-            }
-            if (typeof(Q).IsAssignableFrom(typeof(List<GH_Curve>)))
-            {
-                Curve[] crvs = Value.Blank.GetAllGlulams().Select(x => x.Centreline).ToArray();
-                //target = crvs.Select(x => new GH_Curve(x)).ToList() as Q;
-                object crv = crvs.Select(x => new GH_Curve(x)).ToList();
-                target = (Q)(crv);
-                return true;
-            }
-
-            return base.CastTo<Q>(ref target);
+            return false;
         }
 
-        BoundingBox IGH_PreviewData.ClippingBox
+        #endregion
+
+    }
+
+    public class GH_Structure : GH_Goo<Structure>
+    {
+        #region Constructors
+        public GH_Structure() : this(null) { }
+        public GH_Structure(Structure native) { this.Value = native; }
+
+        public override IGH_Goo Duplicate()
+        {
+            if (Value == null)
+                return new GH_Structure();
+            else
+                return new GH_Structure(Value.Duplicate());
+        }
+        #endregion
+
+        public static Structure ParseStructure(object obj)
+        {
+            if (obj is GH_Structure)
+                return (obj as GH_Structure).Value;
+            else
+                return obj as Structure;
+        }
+        public override string ToString()
+        {
+            if (Value == null) return "Null glulam structure";
+            return Value.ToString();
+        }
+
+        public override string TypeName => "GlulamStructureGoo";
+        public override string TypeDescription => "GlulamStructureGoo";
+        public override object ScriptVariable() => Value;
+
+        public override bool IsValid
         {
             get
             {
-                BoundingBox box = BoundingBox.Empty;
-
-                Mesh[] meshes = Value.GetMesh();
-
-                for (int i = 0; i < meshes.Length; ++i)
-                {
-                    box.Union(meshes[i].GetBoundingBox(true));
-                }
-                return box;
+                if (Value == null) return false;
+                return true;
+            }
+        }
+        public override string IsValidWhyNot
+        {
+            get
+            {
+                if (Value == null) return "No data";
+                return string.Empty;
             }
         }
 
-        public void DrawViewportMeshes(GH_PreviewMeshArgs args)
+        #region Casting
+        public override bool CastFrom(object source)
         {
-            //args.Pipeline.DrawMeshShaded(Value.GetBoundingMesh(), args.Material);
+            if (source == null) return false;
+            if (source is Structure structure)
+            {
+                Value = structure;
+                return true;
+            }
+            if (source is GH_Structure ghStructure)
+            {
+                Value = ghStructure.Value;
+                return true;
+            }
+            return false;
         }
 
-        public void DrawViewportWires(GH_PreviewWireArgs args)
+        public override bool CastTo<Q>(ref Q target)
         {
+            if (Value == null) return false;
+
+            return false;
         }
+
+        #endregion
+
     }
-    */
 }

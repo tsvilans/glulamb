@@ -18,7 +18,11 @@ namespace GluLamb
             Elements = new List<Element>();
             Groups = new Dictionary<string, List<Element>>();
         }
-
+        public Structure Duplicate()
+        {
+            // TODO
+            return this;
+        }
         public static Structure FromBeamElements(List<BeamElement> elements, double searchDistance, double overlapDistance)
         {
             int counter = 0;

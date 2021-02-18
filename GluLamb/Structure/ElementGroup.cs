@@ -16,6 +16,13 @@ namespace GluLamb
             Name = name;
             //m_elements = new List<Element>();
         }
+
+        public ElementGroup Duplicate()
+        {
+            // TODO
+            return this;
+        }
+
         /*
         public int Count
         {
