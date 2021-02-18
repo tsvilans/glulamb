@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using Rhino.Collections;
 
 using System.Threading.Tasks;
 
@@ -13,6 +14,7 @@ namespace GluLamb
         public List<Connection> Connections;
         protected Plane m_plane;
         public GeometryBase Geometry;
+        public ArchivableDictionary UserDictionary;
 
         public Element(string name = "")
         {
@@ -20,6 +22,7 @@ namespace GluLamb
             Name = name;
             m_plane = Plane.WorldXY;
             Geometry = null;
+            UserDictionary = new ArchivableDictionary();
         }
 
         public Element(Plane handle, string name = "")
@@ -27,6 +30,8 @@ namespace GluLamb
             Connections = new List<Connection>();
             Name = name;
             m_plane = handle;
+            UserDictionary = new ArchivableDictionary();
+
         }
 
         public Plane Handle

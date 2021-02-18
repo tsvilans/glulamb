@@ -43,7 +43,7 @@ namespace GluLamb
         {
             Curve curve = Centreline;
 
-            double multiplier = RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem, UnitSystem.Millimeters);
+            double multiplier = RhinoMath.UnitScale(UnitSystem.Millimeters, Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem);
 
             //PolylineCurve discrete = curve.ToPolyline(Glulam.Tolerance * 10, Glulam.AngleTolerance, 0.0, 0.0);
             PolylineCurve discrete = curve.ToPolyline(multiplier * Tolerance, AngleTolerance, multiplier * MininumSegmentLength, curve.GetLength() / MinimumNumSegments);
@@ -54,9 +54,7 @@ namespace GluLamb
                 parameters = new double[N];
 
                 for (int i = 0; i < N; ++i)
-                {
                     curve.ClosestPoint(discrete2[i], out parameters[i]);
-                }
             }
             else
             {
@@ -168,8 +166,31 @@ namespace GluLamb
 
             //m_section_corners.Select(x => frames.Select(y => m.Vertices.Add(y.PointAt(x.X, x.Y))));
 
-            for (int j = 0; j < m_corners.Length; ++j)
-                m.Vertices.Add(pplane.PointAt(m_corners[j].X, m_corners[j].Y));
+            //for (int j = 0; j < m_corners.Length; ++j)
+            //    m.Vertices.Add(pplane.PointAt(m_corners[j].X, m_corners[j].Y));
+
+            var start_profile = new Polyline(m_corners);
+            start_profile.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, frames.First()));
+            var start_mesh = new Mesh();
+            start_mesh.Vertices.AddVertices(start_profile);
+
+            start_profile.Add(start_profile[0]);
+            start_mesh.Faces.AddFaces(start_profile.TriangulateClosedPolyline());
+            start_mesh.Faces.ConvertTrianglesToQuads(RhinoMath.ToRadians(2), 0.875);
+
+            var end_profile = new Polyline(m_corners);
+            end_profile.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, frames.Last()));
+            var end_mesh = new Mesh();
+            end_mesh.Vertices.AddVertices(end_profile);
+
+            end_profile.Add(end_profile[0]);
+            end_mesh.Faces.AddFaces(end_profile.TriangulateClosedPolyline());
+            end_mesh.Faces.ConvertTrianglesToQuads(RhinoMath.ToRadians(2), 0.875);
+
+            m.Append(start_mesh);
+            m.Append(end_mesh);
+
+            return m;
 
             m.TextureCoordinates.Add(0, 0);
             m.TextureCoordinates.Add(0, texHeight);
@@ -236,14 +257,14 @@ namespace GluLamb
             return cross_sections;
         }
 
+#if SLOWBREP
         public override Brep ToBrep(double offset = 0.0)
         {
-            /*
+            
             int N = Math.Max(Data.Samples, 6);
 
             GenerateCrossSectionPlanes(N, out Plane[] frames, out double[] parameters, Data.InterpolationType);
 
-            int numCorners = 4;
             GenerateCorners(offset);
 
             List<Point3d>[] crvPts = new List<Point3d>[numCorners];
@@ -267,7 +288,7 @@ namespace GluLamb
                     crvPts[j].Add(temp);
                 }
             }
-            */
+            
 
             var edge_points = GetEdgePoints(offset);
             int numCorners = m_section_corners.Length;
@@ -337,7 +358,50 @@ namespace GluLamb
 
             return brep;
         }
+#else
 
+        public override Brep ToBrep(double offset = 0.0)
+        {
+            int N = Math.Max(Data.Samples, 6);
+
+            GenerateCrossSectionPlanes(N, out Plane[] frames, out double[] parameters, Data.InterpolationType);
+
+            var cross_section_profile = new Polyline(GenerateCorners(offset));
+            cross_section_profile.Add(cross_section_profile[0]);
+
+            Transform xform;
+
+            var profiles = new List<Curve>();
+
+            for (int i = 0; i < parameters.Length; ++i)
+            {
+                //frames[i] = frames[i].FlipAroundYAxis();
+                xform = Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, frames[i]);
+                var temp_profile = cross_section_profile.Duplicate().ToNurbsCurve();
+                temp_profile.Transform(xform);
+                profiles.Add(temp_profile);
+            }
+
+            if (profiles.Count < 1)
+                throw new Exception("FreeformGlulam.ToBrep(): profiles was null");
+
+            var body = Brep.CreateFromLoft(profiles, Point3d.Unset, Point3d.Unset, LoftType.Tight, false);
+            var start_cap = Brep.CreatePlanarBreps(profiles.First(), Tolerance);
+            var end_cap = Brep.CreatePlanarBreps(profiles.Last(), Tolerance);
+
+            if (body == null)
+                throw new Exception("FreeformGlulam.ToBrep(): body was null");
+            else if (start_cap == null)
+                throw new Exception("FreeformGlulam.ToBrep(): start_cap was null");
+            else if (end_cap == null)
+                throw new Exception("FreeformGlulam.ToBrep(): end_cap was null");
+
+            var joined = Brep.JoinBreps(body.Concat(start_cap).Concat(end_cap), Tolerance);
+            if (joined.Length > 0)
+                return joined[0];
+            else throw new Exception("FreeformGlulam.ToBrep(): Joined Brep failed.");
+        }
+#endif
         public List<Point3d>[] Test_GetBoundingBrepPoints()
         {
             int N = Math.Max(Data.Samples, 6);

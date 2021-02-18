@@ -18,28 +18,176 @@
  */
 
 using System;
+using System.Linq;
+using System.Drawing;
+using System.Windows.Forms;
+
+using Grasshopper;
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Parameters;
+using Grasshopper.Kernel.Special;
+
 using Rhino.Geometry;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_GlulamData : GH_Component
+    public enum GlulamDataMethod
+    {
+        Section,
+        Lamella
+    }
+
+    public class Cmpt_GlulamData : GH_Component, IGH_VariableParameterComponent
     {
         public Cmpt_GlulamData()
           : base("GlulamData", "GlulamData",
               "Create glulam data.",
               "GluLamb", "Create")
         {
+            DataMethod = GlulamDataMethod.Section;
+
+            foreach (var parameter in parameters)
+            {
+                if (Params.Input.Any(x => x.Name == parameter.Name))
+                    Params.UnregisterInputParameter(Params.Input.First(x => x.Name == parameter.Name), true);
+            }
+
+            AddParam(4);
+            AddParam(5);
+            AddParam(6);
+            AddParam(7);
+
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
+
+        GH_ValueList valueList = null;
+        IGH_Param alignment_parameter = null;
+
+
+        public GlulamDataMethod DataMethod = GlulamDataMethod.Section;
+        readonly IGH_Param[] parameters = new IGH_Param[8]
+        {
+            new Param_Number() {Name = "LamellaX", NickName = "Lx", Description = "Lamella dimension in the X-axis.", Optional = true, Access = GH_ParamAccess.item},
+            new Param_Number(){Name = "LamellaY", NickName = "Ly", Description = "Lamella dimension in the Y-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Integer(){Name = "NumX", NickName = "Nx", Description = "Number of lamellae in X-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Integer(){Name = "NumY", NickName = "Ny", Description = "Number of lamellae in Y-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Number() {Name = "Width (X)", NickName = "X", Description = "Section dimension in the X-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Number(){Name = "Height (Y)", NickName = "Y", Description = "Section dimension in the Y-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Number() {Name = "Curvature (X)", NickName = "Kx", Description = "Maximum curvature in the X-axis.", Optional = true, Access = GH_ParamAccess.item },
+            new Param_Number(){Name = "Curvature (Y)", NickName = "Ky", Description = "Maximum curvature in the Y-axis.", Optional = true, Access = GH_ParamAccess.item },
+        };
+
+        bool IGH_VariableParameterComponent.CanInsertParameter(GH_ParameterSide side, int index) => false;
+        bool IGH_VariableParameterComponent.CanRemoveParameter(GH_ParameterSide side, int index) => false;
+        IGH_Param IGH_VariableParameterComponent.CreateParameter(GH_ParameterSide side, int index) => null;
+        bool IGH_VariableParameterComponent.DestroyParameter(GH_ParameterSide side, int index) => false;
+        void IGH_VariableParameterComponent.VariableParameterMaintenance() { }
+
+        private void AddParam(int index)
+        {
+            int insertIndex = Params.Input.Count;
+            for (int i = 0; i < Params.Input.Count; i++)
+            {
+                int otherIndex = Array.FindIndex(parameters, x => x.Name == Params.Input[i].Name);
+                if (otherIndex > index)
+                {
+                    insertIndex = i;
+                    break;
+                }
+            }
+            Params.RegisterInputParam(parameters[index], insertIndex);
+        }
+
+        private void SetMethodLamella(object sender, EventArgs e)
+        {
+            DataMethod = GlulamDataMethod.Lamella;
+
+            foreach (var parameter in parameters)
+            {
+                if (Params.Input.Any(x => x.Name == parameter.Name))
+                    Params.UnregisterInputParameter(Params.Input.First(x => x.Name == parameter.Name), true);
+            }
+
+            AddParam(0);
+            AddParam(1);
+            AddParam(2);
+            AddParam(3);
+
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
+        private void SetMethodSection(object sender, EventArgs e)
+        {
+            DataMethod = GlulamDataMethod.Section;
+
+            foreach (var parameter in parameters)
+            {
+                if (Params.Input.Any(x => x.Name == parameter.Name))
+                    Params.UnregisterInputParameter(Params.Input.First(x => x.Name == parameter.Name), true);
+            }
+
+            AddParam(4);
+            AddParam(5);
+            AddParam(6);
+            AddParam(7);
+
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
+
+        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, "Lamella", SetMethodLamella, true, DataMethod == GlulamDataMethod.Lamella);
+            Menu_AppendItem(menu, "Section", SetMethodSection, true, DataMethod == GlulamDataMethod.Section);
+            base.AppendAdditionalComponentMenuItems(menu);
+        }
+
+        protected override void BeforeSolveInstance()
+        {
+            if (valueList == null)
+            {
+                if (alignment_parameter.Sources.Count == 0)
+                {
+                    valueList = new GH_ValueList();
+                }
+                else
+                {
+                    foreach (var source in alignment_parameter.Sources)
+                    {
+                        if (source is GH_ValueList) valueList = source as GH_ValueList;
+                        return;
+                    }
+                }
+
+                valueList.CreateAttributes();
+                valueList.Attributes.Pivot = new PointF(this.Attributes.Pivot.X - 200, this.Attributes.Pivot.Y - 1);
+                valueList.ListItems.Clear();
+
+                var alignmentNames = Enum.GetNames(typeof(GlulamData.CrossSectionPosition));
+                var alignmentValues = Enum.GetValues(typeof(GlulamData.CrossSectionPosition));
+
+                for (int i = 0; i < alignmentNames.Length; ++i)
+                {
+                    valueList.ListItems.Add(new GH_ValueListItem(alignmentNames[i], $"{i}"));
+                }
+
+                valueList.SelectItem(4);
+
+                Instances.ActiveCanvas.Document.AddObject(valueList, false);
+                alignment_parameter.AddSource(valueList);
+                alignment_parameter.CollectData();
+            }
         }
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddNumberParameter("LamW", "LW", "Lamella width.", GH_ParamAccess.item, 20.0);
-            pManager.AddNumberParameter("LamH", "LH", "Lamella height.", GH_ParamAccess.item, 20.0);
-            pManager.AddIntegerParameter("NumW", "NW", "Number of lamellas in X-direction.", GH_ParamAccess.item, 4);
-            pManager.AddIntegerParameter("NumH", "NH", "Number of lamellas in Y-direction.", GH_ParamAccess.item, 4);
-            pManager.AddIntegerParameter("Interpolation", "Int", "Interpolation method to use between glulam frames.", GH_ParamAccess.item, 2);
-            pManager.AddIntegerParameter("Samples", "S", "Number of samples along glulam length for generating cross-sections.", GH_ParamAccess.item, 100);
+            //pManager.AddIntegerParameter("Interpolation", "Int", "Interpolation method to use between glulam frames.", GH_ParamAccess.item, 2);
+            pManager.AddIntegerParameter("Samples", "S", "Resolution of length subdivision.", GH_ParamAccess.item, 100);
+            pManager.AddIntegerParameter("Alignment", "A", "Cross-section alignment as an integer value between 0 and 8.", GH_ParamAccess.item, 4);
+
+            alignment_parameter = pManager[1];
+
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -49,21 +197,70 @@ namespace GluLamb.GH.Components
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            double lw = 0, lh = 0;
-            int nw = 0, nh = 0;
+            int samples = 0, m_alignment = 4;
+            //int interpolation = 2;
 
-            int samples = 0;
-            int interpolation = 2;
-
-            DA.GetData("LamW", ref lw);
-            DA.GetData("LamH", ref lh);
-            DA.GetData("NumW", ref nw);
-            DA.GetData("NumH", ref nh);
             DA.GetData("Samples", ref samples);
-            DA.GetData("Interpolation", ref interpolation);
+            DA.GetData("Alignment", ref m_alignment);
 
-            GlulamData data = new GlulamData(Math.Max(nw, 1), Math.Max(nh, 1), lw, lh, samples);
-            data.InterpolationType = (GlulamData.Interpolation)interpolation;
+            //DA.GetData("Interpolation", ref interpolation);
+            GlulamData data = null;
+
+            if (DataMethod == GlulamDataMethod.Lamella)
+            {
+                double lamella_x = 20, lamella_y = 20;
+                int num_x = 4, num_y = 4;
+
+                DA.GetData("LamellaX", ref lamella_x);
+                DA.GetData("LamellaY", ref lamella_y);
+                DA.GetData("NumX", ref num_x);
+                DA.GetData("NumY", ref num_y);
+
+                data = new GlulamData(Math.Max(num_x, 1), Math.Max(num_y, 1), lamella_x, lamella_y, samples);
+                data.SectionAlignment = (GlulamData.CrossSectionPosition)m_alignment;
+
+                //data.InterpolationType = (GlulamData.Interpolation)interpolation;
+            }
+            else if (DataMethod == GlulamDataMethod.Section)
+            {
+                double m_width = 80.0, m_height = 80.0;
+                double kx = 0, ky = 0;
+                DA.GetData("Width (X)", ref m_width);
+                DA.GetData("Height (Y)", ref m_height);
+
+                DA.GetData("Curvature (X)", ref kx);
+                DA.GetData("Curvature (Y)", ref ky);
+
+                if (m_width < 0) m_width = -m_width;
+                if (m_height < 0) m_height = -m_height;
+
+                if (m_width == 0.0) m_width = 80.0;
+                if (m_height == 0.0) m_height = 80.0;
+
+                double l_width, l_height;
+                if (kx > 0)
+                    l_width = 1 / (Glulam.RadiusMultiplier * kx);
+                else
+                    l_width = m_width;
+
+                if (ky > 0)
+                    l_height = 1 / (Glulam.RadiusMultiplier * ky);
+                else
+                    l_height = m_height;
+
+                int n_width = Math.Max((int)Math.Ceiling(m_width / l_width), 1);
+                int n_height = Math.Max((int)Math.Ceiling(m_height / l_height), 1);
+
+                l_width = m_width / n_width;
+                l_height = m_height / n_height;
+
+                data = new GlulamData(n_width, n_height, l_width, l_height, GlulamData.DefaultCurvatureSamples);
+                data.SectionAlignment = (GlulamData.CrossSectionPosition)m_alignment;
+
+                //data.InterpolationType = (GlulamData.Interpolation)interpolation;
+            }
+
+
 
             DA.SetData("GlulamData", new GH_GlulamData(data));
         }

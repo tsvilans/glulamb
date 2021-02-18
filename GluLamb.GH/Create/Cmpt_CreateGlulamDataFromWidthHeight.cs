@@ -1,4 +1,5 @@
-﻿/*
+﻿#if OBSOLETE
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2020 Tom Svilans
@@ -160,3 +161,4 @@ namespace GluLamb.GH.Components
         }
     }
 }
+#endif
