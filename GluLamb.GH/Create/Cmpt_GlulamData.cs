@@ -62,8 +62,8 @@ namespace GluLamb.GH.Components
         }
 
         GH_ValueList valueList = null;
+        Guid LastValueList = Guid.Empty;
         IGH_Param alignment_parameter = null;
-
 
         public GlulamDataMethod DataMethod = GlulamDataMethod.Section;
         readonly IGH_Param[] parameters = new IGH_Param[8]
@@ -145,27 +145,90 @@ namespace GluLamb.GH.Components
 
         protected override void BeforeSolveInstance()
         {
-            if (valueList == null)
+            if (alignment_parameter.SourceCount > 0)
             {
-                if (alignment_parameter.Sources.Count == 0)
+                var last = alignment_parameter.Sources.Last();
+                if (last.InstanceGuid != LastValueList && last is GH_ValueList)
                 {
-                    valueList = new GH_ValueList();
-                }
-                else
-                {
-                    foreach (var source in alignment_parameter.Sources)
+                    var valueList = last as GH_ValueList;
+                    valueList.ListItems.Clear();
+
+                    var alignmentNames = Enum.GetNames(typeof(GlulamData.CrossSectionPosition));
+                    //var alignmentValues = Enum.GetValues(typeof(GlulamData.CrossSectionPosition));
+
+                    for (int i = 0; i < alignmentNames.Length; ++i)
                     {
-                        if (source is GH_ValueList) valueList = source as GH_ValueList;
-                        return;
+                        valueList.ListItems.Add(new GH_ValueListItem(alignmentNames[i], $"{i}"));
                     }
+
+                    valueList.SelectItem(4);
+                    LastValueList = last.InstanceGuid;
                 }
 
-                valueList.CreateAttributes();
-                valueList.Attributes.Pivot = new PointF(this.Attributes.Pivot.X - 200, this.Attributes.Pivot.Y - 1);
+                alignment_parameter.CollectData();
+            }
+
+            /*
+
+        }
+        foreach (var source in alignment_parameter.Sources)
+        {
+            if (source is GH_ValueList) valueList = source as GH_ValueList;
+            valueList.ListItems.Clear();
+
+            for (int i = 0; i < alignmentNames.Length; ++i)
+            {
+                valueList.ListItems.Add(new GH_ValueListItem(alignmentNames[i], $"{i}"));
+            }
+
+            valueList.SelectItem(4);
+            //return;
+        }
+    }
+    if (valueList == null)
+    {
+        if (alignment_parameter.Sources.Count == 0)
+        {
+            valueList = new GH_ValueList();
+
+            valueList.CreateAttributes();
+            valueList.Attributes.Pivot = new PointF(this.Attributes.Pivot.X - 200, this.Attributes.Pivot.Y - 1);
+            valueList.ListItems.Clear();
+
+            var alignmentNames = Enum.GetNames(typeof(GlulamData.CrossSectionPosition));
+            var alignmentValues = Enum.GetValues(typeof(GlulamData.CrossSectionPosition));
+
+            for (int i = 0; i < alignmentNames.Length; ++i)
+            {
+                valueList.ListItems.Add(new GH_ValueListItem(alignmentNames[i], $"{i}"));
+            }
+
+            valueList.SelectItem(4);
+            Instances.ActiveCanvas.Document.AddObject(valueList, false);
+            alignment_parameter.AddSource(valueList);
+
+        }
+        else
+        {
+            foreach (var source in alignment_parameter.Sources)
+            {
+                if (source is GH_ValueList) valueList = source as GH_ValueList;
+                //return;
+            }
+        }
+
+        alignment_parameter.CollectData();
+    }*/
+        }
+
+        private void AlignmentParameter_ObjectChanged(IGH_DocumentObject sender, GH_ObjectChangedEventArgs e)
+        {
+            if (sender is GH_ValueList)
+            {
+                var valueList = sender as GH_ValueList;
                 valueList.ListItems.Clear();
 
                 var alignmentNames = Enum.GetNames(typeof(GlulamData.CrossSectionPosition));
-                var alignmentValues = Enum.GetValues(typeof(GlulamData.CrossSectionPosition));
 
                 for (int i = 0; i < alignmentNames.Length; ++i)
                 {
@@ -173,10 +236,6 @@ namespace GluLamb.GH.Components
                 }
 
                 valueList.SelectItem(4);
-
-                Instances.ActiveCanvas.Document.AddObject(valueList, false);
-                alignment_parameter.AddSource(valueList);
-                alignment_parameter.CollectData();
             }
         }
 
@@ -239,12 +298,18 @@ namespace GluLamb.GH.Components
 
                 double l_width, l_height;
                 if (kx > 0)
-                    l_width = 1 / (Glulam.RadiusMultiplier * kx);
+                {
+                    l_width = GluLamb.Standards.NoStandard.Instance.CalculateLaminationThickness(kx);
+                    // l_width = 1 / (Glulam.RadiusMultiplier * kx);
+                }
                 else
                     l_width = m_width;
 
                 if (ky > 0)
-                    l_height = 1 / (Glulam.RadiusMultiplier * ky);
+                {
+                    l_height = GluLamb.Standards.NoStandard.Instance.CalculateLaminationThickness(ky);
+                    // l_height = 1 / (Glulam.RadiusMultiplier * ky);
+                }
                 else
                     l_height = m_height;
 
@@ -256,11 +321,8 @@ namespace GluLamb.GH.Components
 
                 data = new GlulamData(n_width, n_height, l_width, l_height, GlulamData.DefaultCurvatureSamples);
                 data.SectionAlignment = (GlulamData.CrossSectionPosition)m_alignment;
-
                 //data.InterpolationType = (GlulamData.Interpolation)interpolation;
             }
-
-
 
             DA.SetData("GlulamData", new GH_GlulamData(data));
         }

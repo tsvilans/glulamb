@@ -30,7 +30,7 @@ using GH_IO;
 namespace GluLamb.GH
 {
 
-    public class GH_Glulam : GH_Goo<Glulam>//, IGH_PreviewData, GH_ISerializable
+    public class GH_Glulam : GH_Goo<Glulam>, /*IGH_PreviewData,*/ GH_ISerializable
     {
         #region Members
         //protected Mesh DisplayMesh = null;

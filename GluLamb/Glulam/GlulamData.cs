@@ -1,7 +1,7 @@
 ﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
- * Copyright 2020 Tom Svilans
+ * Copyright 2021 Tom Svilans
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using Rhino.Collections;
+
+using GluLamb.Standards;
 
 namespace GluLamb
 {
@@ -54,21 +56,43 @@ namespace GluLamb
         public static double DefaultHeight = 80.0;
         public static double DefaultSampleDistance = 50.0;
         public static int DefaultCurvatureSamples = 40;
+        public static int MaxNumWidth = 40;
+        public static int MaxNumHeight = 40;
 
+        /// <summary>
+        /// Number of laminations in the width (X) direction.
+        /// </summary>
         public int NumWidth { get { return Lamellae.GetLength(0); } }
+
+        /// <summary>
+        /// Number of laminations in the height (Y) direction.
+        /// </summary>
         public int NumHeight { get { return Lamellae.GetLength(1); } }
-        public double LamWidth, LamHeight;
+
+        /// <summary>
+        /// Width of the laminations.
+        /// </summary>
+        public double LamWidth;
+        /// <summary>
+        /// Thickness of the laminations
+        /// </summary>
+        public double LamHeight;
         public int Samples;
+
         public Interpolation InterpolationType = Interpolation.LINEAR;
         public CrossSectionPosition SectionAlignment = CrossSectionPosition.MiddleCentre;
-        public Stick[,] Lamellae;
 
+        /// <summary>
+        /// Reference to the individual laminations.
+        /// </summary>
+        public Stick[,] Lamellae;
 
         public static GlulamData Default
         { get { return new GlulamData(); } }
 
-
-        public GlulamData(int num_width = 4, int num_height = 4, double lam_width = 20.0, double lam_height = 20.0, int samples = 50, CrossSectionPosition alignment = CrossSectionPosition.MiddleCentre)
+        public GlulamData(int num_width = 4, int num_height = 4, 
+            double lam_width = 20.0, double lam_height = 20.0, 
+            int samples = 50, CrossSectionPosition alignment = CrossSectionPosition.MiddleCentre)
         {
             Lamellae = new Stick[num_width, num_height];
 
@@ -77,166 +101,151 @@ namespace GluLamb
             Samples = samples;
             SectionAlignment = alignment;
         }
-
         
-        public GlulamData(BeamBase bb, double width, double height, int glulam_samples = 50, int curve_samples = 0)
+        public GlulamData(Beam bb, double width, double height, Standard standard = Standard.Eurocode, int curve_samples = 0, int glulam_samples = 50)
         {
-            GlulamData.GetLamellaSizes(bb, out double lw, out double lh, curve_samples);
-
-            lw = Math.Min(lw, width);
-            lh = Math.Min(lh, height);
-
-            int num_width = (int)Math.Ceiling(width / lw);
-            int num_height = (int)Math.Ceiling(height / lh);
-
-            Lamellae = new Stick[num_width, num_height];
-
-            LamWidth = width / num_width;
-            LamHeight = height / num_height;
-
+            Compute(bb, standard, curve_samples);
+            LamWidth = width / NumWidth;
+            LamHeight = height / NumHeight;
             Samples = glulam_samples;
         }
-        
 
-        
-        public static GlulamData FromBeam(BeamBase bb, double width, double height, int k_samples = 0)
+        public GlulamData Duplicate()
         {
-            return new GlulamData(bb, width, height, (int)(bb.Centreline.GetLength() / DefaultSampleDistance), k_samples);
-        }
-
-
-#if OBSOLETE
-        public static GlulamData FromCurveLimits(Curve c, double width, double height, Plane[] frames = null)
-        {
-            Beam beam = new Lam.Beam(c, null, frames);
-
-            double[] tt = beam.Centreline.DivideByCount(100, true);
-            double maxK = 0.0;
-            int index = 0;
-            Vector3d kvec = Vector3d.Unset;
-            Vector3d temp;
-
-            for (int i = 0; i < tt.Length; ++i)
-            {
-                temp = beam.Centreline.CurvatureAt(tt[i]);
-                if (temp.Length > maxK)
-                {
-                    index = i;
-                    kvec = temp;
-                    maxK = temp.Length;
-                }
-            }
-            Plane frame = beam.GetPlane(tt[index]);
-
-            if (frame == null)
-                throw new Exception("Frame is null!");
-
-            //double max_lam_width = Math.Ceiling(width);
-            //double max_lam_height = Math.Ceiling(height);
-
-            double max_lam_width = width;
-            double max_lam_height = height;
-
-            //double lam_width = Math.Ceiling(Math.Min(1 / (Math.Abs(kvec * frame.XAxis) * Glulam.RadiusMultiplier), max_lam_width));
-            //double lam_height = Math.Ceiling(Math.Min(1 / (Math.Abs(kvec * frame.YAxis) * Glulam.RadiusMultiplier), max_lam_height));
-
-            double lam_width = Math.Min(1 / (Math.Abs(kvec * frame.XAxis) * Glulam.RadiusMultiplier), max_lam_width);
-            double lam_height = Math.Min(1 / (Math.Abs(kvec * frame.YAxis) * Glulam.RadiusMultiplier), max_lam_height);
-
-            if (lam_width == 0.0) lam_width = max_lam_width;
-            if (lam_height == 0.0) lam_height = max_lam_height;
-
             GlulamData data = new GlulamData();
-
-            data.LamHeight = lam_height;
-            data.LamWidth = lam_width;
-            int num_height = (int)(Math.Ceiling(height / lam_height));
-            int num_width = (int)(Math.Ceiling(width / lam_width));
-
-            data.Lamellae = new Stick[num_width, num_height];
-
-            data.Samples = (int)(c.GetLength() / DefaultSampleDistance);
-
-            // I forget why this is here... 
-            if (data.NumHeight * data.LamHeight - height > 20.0)
-                data.LamHeight = Math.Ceiling((height + 10.0) / data.NumHeight);
-            if (data.NumWidth * data.LamWidth - width > 20.0)
-                data.LamWidth = Math.Ceiling((width + 10.0) / data.NumWidth);
+            data.LamHeight = LamHeight;
+            data.LamWidth = LamWidth;
+            data.Samples = Samples;
+            data.SectionAlignment = SectionAlignment;
+            data.InterpolationType = InterpolationType;
+            data.Lamellae = new Stick[NumWidth, NumHeight];
+            Array.Copy(Lamellae, data.Lamellae, Lamellae.Length);
 
             return data;
         }
-#endif
 
-        /// <summary>
-        /// Get lamella widths and heights from input curve and cross-section guide frames.
-        /// </summary>
-        /// <param name="c">Centreline curve.</param>
-        /// <param name="lamella_width">Maximum lamella width.</param>
-        /// <param name="lamella_height">Maximum lamella height</param>
-        /// <param name="frames">Guide frames.</param>
-        /// <param name="k_samples">Number of curvature samples to use.</param>
-        /// <returns>A pair of doubles for maximum curvature in X and Y directions.</returns>
-        public static double[] GetLamellaSizes(BeamBase bb, out double lamella_width, out double lamella_height, int k_samples = 0)
+        public void Compute(Beam beam, Standard standard = Standard.Eurocode, int k_samples = 100)
         {
-            if (bb.Centreline.IsLinear())
-            {
-                lamella_width = double.MaxValue;
-                lamella_height = double.MaxValue;
-                return new double[] { 0, 0 };
-            }
+            // Store the beam dimensions because setting the beam values changes
+            // the dimensions
+            double beamWidth = beam.Width;
+            double beamHeight = beam.Height;
 
-            if (k_samples < 3) k_samples = DefaultCurvatureSamples;
+            if (beamWidth <= 0.0 || beamHeight <= 0.0)
+                throw new Exception("Beam dimensions cannot be 0.");
 
-            double[] tt = bb.Centreline.DivideByCount(k_samples, false);
-
-            double maxK = 0.0;
-            int index = 0;
-            Vector3d kvec = Vector3d.Unset;
-            Vector3d tVec;
+            double tempLamWidth, tempLamHeight;
 
             double maxKX = 0.0;
             double maxKY = 0.0;
-            double dotKX, dotKY;
-            Plane tPlane;
 
-            for (int i = 0; i < tt.Length; ++i)
+            if (!beam.Centreline.IsLinear())
             {
-                tVec = bb.Centreline.CurvatureAt(tt[i]);
-                tPlane = bb.GetPlane(tt[i]);
+                if (k_samples < 3) k_samples = DefaultCurvatureSamples;
 
-                dotKX = Math.Abs(tVec * tPlane.XAxis);
-                dotKY = Math.Abs(tVec * tPlane.YAxis);
+                double[] tt = beam.Centreline.DivideByCount(k_samples, false);
 
-                maxKX = Math.Max(dotKX, maxKX);
-                maxKY = Math.Max(dotKY, maxKY);
+                double maxK = 0.0;
+                int index = 0;
+                Vector3d kvec = Vector3d.Unset;
+                Vector3d tVec;
 
-                if (tVec.Length > maxK)
+
+                double dotKX, dotKY;
+                Plane tPlane;
+
+                for (int i = 0; i < tt.Length; ++i)
                 {
-                    index = i;
-                    kvec = tVec;
-                    maxK = tVec.Length;
+                    tVec = beam.Centreline.CurvatureAt(tt[i]);
+                    tPlane = beam.GetPlane(tt[i]);
+
+                    dotKX = Math.Abs(tVec * tPlane.XAxis);
+                    dotKY = Math.Abs(tVec * tPlane.YAxis);
+
+                    maxKX = Math.Max(dotKX, maxKX);
+                    maxKY = Math.Max(dotKY, maxKY);
+
+                    if (tVec.Length > maxK)
+                    {
+                        index = i;
+                        kvec = tVec;
+                        maxK = tVec.Length;
+                    }
                 }
+
+                // Decrease the radius of curvature by half of the beam
+                // dimensions to get the curvature at the inner face.
+                // Could be made redundant if CalculateLaminationThickness
+                // used radius of curvature instead.
+                maxKX = 1 / ((1 / maxKX) - beamWidth / 2);
+                maxKY = 1 / ((1 / maxKY) - beamHeight / 2);
             }
 
-            if (maxKX == 0.0)
-                lamella_width = double.MaxValue;
-            else
-                lamella_width = 1 / maxKX / Glulam.RadiusMultiplier;
+            switch (standard)
+            {
+                case (Standard.Eurocode):
+                    tempLamWidth = Eurocode.Instance.CalculateLaminationThickness(maxKX);
+                    tempLamHeight = Eurocode.Instance.CalculateLaminationThickness(maxKY);
+                    break;
+                case (Standard.APA):
+                    tempLamWidth = ANSI.Instance.CalculateLaminationThickness(maxKX);
+                    tempLamHeight = ANSI.Instance.CalculateLaminationThickness(maxKY);
+                    break;
+                case (Standard.CSA):
+                    tempLamWidth = CSA.Instance.CalculateLaminationThickness(maxKX);
+                    tempLamHeight = CSA.Instance.CalculateLaminationThickness(maxKY);
+                    break;
+                default:
+                    tempLamWidth = NoStandard.Instance.CalculateLaminationThickness(maxKX);
+                    tempLamHeight = NoStandard.Instance.CalculateLaminationThickness(maxKY);
+                    break;
+            }
 
-            if (maxKY == 0.0)
-                lamella_height = double.MaxValue;
-            else
-                lamella_height = 1 / maxKY / Glulam.RadiusMultiplier;
+            // Check that the lamination dimensions don't exceed the total dimensions
+            tempLamWidth = Math.Min(tempLamWidth, beamWidth);
+            tempLamHeight = Math.Min(tempLamHeight, beamHeight);
 
-            return new double[] { maxKX, maxKY };
+            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(beamWidth / tempLamWidth));
+            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(beamHeight / tempLamHeight));
 
+            // Recalculate number of laminations needed to make up the total dimensions
+            // Lamellae.ResizeArray(tempNumWidth, tempNumHeight);
+            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+
+            // Resize the laminations so that they add up to the total dimensions
+            LamWidth = beamWidth / tempNumWidth;
+            LamHeight = beamHeight / tempNumHeight;
+
+            // After this you would run it through AdjustLaminationDimensions(GluLamb.Factory.LamellaFactory factory) to constrain the lamella dimensions
+            // to available sizes. 
         }
+
+        public void AdjustLaminationDimensions(GluLamb.Factory.LamellaFactory factory)
+        {
+            // Get current dimensions of cross-section
+            double width = LamWidth * NumWidth;
+            double height = LamHeight * NumHeight;
+
+            // Get closest available lamination dimensions
+            double lamination_width = factory.GetWidth(LamWidth);
+            double lamination_height = factory.GetHeight(LamHeight);
+
+            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(width / lamination_width));
+            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(height / lamination_height));
+
+            // Adjust number of laminations to cover current cross-section dimensions
+            //Lamellae.ResizeArray((int)Math.Ceiling(width / lamination_width), (int)Math.Ceiling(height / lamination_height));
+            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+            LamWidth = lamination_width;
+            LamHeight = lamination_height;
+        }
+
         public string Species
         {
             get
             {
                 bool init = false;
-                string species = "None";
+                string species = "Homogeneous";
 
                 foreach (Stick lamella in Lamellae)
                 {
@@ -279,19 +288,13 @@ namespace GluLamb
             }
         }
 
-        public GlulamData Duplicate()
+        public override string ToString()
         {
-            GlulamData data = new GlulamData();
-            data.LamHeight = LamHeight;
-            data.LamWidth = LamWidth;
-            data.Samples = Samples;
-            data.SectionAlignment = SectionAlignment;
-            data.InterpolationType = InterpolationType;
-            data.Lamellae = new Stick[NumWidth, NumHeight];
-            Array.Copy(Lamellae, data.Lamellae, Lamellae.Length);
-
-            return data;
+            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumHeight} nh {NumHeight} s {Samples} sa {SectionAlignment} ]";
         }
+
+
+#if OBSOLETE
 
         public byte[] ToByteArray()
         {
@@ -324,6 +327,6 @@ namespace GluLamb
 
             return data;
         }
+#endif
     }
-
 }

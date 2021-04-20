@@ -34,7 +34,7 @@ namespace GluLamb
         DoubleCurved
     }
 
-    public abstract partial class Glulam : BeamBase
+    public abstract partial class Glulam : Beam
     {
         public static double RadiusMultiplier = 200.0;  // This is the Eurocode 5 formula: lamella thickness cannot exceed 1/200th of the curvature radius.
         public static int CurvatureSamples = 100;       // Number of samples to samples curvature at.
@@ -61,7 +61,7 @@ namespace GluLamb
         /// <summary>
         /// Get total width of glulam.
         /// </summary>
-        public double Width
+        public override double Width
         {
             get
             {
@@ -71,14 +71,13 @@ namespace GluLamb
         /// <summary>
         /// Get total height of glulam.
         /// </summary>
-        public double Height
+        public override double Height
         {
             get
             {
                 return Data.LamHeight * Data.NumHeight;
             }
         }
-
 
         public Dictionary<string, object> GetProperties()
         {
@@ -108,42 +107,6 @@ namespace GluLamb
             return props;
         }
 
-#if OBSOLETE
-        public ArchivableDictionary GetArchivableDictionary()
-        {
-            ArchivableDictionary ad = new ArchivableDictionary();
-
-            ad.Set("id", ID);
-            ad.Set("centreline", Centreline);
-            ad.Set("width", Width);
-            ad.Set("height", Height);
-            ad.Set("length", Centreline.GetLength());
-            ad.Set("lamella_width", Data.LamWidth);
-            ad.Set("lamella_height", Data.LamHeight);
-            ad.Set("lamella_count_width", Data.NumWidth);
-            ad.Set("lamella_count_height", Data.NumHeight);
-            ad.Set("volume", GetVolume());
-            ad.Set("samples", Data.Samples);
-
-            //var planes = GetAllPlanes();
-            //ArchivableDictionary pd = new ArchivableDictionary();
-
-            //for (int i = 0; i < planes.Length; ++i)
-            //{
-            //    pd.Set(string.Format("Frame_{0}", i), planes[i]);
-            //}
-            //ad.Set("frames", pd);
-
-            double max_kw = 0.0, max_kh = 0.0;
-            ad.Set("max_curvature", GetMaxCurvature(ref max_kw, ref max_kh));
-            ad.Set("max_curvature_width", max_kw);
-            ad.Set("max_curvature_height", max_kh);
-            ad.Set("type", ToString());
-            ad.Set("type_id", (int)Type());
-
-            return ad;
-        }
-#endif
         public override bool Equals(object obj)
         {
             if (obj is Glulam && (obj as Glulam).Id == Id)

@@ -1,7 +1,7 @@
 ﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
- * Copyright 2020 Tom Svilans
+ * Copyright 2021 Tom Svilans
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,29 +18,27 @@
  */
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace GluLamb
+namespace GluLamb.Standards
 {
     /// <summary>
-    /// An individual lamination in a glulam.
+    /// The CSA standard (CSA). 
     /// </summary>
-    public class Stick
+
+    public class CSA : StandardBase<CSA>
     {
-        public string Species = "Spruce";
-        public Guid Reference;
-
-        public Stick(string species = "Spruce")
+        /// <summary>
+        /// From CAN/CSA-O122-16 (R2021) TODO
+        /// </summary>
+        /// <param name="curvature">Maximum curvature on inner face.</param>
+        /// <returns>Maximum lamination thickness.</returns>
+        public override double CalculateLaminationThickness(double curvature)
         {
-            if (!string.IsNullOrWhiteSpace(species))
-                Species = species;
-            Reference = Guid.Empty;
-        }
-
-        public Stick(Guid reference, string species = "Spruce")
-        {
-            if (!string.IsNullOrWhiteSpace(species))
-                Species = species;
-            Reference = reference;
+            throw new NotImplementedException();
         }
     }
 }

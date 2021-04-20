@@ -1,7 +1,7 @@
 ﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
- * Copyright 2020 Tom Svilans
+ * Copyright 2021 Tom Svilans
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,29 +18,34 @@
  */
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace GluLamb
+namespace GluLamb.Standards
 {
-    /// <summary>
-    /// An individual lamination in a glulam.
-    /// </summary>
-    public class Stick
+    public enum Standard
     {
-        public string Species = "Spruce";
-        public Guid Reference;
+        None,
+        APA,
+        Eurocode,
+        CSA
+    }
+    public class StandardBase<T> where T : class, new()
+    {
+        protected StandardBase() { }
+        public static T instance;
 
-        public Stick(string species = "Spruce")
+        public static T Instance
         {
-            if (!string.IsNullOrWhiteSpace(species))
-                Species = species;
-            Reference = Guid.Empty;
+            get
+            {
+                if (instance == null)
+                    instance = new T();
+                return instance;
+            }
         }
-
-        public Stick(Guid reference, string species = "Spruce")
-        {
-            if (!string.IsNullOrWhiteSpace(species))
-                Species = species;
-            Reference = reference;
-        }
+        public virtual double CalculateLaminationThickness(double curvature) { return double.NaN; }
     }
 }

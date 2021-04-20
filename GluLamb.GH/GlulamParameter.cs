@@ -54,12 +54,12 @@ namespace GluLamb.GH
 
     }
 
-    public class GlulamDataParamater : GH_PersistentParam<GH_GlulamData>
+    public class GlulamDataParameter : GH_PersistentParam<GH_GlulamData>
     {
-        public GlulamDataParamater() : this("GlulamData parameter", "GlulamData", "This is a glulam.", "GluLamb", "Parameters") { }
-        public GlulamDataParamater(string name, string nickname, string description, string category, string subcategory)
+        public GlulamDataParameter() : this("GlulamData parameter", "GlulamData", "This is a glulam.", "GluLamb", "Parameters") { }
+        public GlulamDataParameter(string name, string nickname, string description, string category, string subcategory)
             : base(name, nickname, description, category, subcategory) { }
-        public GlulamDataParamater(GH_InstanceDescription tag) : base(tag) { }
+        public GlulamDataParameter(GH_InstanceDescription tag) : base(tag) { }
 
         //public override GH_Exposure Exposure => GH_Exposure.secondary;
         protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamData_24x24;

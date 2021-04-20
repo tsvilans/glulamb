@@ -21,6 +21,7 @@ namespace GluLamb
         public string Name;
         public Element ElementA, ElementB;
         public double ParameterA, ParameterB;
+        public Plane Plane; // Optional plane for precise positioning
 
         public Connection(Element eleA, Element eleB, double positionA, double positionB, string name = "")
         {
@@ -29,6 +30,7 @@ namespace GluLamb
             ParameterA = positionA;
             ParameterB = positionB;
             Name = name;
+            Plane = Plane.Unset;
         }
 
         public static void Disconnect(Connection conn)

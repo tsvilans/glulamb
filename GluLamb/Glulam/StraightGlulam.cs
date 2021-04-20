@@ -29,6 +29,10 @@ namespace GluLamb
 {
     public class StraightGlulam : Glulam
     {
+        public StraightGlulam() : base()
+        {
+
+        }
         public StraightGlulam(Curve curve, CrossSectionOrientation orientation, GlulamData data) : base()
         {
             Data = data.Duplicate();

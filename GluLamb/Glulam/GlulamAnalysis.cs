@@ -27,7 +27,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
-    public abstract partial class Glulam : BeamBase
+    public abstract partial class Glulam : Beam
     {
         /*
         public abstract void CalculateLamellaSizes(double width, double height);

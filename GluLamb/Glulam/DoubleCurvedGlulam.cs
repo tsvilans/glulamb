@@ -29,6 +29,10 @@ namespace GluLamb
 {
     public class DoubleCurvedGlulam : FreeformGlulam
     {
+        public DoubleCurvedGlulam() : base()
+        {
+
+        }
 
         public DoubleCurvedGlulam(Curve curve, CrossSectionOrientation orientation, GlulamData data) : base()
         {

@@ -1,7 +1,7 @@
 ﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
- * Copyright 2020 Tom Svilans
+ * Copyright 2021 Tom Svilans
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,20 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
-    public abstract class BeamBase
+    public class Beam
     {
-        public Curve Centreline { get; protected set; }
+        public Beam() { }
+        public virtual double Width
+        {
+            get; set;
+        }
+
+        public virtual double Height
+        {
+            get; set;
+        }
+
+        public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation;
 
         public Plane GetPlane(double t) => Utility.PlaneFromNormalAndYAxis(
@@ -45,6 +56,35 @@ namespace GluLamb
         {
             Centreline.Transform(x);
             Orientation.Transform(x);
+        }
+
+        public Point3d[] ToBeamSpace(IList<Point3d> pts)
+        {
+            Point3d[] m_output_pts = new Point3d[pts.Count];
+
+            Plane m_plane;
+            Point3d m_temp;
+            double t;
+            for (int i = 0; i < pts.Count; ++i)
+            {
+                Centreline.ClosestPoint(pts[i], out t);
+                m_plane = GetPlane(t);
+                m_plane.RemapToPlaneSpace(pts[i], out m_temp);
+                m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
+
+                m_output_pts[i] = m_temp;
+            }
+
+            return m_output_pts;
+        }
+
+        public Mesh ToBeamSpace(Mesh mesh)
+        {
+            Mesh m_mesh = mesh.DuplicateMesh();
+            m_mesh.Vertices.Clear();
+            m_mesh.Vertices.AddVertices(ToBeamSpace(mesh.Vertices.ToPoint3dArray()));
+
+            return m_mesh;
         }
 
     }

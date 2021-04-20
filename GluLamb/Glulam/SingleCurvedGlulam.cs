@@ -29,6 +29,10 @@ namespace GluLamb
 {
     public class SingleCurvedGlulam : FreeformGlulam
     {
+        public SingleCurvedGlulam() : base()
+        {
+
+        }
         public SingleCurvedGlulam(Curve curve, CrossSectionOrientation orientation, GlulamData data) : base()
         {
             Data = data.Duplicate();

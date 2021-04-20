@@ -98,15 +98,15 @@ namespace GluLamb
 
     public class BeamElement : Element
     {
-        public BeamBase Beam;
+        public Beam Beam;
 
-        public BeamElement(BeamBase beam, string name="BeamElement") : base(name)
+        public BeamElement(Beam beam, string name="BeamElement") : base(name)
         {
             Beam = beam;
             m_plane = Beam.GetPlane(Beam.Centreline.Domain.Mid);
         }
 
-        public BeamElement(BeamBase beam, Plane handle, string name = "BeamElement") : base(handle, name)
+        public BeamElement(Beam beam, Plane handle, string name = "BeamElement") : base(handle, name)
         {
             Beam = beam;
         }

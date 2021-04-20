@@ -198,7 +198,7 @@ namespace GluLamb.GH.Components
             AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, orientation.ToString());
 
             GlulamData data = ParseGlulamData(r_data);
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, GlulamDataToString(data));
+            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, data.ToString());
 
             data.Samples = (int)Math.Ceiling(crv.GetLength() / GlulamData.DefaultSampleDistance);
 
@@ -206,11 +206,6 @@ namespace GluLamb.GH.Components
 
 
             DA.SetData("Glulam", new GH_Glulam(glulam));
-        }
-
-        protected string GlulamDataToString(GlulamData data)
-        {
-            return $"GlulamData [ lw {data.LamWidth} lh {data.LamHeight} nw {data.NumHeight} nh {data.NumHeight} s {data.Samples} sa {data.SectionAlignment} ]";
         }
 
         protected override System.Drawing.Bitmap Icon
