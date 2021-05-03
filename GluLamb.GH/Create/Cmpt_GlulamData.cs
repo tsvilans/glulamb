@@ -28,6 +28,7 @@ using Grasshopper.Kernel.Parameters;
 using Grasshopper.Kernel.Special;
 
 using Rhino.Geometry;
+using GH_IO.Serialization;
 
 namespace GluLamb.GH.Components
 {
@@ -327,6 +328,20 @@ namespace GluLamb.GH.Components
             DA.SetData("GlulamData", new GH_GlulamData(data));
         }
 
+        public override bool Read(GH_IReader reader)
+        {
+            int data_method = 0;
+            reader.TryGetInt32("DataMethod", ref data_method);
+            DataMethod = (GlulamDataMethod)data_method;
+
+            return base.Read(reader);
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            writer.SetInt32("DataMethod", (int)DataMethod);
+            return base.Write(writer);
+        }
         protected override System.Drawing.Bitmap Icon
         {
             get

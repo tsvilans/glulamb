@@ -63,29 +63,29 @@ namespace GluLamb.GH.Components
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, single.ToString());
 
                 if (single is Point3d)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace((Point3d)single) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace((Point3d)single) });
                 else if (single is GH_Point)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace((single as GH_Point).Value) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace((single as GH_Point).Value) });
                 else if (single is Plane)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace((Plane)single) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace((Plane)single) });
                 else if (single is GH_Plane)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace((single as GH_Plane).Value) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace((single as GH_Plane).Value) });
                 if (single is GH_Mesh)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace((single as GH_Mesh).Value) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace((single as GH_Mesh).Value) });
                 if (single is Mesh)
-                    DA.SetDataList("Geometry", new object[] { g.MapToGlulamSpace(single as Mesh) });
+                    DA.SetDataList("Geometry", new object[] { g.ToBeamSpace(single as Mesh) });
 
                 return;
             }
 
             if (input.First() is GH_Plane)
-                DA.SetDataList("Geometry", g.MapToGlulamSpace(input.Select(x => (x as GH_Plane).Value).ToList()));
+                DA.SetDataList("Geometry", g.ToBeamSpace(input.Select(x => (x as GH_Plane).Value).ToList()));
             else if (input.First() is Plane)
-                DA.SetDataList("Geometry", g.MapToGlulamSpace(input.Select(x => (Plane)x).ToList()));
+                DA.SetDataList("Geometry", g.ToBeamSpace(input.Select(x => (Plane)x).ToList()));
             else if (input.First() is GH_Point)
-                DA.SetDataList("Geometry", g.MapToGlulamSpace(input.Select(x => (x as GH_Point).Value).ToList()));
+                DA.SetDataList("Geometry", g.ToBeamSpace(input.Select(x => (x as GH_Point).Value).ToList()));
             else if (input.First() is Point3d)
-                DA.SetDataList("Geometry", g.MapToGlulamSpace(input.Select(x => (Point3d)x).ToList()));
+                DA.SetDataList("Geometry", g.ToBeamSpace(input.Select(x => (Point3d)x).ToList()));
         }
 
 
