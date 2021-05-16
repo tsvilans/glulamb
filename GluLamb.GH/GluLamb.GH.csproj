@@ -69,6 +69,7 @@
     <Compile Include="Analyze\Cmpt_GlulamParameters.cs" />
     <Compile Include="Analyze\Cmpt_MeshGrainDeviation.cs" />
     <Compile Include="Analyze\Cmpt_MeshGrainDirection.cs" />
+    <Compile Include="Create\Cmpt_CreateGlulamBeamElement.cs" />
     <Compile Include="Create\Cmpt_CreateGlulam.cs" />
     <Compile Include="Create\Cmpt_CreateGlulamDataFromWidthHeight.cs" />
     <Compile Include="Create\Cmpt_GlulamData.cs" />
