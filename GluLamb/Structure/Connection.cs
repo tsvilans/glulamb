@@ -39,7 +39,7 @@ namespace GluLamb
             conn.ElementB.Connections.Remove(conn);
         }
 
-        public Line Discretize()
+        public Line Discretize(bool adaptive=true)
         {
             return new Line(
               ElementA.GetConnectionPoint(ParameterA),

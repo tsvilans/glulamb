@@ -15,7 +15,7 @@ namespace GluLamb
         public List<Plane> Handles;
 
         protected Plane m_plane;
-        public GeometryBase Geometry;
+        public GeometryBase m_geometry;
         public ArchivableDictionary UserDictionary;
 
         public Element(string name = "")
@@ -24,7 +24,7 @@ namespace GluLamb
             Handles = new List<Plane>();
             Name = name;
             m_plane = Plane.WorldXY;
-            Geometry = null;
+            m_geometry = null;
             UserDictionary = new ArchivableDictionary();
         }
 
@@ -43,6 +43,18 @@ namespace GluLamb
             return this;
         }
 
+        public virtual GeometryBase Geometry
+        {
+            get
+            {
+                return m_geometry;
+            }
+            set
+            {
+                m_geometry = value;
+            }
+        }
+
         public Plane Handle
         {
             get
@@ -55,7 +67,7 @@ namespace GluLamb
             }
         }
 
-        public virtual GeometryBase Discretize(double length)
+        public virtual GeometryBase Discretize(double length, bool adaptive = true)
         {
             return null;
         }
@@ -111,9 +123,27 @@ namespace GluLamb
             Beam = beam;
         }
 
-        public override GeometryBase Discretize(double length)
+        public override GeometryBase Geometry
         {
-            var t = Beam.Centreline.DivideByLength(length, false).ToList();
+            get
+            {
+                if (Beam is Glulam && m_geometry == null)
+                    return (Beam as Glulam).ToBrep();
+                return m_geometry;
+            }
+            set
+            {
+                m_geometry = value;
+            }
+        }
+
+        public override GeometryBase Discretize(double length, bool adaptive=true)
+        {
+            List<double> t = new List<double>();
+            if (!Beam.Centreline.IsLinear())
+            {
+                t.AddRange(Beam.Centreline.DivideByLength(length, false));
+            }
 
             t.Insert(0, Beam.Centreline.Domain.Min);
             t.Add(Beam.Centreline.Domain.Max);
@@ -126,9 +156,9 @@ namespace GluLamb
                     t.Add(conn.ParameterB);
             }
 
-            t.Sort();
-
+                t.Sort();
             return new PolylineCurve(t.Select(x => Beam.Centreline.PointAt(x)));
+            
         }
 
         public override Point3d GetConnectionPoint(double t)

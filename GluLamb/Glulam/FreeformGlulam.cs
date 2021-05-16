@@ -47,6 +47,10 @@ namespace GluLamb
 
             //PolylineCurve discrete = curve.ToPolyline(Glulam.Tolerance * 10, Glulam.AngleTolerance, 0.0, 0.0);
             PolylineCurve discrete = curve.ToPolyline(multiplier * Tolerance, AngleTolerance, multiplier * MininumSegmentLength, curve.GetLength() / MinimumNumSegments);
+            if (discrete == null)
+            {
+                discrete = new PolylineCurve(new Point3d[] { curve.PointAtStart, curve.PointAtEnd });
+            }
 
             if (discrete.TryGetPolyline(out Polyline discrete2))
             {
