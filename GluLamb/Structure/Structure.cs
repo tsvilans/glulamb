@@ -57,14 +57,14 @@ namespace GluLamb
             return structure;
         }
 
-        public List<object> Discretize(double length)
+        public List<object> Discretize(double length, bool adaptive = true)
         {
             var segments = new List<object>();
 
             foreach (var ele in Elements)
-                segments.Add(ele.Discretize(length));
+                segments.Add(ele.Discretize(length, adaptive));
             foreach (var conn in Connections)
-                segments.Add(conn.Discretize());
+                segments.Add(conn.Discretize(adaptive));
 
             return segments;
         }
