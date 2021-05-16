@@ -22,6 +22,7 @@ namespace GluLamb
         public Element ElementA, ElementB;
         public double ParameterA, ParameterB;
         public Plane Plane; // Optional plane for precise positioning
+        public List<Brep> Geometry; // Optional geometry to associate with this connection
 
         public Connection(Element eleA, Element eleB, double positionA, double positionB, string name = "")
         {
@@ -31,6 +32,7 @@ namespace GluLamb
             ParameterB = positionB;
             Name = name;
             Plane = Plane.Unset;
+            Geometry = new List<Brep>();
         }
 
         public static void Disconnect(Connection conn)
