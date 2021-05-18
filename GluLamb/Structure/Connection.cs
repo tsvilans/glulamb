@@ -12,8 +12,10 @@ namespace GluLamb
         public static Connection Connect(Element eleA, Element eleB, double posA, double posB, string name = "")
         {
             var connection = new Connection(eleA, eleB, posA, posB, name);
-            eleA.Connections.Add(connection);
-            eleB.Connections.Add(connection);
+            if (eleA != null)
+                eleA.Connections.Add(connection);
+            if (eleB != null)
+                eleB.Connections.Add(connection);
 
             return connection;
         }
@@ -37,15 +39,19 @@ namespace GluLamb
 
         public static void Disconnect(Connection conn)
         {
-            conn.ElementA.Connections.Remove(conn);
-            conn.ElementB.Connections.Remove(conn);
+            if (conn.ElementA != null)
+                conn.ElementA.Connections.Remove(conn);
+            if (conn.ElementB != null)
+                conn.ElementB.Connections.Remove(conn);
         }
 
         public Line Discretize(bool adaptive=true)
         {
-            return new Line(
-              ElementA.GetConnectionPoint(ParameterA),
-              ElementB.GetConnectionPoint(ParameterB));
+            if (ElementA != null && ElementB != null)
+                return new Line(
+                  ElementA.GetConnectionPoint(ParameterA),
+                  ElementB.GetConnectionPoint(ParameterB));
+            return Line.Unset;
         }
     }
 }
