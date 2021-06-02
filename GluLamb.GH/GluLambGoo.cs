@@ -434,4 +434,94 @@ namespace GluLamb.GH
         #endregion
 
     }
+
+    public class GH_Log : GH_Goo<Log>, /*IGH_PreviewData,*/ GH_ISerializable
+    {
+        #region Members
+        //protected Mesh DisplayMesh = null;
+        #endregion
+
+        #region Constructors
+        public GH_Log() : this(null) { }
+        public GH_Log(Log native) { this.Value = native; }
+
+        public override IGH_Goo Duplicate()
+        {
+            if (Value == null)
+                return new GH_Log();
+            else
+                return new GH_Log(Value.Duplicate());
+        }
+        #endregion
+
+        public static Log ParseLog(object obj)
+        {
+            if (obj is GH_Log)
+                return (obj as GH_Log).Value;
+            else
+                return obj as Log;
+        }
+        public override string ToString()
+        {
+            if (Value == null) return "Null log";
+            return Value.ToString();
+        }
+
+        public override string TypeName => "LogGoo";
+        public override string TypeDescription => "LogGoo";
+        public override object ScriptVariable() => Value;
+
+        public override bool IsValid
+        {
+            get
+            {
+                if (Value == null) return false;
+                return true;
+            }
+        }
+        public override string IsValidWhyNot
+        {
+            get
+            {
+                if (Value == null) return "No data";
+                return string.Empty;
+            }
+        }
+
+        #region Casting
+        public override bool CastFrom(object source)
+        {
+            if (source == null) return false;
+            if (source is Log log)
+            {
+                Value = log;
+                return true;
+            }
+            if (source is GH_Log ghLog)
+            {
+                Value = ghLog.Value;
+                return true;
+            }
+            return false;
+        }
+
+
+        public override bool CastTo<Q>(ref Q target)
+        {
+            if (Value == null) return false;
+
+            if (typeof(Q).IsAssignableFrom(typeof(GH_Mesh)))
+            {
+                object mesh = new GH_Mesh(Value.Mesh);
+
+                target = (Q)mesh;
+                return true;
+            }
+
+            return false;
+        }
+
+        #endregion
+
+    }
 }
