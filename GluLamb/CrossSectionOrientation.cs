@@ -39,7 +39,7 @@ namespace GluLamb
             return GetOrientation(crv, t);
         }
 
-        public abstract List<Vector3d> GetOrientations(Curve crv, IList<double> t);
+        public abstract Vector3d[] GetOrientations(Curve crv, IList<double> t);
 
         public abstract void Remap(Curve old_curve, Curve new_curve);
 
@@ -98,9 +98,9 @@ namespace GluLamb
             return NormalizeVector(crv, t, m_vector);
         }
 
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => GetOrientation(crv, x)).ToList();
+            return t.Select(x => GetOrientation(crv, x)).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)
@@ -363,9 +363,9 @@ namespace GluLamb
         /// <param name="crv"></param>
         /// <param name="t"></param>
         /// <returns></returns>
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => GetOrientation(crv, x)).ToList();
+            return t.Select(x => GetOrientation(crv, x)).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)
@@ -602,9 +602,9 @@ namespace GluLamb
         }
 
 
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => GetOrientation(crv, x)).ToList();
+            return t.Select(x => GetOrientation(crv, x)).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)
@@ -673,9 +673,9 @@ namespace GluLamb
             return NormalizeVector(crv, t, v);
         }
 
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => GetOrientation(crv, x)).ToList();
+            return t.Select(x => GetOrientation(crv, x)).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)
@@ -723,11 +723,11 @@ namespace GluLamb
             k.Unitize();
             return k;
         }
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            var v = t.Select(x => GetOrientation(crv, x)).ToList();
+            var v = t.Select(x => GetOrientation(crv, x)).ToArray();
             if (t.Count > 0)
-                for (int i = 1; i < v.Count; ++i)
+                for (int i = 1; i < v.Length; ++i)
                 {
                     if (v[i] * v[i - 1] < 0)
                         v[i].Reverse();
@@ -789,13 +789,13 @@ namespace GluLamb
 
             return crv.GetPerpendicularFrames(new double[] { crv.Domain.Min, t })[1].YAxis;
         }
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
             IEnumerable<double> sorted_t = t.OrderBy(x => x).Where(y => crv.Domain.IncludesParameter(y));
             try
             {
                 Plane[] planes = crv.GetPerpendicularFrames(sorted_t);
-                return planes.Select(x => x.YAxis).ToList();
+                return planes.Select(x => x.YAxis).ToArray();
             }
             catch
             {
@@ -852,9 +852,9 @@ namespace GluLamb
         {
             return Vector3d.CrossProduct(Plane.Normal, crv.TangentAt(t));
         }
-        public override List<Vector3d> GetOrientations(Curve crv, IList<double> t)
+        public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => Vector3d.CrossProduct(Plane.Normal, crv.TangentAt(x))).ToList();
+            return t.Select(x => Vector3d.CrossProduct(Plane.Normal, crv.TangentAt(x))).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)

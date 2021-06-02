@@ -47,11 +47,51 @@ namespace GluLamb
                                                         Centreline.PointAt(t),
                                                         Centreline.TangentAt(t),
                                                         Orientation.GetOrientation(Centreline, t));
+
+        public Plane[] GetPlanes(IList<double> tt)
+        {
+            var orientations = Orientation.GetOrientations(Centreline, tt);
+            var planes = new Plane[tt.Count];
+
+            Parallel.For(0, tt.Count, i =>
+            {
+                planes[i] = Utility.PlaneFromNormalAndYAxis(
+                    Centreline.PointAt(tt[i]),
+                    Centreline.TangentAt(tt[i]),
+                    orientations[i]);
+
+            });
+
+            return planes;
+        }
+        public Plane[] GetPlanes(IList<Point3d> pts)
+        {
+            var tt = new double[pts.Count];
+            Parallel.For(0, pts.Count, i =>
+            {
+                Centreline.ClosestPoint(pts[i], out tt[i]);
+            });
+
+            var orientations = Orientation.GetOrientations(Centreline, tt);
+            var planes = new Plane[tt.Length];
+
+            Parallel.For(0, tt.Length, i =>
+            {
+                planes[i] = Utility.PlaneFromNormalAndYAxis(
+                    Centreline.PointAt(tt[i]),
+                    Centreline.TangentAt(tt[i]),
+                    orientations[i]);
+            });
+
+            return planes;
+        }
+
         public Plane GetPlane(Point3d pt)
         {
             Centreline.ClosestPoint(pt, out double t);
             return GetPlane(t);
         }
+
         public void Transform(Transform x)
         {
             Centreline.Transform(x);
@@ -84,21 +124,67 @@ namespace GluLamb
             return plane;
         }
 
-        public Point3d[] ToBeamSpace(IList<Point3d> pts)
+        public Point3d[] ToBeamSpace(IList<Point3d> pts, bool approximate=false, int num_samples=100)
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
 
             Plane m_plane;
             Point3d m_temp;
             double t;
-            for (int i = 0; i < pts.Count; ++i)
-            {
-                Centreline.ClosestPoint(pts[i], out t);
-                m_plane = GetPlane(t);
-                m_plane.RemapToPlaneSpace(pts[i], out m_temp);
-                m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
 
-                m_output_pts[i] = m_temp;
+            if (approximate)
+            {
+                double mu;
+
+                var tt = Centreline.DivideByCount(num_samples, true);
+                var lengths = tt.Select(x => Centreline.GetLength(new Interval(Centreline.Domain.Min, x))).ToArray();
+
+                //for (int i = 0; i < pts.Count; ++i)
+                Parallel.For(0, pts.Count, i =>
+
+                {
+                    Centreline.ClosestPoint(pts[i], out t);
+                    m_plane = GetPlane(t);
+                    m_plane.RemapToPlaneSpace(pts[i], out m_temp);
+
+                    var res = Array.BinarySearch(tt, t);
+                    if (res < 0)
+                    {
+                        res = ~res;
+                        res--;
+                    }
+
+                    if (res >= 0 && res < tt.Length - 1)
+                    {
+                        mu = (t - tt[res]) / (tt[res + 1] - tt[res]);
+                        m_temp.Z = Interpolation.Lerp(lengths[res], lengths[res + 1], mu);
+                    }
+                    else if (res < 0)
+                    {
+                        m_temp.Z = lengths.First();
+                    }
+                    else if (res >= (tt.Length - 1))
+                    {
+                        m_temp.Z = lengths.Last();
+                    }
+
+                    m_output_pts[i] = m_temp;
+                }
+                );
+            }
+            else
+            {
+                //for (int i = 0; i < pts.Count; ++i)
+                Parallel.For(0, pts.Count, i =>
+                {
+                    Centreline.ClosestPoint(pts[i], out t);
+                    m_plane = GetPlane(t);
+                    m_plane.RemapToPlaneSpace(pts[i], out m_temp);
+                    m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
+
+                    m_output_pts[i] = m_temp;
+                }
+                );
             }
 
             return m_output_pts;
