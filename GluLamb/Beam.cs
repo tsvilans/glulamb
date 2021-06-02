@@ -41,7 +41,7 @@ namespace GluLamb
         }
 
         public Curve Centreline { get; set; }
-        public CrossSectionOrientation Orientation;
+        public CrossSectionOrientation Orientation { get; set; }
 
         public Plane GetPlane(double t) => Utility.PlaneFromNormalAndYAxis(
                                                         Centreline.PointAt(t),
@@ -229,19 +229,58 @@ namespace GluLamb
         public Point3d[] FromBeamSpace(IList<Point3d> pts)
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
+            /*
+            double min_z = double.MaxValue;
+            double max_z = double.MinValue;
 
-            //Plane m_plane;
-            //double t;
-
-            Parallel.For(0, pts.Count, i =>
+            foreach (var pt in pts)
             {
-                //for (int i = 0; i < pts.Count; ++i)
-                //{
-                    Centreline.LengthParameter(pts[i].Z, out double t);
-                    Plane m_plane = GetPlane(t);
+                min_z = Math.Min(min_z, pt.Z);
+                max_z = Math.Max(max_z, pt.Z);
+            }
+
+            double ext_min = Math.Min(0, Centreline.Domain.Min - min_z);
+            double ext_max = Math.Max(0, max_z - Centreline.Domain.Max);
+            double tolerance = 5.0;
+
+            double ext = Math.Max(ext_min, ext_max) + tolerance;
+
+            Curve c = Centreline.Extend(CurveEnd.Both, ext, CurveExtensionStyle.Line);
+            */
+
+            if (Centreline.IsLinear())
+            {
+                Parallel.For(0, pts.Count, i =>
+                {
+                    Plane m_plane;
+
+                    //m_plane = Utility.PlaneFromNormalAndYAxis(
+                    //Centreline.PointAtStart + Centreline.TangentAtStart * (pts[i].Z),
+                    //Centreline.TangentAtStart,
+                    //Orientation.GetOrientation(Centreline, pts[i].Z));
+                    
+                    m_plane = GetPlane(pts[i].Z);
+
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
-                //}
-            });
+                });
+
+            }
+
+            else
+            {
+                //Parallel.For(0, pts.Count, i =>
+                //{
+                    for (int i = 0; i < pts.Count; ++i)
+                    {
+                    Plane m_plane;
+
+                    Centreline.LengthParameter(pts[i].Z, out double t);
+                    m_plane = GetPlane(t);
+
+                    m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
+                }
+                //});
+            }
 
             return m_output_pts;
         }

@@ -49,20 +49,24 @@ namespace GluLamb
             PolylineCurve discrete = curve.ToPolyline(multiplier * Tolerance, AngleTolerance, multiplier * MininumSegmentLength, curve.GetLength() / MinimumNumSegments);
             if (discrete == null)
             {
-                discrete = new PolylineCurve(new Point3d[] { curve.PointAtStart, curve.PointAtEnd });
-            }
+                parameters = curve.DivideByCount(N - 1, true).ToArray();
 
-            if (discrete.TryGetPolyline(out Polyline discrete2))
-            {
-                N = discrete2.Count;
-                parameters = new double[N];
-
-                for (int i = 0; i < N; ++i)
-                    curve.ClosestPoint(discrete2[i], out parameters[i]);
+                //discrete = new PolylineCurve(new Point3d[] { curve.PointAtStart, curve.PointAtEnd });
             }
             else
             {
-                parameters = curve.DivideByCount(N - 1, true).ToArray();
+                if (discrete.TryGetPolyline(out Polyline discrete2))
+                {
+                    N = discrete2.Count;
+                    parameters = new double[N];
+
+                    for (int i = 0; i < N; ++i)
+                        curve.ClosestPoint(discrete2[i], out parameters[i]);
+                }
+                else
+                {
+                    parameters = curve.DivideByCount(N - 1, true).ToArray();
+                }
             }
 
             //frames = parameters.Select(x => GetPlane(x)).ToArray();
