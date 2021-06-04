@@ -172,11 +172,12 @@ namespace GluLamb
             return new_glulam;
         }
 
-        public bool Extend(CurveEnd end, double length)
+        public bool Extend(CurveEnd end, double length, CurveExtensionStyle style = CurveExtensionStyle.Smooth)
         {
-            Curve c = Centreline.Extend(end, length, CurveExtensionStyle.Smooth);
-            Centreline = c;
+            Curve c = Centreline.Extend(end, length, style);
+            if (c == null) return false;
 
+            Centreline = c;
             return true;
         }
 
