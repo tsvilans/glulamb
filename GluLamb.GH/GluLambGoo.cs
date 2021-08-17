@@ -435,7 +435,7 @@ namespace GluLamb.GH
 
     }
 
-    public class GH_Log : GH_Goo<Log>, /*IGH_PreviewData,*/ GH_ISerializable
+    public class GH_Log : GH_Goo<RawLam.Log>, /*IGH_PreviewData,*/ GH_ISerializable
     {
         #region Members
         //protected Mesh DisplayMesh = null;
@@ -443,7 +443,7 @@ namespace GluLamb.GH
 
         #region Constructors
         public GH_Log() : this(null) { }
-        public GH_Log(Log native) { this.Value = native; }
+        public GH_Log(RawLam.Log native) { this.Value = native; }
 
         public override IGH_Goo Duplicate()
         {
@@ -454,12 +454,12 @@ namespace GluLamb.GH
         }
         #endregion
 
-        public static Log ParseLog(object obj)
+        public static RawLam.Log ParseLog(object obj)
         {
             if (obj is GH_Log)
                 return (obj as GH_Log).Value;
             else
-                return obj as Log;
+                return obj as RawLam.Log;
         }
         public override string ToString()
         {
@@ -492,7 +492,7 @@ namespace GluLamb.GH
         public override bool CastFrom(object source)
         {
             if (source == null) return false;
-            if (source is Log log)
+            if (source is RawLam.Log log)
             {
                 Value = log;
                 return true;

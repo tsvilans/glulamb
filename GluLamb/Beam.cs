@@ -43,27 +43,32 @@ namespace GluLamb
         public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation { get; set; }
 
-        public Plane GetPlane(double t) => Utility.PlaneFromNormalAndYAxis(
-                                                        Centreline.PointAt(t),
-                                                        Centreline.TangentAt(t),
-                                                        Orientation.GetOrientation(Centreline, t));
+        public Plane GetPlane(double t) => GetPlane(t, Centreline);
 
-        public Plane[] GetPlanes(IList<double> tt)
+        public Plane GetPlane(double t, Curve curve) => Utility.PlaneFromNormalAndYAxis(
+                                                        curve.PointAt(t),
+                                                        curve.TangentAt(t),
+                                                        Orientation.GetOrientation(curve, t));
+
+        public Plane[] GetPlanes(IList<double> tt) => GetPlanes(tt, Centreline);
+
+        public Plane[] GetPlanes(IList<double> tt, Curve curve)
         {
-            var orientations = Orientation.GetOrientations(Centreline, tt);
+            var orientations = Orientation.GetOrientations(curve, tt);
             var planes = new Plane[tt.Count];
 
             Parallel.For(0, tt.Count, i =>
             {
                 planes[i] = Utility.PlaneFromNormalAndYAxis(
-                    Centreline.PointAt(tt[i]),
-                    Centreline.TangentAt(tt[i]),
+                    curve.PointAt(tt[i]),
+                    curve.TangentAt(tt[i]),
                     orientations[i]);
 
             });
 
             return planes;
         }
+
         public Plane[] GetPlanes(IList<Point3d> pts)
         {
             var tt = new double[pts.Count];
@@ -109,6 +114,8 @@ namespace GluLamb
             Centreline.ClosestPoint(pt, out t);
             m_plane = GetPlane(t);
             m_plane.RemapToPlaneSpace(pt, out m_temp);
+            if (t > Centreline.Domain.Max)
+                
             m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
 
             return m_temp;
@@ -226,9 +233,22 @@ namespace GluLamb
         /// </summary>
         /// <param name="pts"></param>
         /// <returns></returns>
-        public Point3d[] FromBeamSpace(IList<Point3d> pts)
+        public Point3d[] FromBeamSpace(IList<Point3d> pts, bool extend=true)
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
+
+            var curve = Centreline.DuplicateCurve();
+            double length = curve.GetLength();
+
+            if (extend)
+            {
+                double maxZ = 0;
+                foreach(Point3d pt in pts)
+                    maxZ = Math.Max(maxZ, pt.Z);
+
+                if (maxZ > length)
+                    curve = curve.Extend(CurveEnd.End, maxZ - length+1, CurveExtensionStyle.Line);
+            }
             /*
             double min_z = double.MaxValue;
             double max_z = double.MinValue;
@@ -248,7 +268,7 @@ namespace GluLamb
             Curve c = Centreline.Extend(CurveEnd.Both, ext, CurveExtensionStyle.Line);
             */
 
-            if (Centreline.IsLinear())
+            if (curve.IsLinear())
             {
                 Parallel.For(0, pts.Count, i =>
                 {
@@ -259,7 +279,7 @@ namespace GluLamb
                     //Centreline.TangentAtStart,
                     //Orientation.GetOrientation(Centreline, pts[i].Z));
                     
-                    m_plane = GetPlane(pts[i].Z);
+                    m_plane = GetPlane(pts[i].Z, curve);
 
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
                 });
@@ -274,8 +294,8 @@ namespace GluLamb
                     {
                     Plane m_plane;
 
-                    Centreline.LengthParameter(pts[i].Z, out double t);
-                    m_plane = GetPlane(t);
+                    curve.LengthParameter(pts[i].Z, out double t);
+                    m_plane = GetPlane(t, curve);
 
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
                 }
@@ -290,11 +310,11 @@ namespace GluLamb
         /// </summary>
         /// <param name="mesh"></param>
         /// <returns></returns>
-        public Mesh FromBeamSpace(Mesh mesh)
+        public Mesh FromBeamSpace(Mesh mesh, bool extend = true)
         {
             Mesh m_mesh = mesh.DuplicateMesh();
             m_mesh.Vertices.Clear();
-            m_mesh.Vertices.AddVertices(FromBeamSpace(mesh.Vertices.ToPoint3dArray()));
+            m_mesh.Vertices.AddVertices(FromBeamSpace(mesh.Vertices.ToPoint3dArray(), extend));
 
             return m_mesh;
         }
