@@ -414,6 +414,27 @@ namespace GluLamb
             return lam_crvs;
         }
 
+        public override Curve GetLamellaCurve(int i, int j)
+        {
+            double hWidth = Data.NumWidth * Data.LamWidth / 2;
+            double hHeight = Data.NumHeight * Data.LamHeight / 2;
+            Plane plane = Utility.PlaneFromNormalAndYAxis(
+                Centreline.PointAtStart,
+                Centreline.TangentAtStart,
+                Orientation.GetOrientation(Centreline, Centreline.Domain.Min));
+
+            double hLw = Data.LamWidth / 2;
+            double hLh = Data.LamHeight / 2;
+
+            Transform xform = Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, plane);
+
+            Point3d p = new Point3d(j * Data.LamWidth - hWidth + hLw, i * Data.LamHeight - hHeight + hLh, 0.0);
+            Line l = new Line(p, Vector3d.ZAxis * Centreline.GetLength());
+            l.Transform(xform);
+
+            return l.ToNurbsCurve();
+        }
+
         public override GlulamType Type() => GlulamType.Straight;
 
         public override string ToString() => "StraightGlulam";

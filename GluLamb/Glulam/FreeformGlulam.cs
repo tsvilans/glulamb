@@ -682,6 +682,41 @@ namespace GluLamb
             */
         }
 
+        public override Curve GetLamellaCurve(int i, int j)
+        {
+            int N = Math.Max(Data.Samples, 6);
+            GenerateCrossSectionPlanes(N, out Plane[] frames, out double[] parameters, Data.InterpolationType);
+
+            var crvPts = new List<Point3d>();
+
+            Transform xform;
+            Point3d temp;
+
+            double hWidth = Data.NumWidth * Data.LamWidth / 2;
+            double hHeight = Data.NumHeight * Data.LamHeight / 2;
+            double hLw = Data.LamWidth / 2;
+            double hLh = Data.LamHeight / 2;
+
+            GetSectionOffset(out double offsetX, out double offsetY);
+
+            List<Point3d> LamellaPoints = new List<Point3d>();
+
+            Point3d LamellaPoint = new Point3d(
+                            -hWidth + offsetX + hLw + i * Data.LamWidth,
+                            -hHeight + offsetY + hLh + j * Data.LamHeight,
+                            0);
+
+            for (int x = 0; x < frames.Length; ++x)
+            {
+                xform = Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, frames[x]);
+                temp = new Point3d(LamellaPoint);
+                temp.Transform(xform);
+                crvPts.Add(temp);
+            }
+
+            return Curve.CreateInterpolatedCurve(crvPts, 3, CurveKnotStyle.Chord, frames.First().ZAxis, frames.Last().ZAxis);
+        }
+
         public override Curve[] GetEdgeCurves(double offset = 0.0)
         {
             int N = Math.Max(Data.Samples, 6);

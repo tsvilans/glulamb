@@ -73,8 +73,10 @@
     <Compile Include="Create\Cmpt_CreateGlulam.cs" />
     <Compile Include="Create\Cmpt_CreateGlulamDataFromWidthHeight.cs" />
     <Compile Include="Create\Cmpt_GlulamData.cs" />
-    <Compile Include="GluLambGoo.cs" />
-    <Compile Include="GlulamParameter.cs" />
+    <Compile Include="Goo\GluLambGoo.cs" />
+    <Compile Include="Goo\GlulamParameter.cs" />
+    <Compile Include="Goo\LogGoo.cs" />
+    <Compile Include="Goo\StructureGoo.cs" />
     <Compile Include="Map\Cmpt_BidirVector2Color.cs" />
     <Compile Include="Map\Cmpt_GetFrame.cs" />
     <Compile Include="Map\Cmpt_GetFrameAtParameter.cs" />

@@ -184,8 +184,56 @@ namespace GluLamb
             return FibreDeviation(blank, out List<double> angles, divX, divY, divZ);
         }
 
+        /// <summary>
+        /// Map a point from the local lamella space to the curved glulam.
+        /// </summary>
+        /// <param name="pt">Point to map</param>
+        /// <param name="lix">Lamella index X</param>
+        /// <param name="liy">Lamella index Y</param>
+        /// <returns></returns>
+        public Point3d MapToLamella(Point3d pt, int lix, int liy)
+        {
+            var lam_curve = GetLamellaCurve(lix, liy);
+            double length = lam_curve.GetLength();
+            if (pt.Z > length)
+            {
+                lam_curve = lam_curve.Extend(CurveEnd.End, pt.Z - length, CurveExtensionStyle.Line);
+            }
+
+            lam_curve.LengthParameter(pt.Z, out double t);
+
+            var plane = GetPlane(t, lam_curve);
+
+            return plane.PointAt(pt.X, pt.Y);
+        }
+
+        public List<Point3d> MapToLamella(List<Point3d> pts, int lix, int liy)
+        {
+            var lam_curve = GetLamellaCurve(lix, liy);
+            double length = lam_curve.GetLength();
+
+            double max_z = 0;
+            foreach(var pt in pts)
+            {
+                max_z = Math.Max(max_z, pt.Z);
+            }
+
+            if (max_z > length)
+            {
+                lam_curve = lam_curve.Extend(CurveEnd.End, max_z - length, CurveExtensionStyle.Line);
+            }
+
+            var lam_pts = new List<Point3d>();
+
+            foreach(var pt in pts)
+            {
+                lam_curve.LengthParameter(pt.Z, out double t);
+                var plane = GetPlane(t, lam_curve);
+                lam_pts.Add( plane.PointAt(pt.X, pt.Y));
+            }
+
+            return lam_pts;
+        }
+
     }
-
-
-
 }

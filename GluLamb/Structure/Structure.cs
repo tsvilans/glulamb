@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Rhino.Geometry;
 
 namespace GluLamb
 {
@@ -67,6 +68,32 @@ namespace GluLamb
                 segments.Add(conn.Discretize(adaptive));
 
             return segments;
+        }
+
+        public List<Brep> ToBrep()
+        {
+            var breps = new List<Brep>();
+
+            foreach (var ele in Elements)
+            {
+                if (ele is BeamElement && (ele as BeamElement).Beam is Glulam)
+                    breps.Add(((ele as BeamElement).Beam as Glulam).ToBrep());
+            }
+
+            return breps;
+        }
+
+        public List<Mesh> ToMesh()
+        {
+            var meshes = new List<Mesh>();
+
+            foreach (var ele in Elements)
+            {
+                if (ele is BeamElement && (ele as BeamElement).Beam is Glulam)
+                    meshes.Add(((ele as BeamElement).Beam as Glulam).ToMesh());
+            }
+
+            return meshes;
         }
     }
 }

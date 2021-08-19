@@ -94,6 +94,11 @@ namespace GluLamb
             return new List<Curve>();
         }
 
+        public virtual Curve GetLamellaCurve(int i, int j)
+        {
+            throw new NotImplementedException("GetLamellaCurve() not implemented.");
+        }
+
         public virtual List<Mesh> GetLamellaeMeshes()
         {
             return new List<Mesh>();
