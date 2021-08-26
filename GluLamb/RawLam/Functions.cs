@@ -219,5 +219,170 @@ namespace RawLam
             }
         }
     }
+
+    public class BoardPlacement
+    {
+        public BoardPlacement(Polyline poly)
+        {
+            Outline = poly;
+            BoundingBox = poly.BoundingBox;
+
+            RangeX = BoundingBox.Max.X - BoundingBox.Min.X;
+            RangeY = BoundingBox.Max.Y - BoundingBox.Min.Y;
+
+            MinX = BoundingBox.Min.X;
+            MinY = BoundingBox.Min.Y;
+
+            Lamellas = new List<Rectangle3d>();
+            Full = false;
+        }
+
+        public List<Rectangle3d> Lamellas;
+        public bool Full;
+        public BoundingBox BoundingBox;
+        public Polyline Outline;
+
+        public double RangeX;
+        public double RangeY;
+
+        public double MinX;
+        public double MinY;
+
+    }
+
+    /// <summary>
+    /// Class to allocate Lamellas to Boards. IN PROGRESS. Needs to be integrated with SortingHat.
+    /// </summary>
+    public class LamellaAllocator
+    {
+        public bool UseRotation;
+        private Random rnd;
+        public LamellaAllocator()
+        {
+            rnd = new Random();
+        }
+
+        public void Run(List<Polyline> B, Rectangle3d L)
+        {
+            /* ---- Initialize ---- */
+            var boards = new List<BoardPlacement>();
+
+            for (int i = 0; i < B.Count; ++i)
+            {
+                boards.Add(new BoardPlacement(B[i]));
+            }
+
+            var lamellas = new List<Rectangle3d>();
+            int N = 1000;
+
+            for (int i = 0; i < N; ++i)
+            {
+                lamellas.Add(new Rectangle3d(Plane.WorldXY, L.Width, L.Height + rnd.NextDouble() * 200.0));
+                //lamellas.Add(L);
+            }
+
+            var placed = new List<Rectangle3d>();
+            var debug = new List<object>();
+
+            int tries = 200;
+            bool flag = false;
+            int index = -1;
+
+            double rotation = 0.1;
+
+            // Metrics
+            int counter = 0;
+            int num_lamellas_placed = 0;
+
+            for (int i = 0; i < lamellas.Count; ++i)
+            {
+                Rectangle3d lam = lamellas[i];
+
+                for (int j = 0; j < tries; ++j)
+                {
+                    counter++;
+
+                    index = rnd.Next(0, boards.Count);
+                    var board = boards[index];
+                    if (board.Full) continue;
+
+                    lam = lamellas[i];
+
+                    double xRange = board.RangeX - lam.Width;
+                    double yRange = board.RangeY - lam.Height;
+
+                    flag = false;
+                    var x = rnd.NextDouble() * xRange + board.MinX;
+                    var y = rnd.NextDouble() * yRange + board.MinY;
+
+                    //Print("range {0} {1}", xRange, yRange);
+                    //Print("xy {0} {1}", x, y);
+                    if (UseRotation)
+                        lam.Transform(Transform.Rotation(rnd.NextDouble() * rotation, Point3d.Origin));
+                    lam.Transform(Transform.Translation(new Vector3d(x, y, 0)));
+
+
+                    debug.Add(lam);
+
+                    if (!IsInside(boards[index].Outline.ToNurbsCurve(), lam))
+                    {
+                        //Print("Outside!");
+                        continue;
+                    }
+
+                    foreach (var p in boards[index].Lamellas)
+                    {
+                        if (IsOverlapping(p, lam))
+                        {
+                            flag = true;
+                            break;
+                        }
+                    }
+
+                    if (!flag)
+                    {
+                        boards[index].Lamellas.Add(lam);
+                        num_lamellas_placed++;
+                        break;
+                    }
+
+                }
+
+                if (flag)
+                {
+                    boards[index].Full = true;
+                    break;
+                }
+            }
+        }
+        public bool IsOverlapping(Rectangle3d r1, Rectangle3d r2)
+        {
+            if (!UseRotation) // Use simple, axis-aligned method
+            {
+                // If one rectangle is on left side of other
+                if (r1.BoundingBox.Min.X >= r2.BoundingBox.Max.X ||
+                  r2.BoundingBox.Min.X >= r1.BoundingBox.Max.X)
+                    return false;
+
+                // If one rectangle is above other
+                if (r1.BoundingBox.Min.Y >= r2.BoundingBox.Max.Y ||
+                  r2.BoundingBox.Min.Y >= r1.BoundingBox.Max.Y)
+                    return false;
+
+                return true;
+            }
+
+            var res = Rhino.Geometry.Intersect.Intersection.CurveCurve(r1.ToNurbsCurve(), r2.ToNurbsCurve(), 0.1, 0.1);
+            return res.Count > 0;
+        }
+
+        public bool IsInside(Curve crv, Rectangle3d r)
+        {
+            for (int i = 0; i < 4; ++i)
+                if (crv.Contains(r.Corner(i), Plane.WorldXY, 0.1) != PointContainment.Inside)
+                    return false;
+            return true;
+        }
+    }
 }
 #endif
