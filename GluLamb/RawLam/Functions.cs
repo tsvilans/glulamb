@@ -41,17 +41,14 @@ namespace RawLam
             {
                 for (int y = 0; y < g.Data.NumHeight; ++y)
                 {
+                    var lam = new Lamella(g.Id, g, g.Data.LamHeight, x, y);
+                    Mesh lmesh = GluLamb.Utility.Create3dMeshGrid(g.Data.LamWidth, g.Data.LamHeight, lamcrvs[l].GetLength(), resolution);
+                    /*
                     double length = lamcrvs[l].GetLength();
 
                     int Nz = (int)Math.Ceiling(length / resolution);
                     double stepZ = length / Nz;
                     Nz++;
-
-                    var lam = new Lamella(g.Id, g, g.Data.LamHeight, x, y);
-                    //lam.StackPositionX = x;
-                    //lam.StackPositionY = y;
-
-                    Mesh lmesh = new Mesh();
 
                     // Make mesh data for body
 
@@ -130,7 +127,7 @@ namespace RawLam
                               c + Nx * i + j
                               );
                         }
-
+                    */
                     lam.Mesh = lmesh;
                     lam.Plane = new Plane(
                       new Point3d(

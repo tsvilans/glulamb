@@ -469,6 +469,147 @@ namespace GluLamb
 
         static readonly Random random = new Random();
 
+        public static Mesh Create2dMeshGrid(double width, double length, double resolution = 50.0)
+        {
+            double w = width;
+            double hw = width / 2;
+
+            int Nx = (int)Math.Ceiling(width / resolution);
+            int Nz = (int)Math.Ceiling(length / resolution);
+
+            double stepX = width / Nx;
+            double stepZ = length / Nz;
+
+            Nx++; Nz++;
+
+            Mesh lmesh = new Mesh();
+
+            // Make mesh data for body
+            for (int i = 0; i < Nz; ++i)
+            {
+                double posX = i * stepZ;
+                for (int k = 0; k < Nx; ++k)
+                    lmesh.Vertices.Add(-hw + k * stepX, 0, posX);
+            }
+
+            for (int i = 0; i < Nz - 1; ++i)
+            {
+                for (int j = 0; j < Nx - 1; ++j)
+                {
+                    lmesh.Faces.AddFace(
+                      (i + 1) * Nx + j,
+                      (i + 1) * Nx + j + 1,
+                      i * Nx + j + 1,
+                      i * Nx + j
+                      );
+                }
+            }
+
+            return lmesh;
+        }
+        public static Mesh Create3dMeshGrid(double width, double thickness, double length, double resolution = 50.0)
+        {
+            double w = width;
+            double h = thickness;
+
+            double hw = width / 2;
+            double hh = thickness / 2;
+
+            int Nx = (int)Math.Ceiling(width / resolution);
+            int Ny = (int)Math.Ceiling(thickness / resolution);
+            int Nz = (int)Math.Ceiling(length / resolution);
+
+            double stepX = width / Nx;
+            double stepY = thickness / Ny;
+            double stepZ = length / Nz;
+
+            int Nloop = Nx * 2 + Ny * 2; // Num verts in a loop
+
+            Nx++; Ny++; Nz++;
+
+           
+            Mesh lmesh = new Mesh();
+
+            // Make mesh data for body
+            for (int i = 0; i < Nz; ++i)
+            {
+                double posX = i * stepZ;
+
+                for (int j = 0; j < Ny; ++j)
+                    lmesh.Vertices.Add(-hw, -hh + j * stepY, posX);
+
+                for (int k = 1; k < Nx; ++k)
+                    lmesh.Vertices.Add(-hw + k * stepX, -hh + h, posX);
+
+                for (int j = Ny - 2; j >= 0; --j)
+                    lmesh.Vertices.Add(-hw + w, -hh + j * stepY, posX);
+
+                for (int k = Nx - 2; k > 0; --k)
+                    lmesh.Vertices.Add(-hw + k * stepX, -hh, posX);
+            }
+
+            for (int i = 0; i < Nz - 1; ++i)
+            {
+                for (int j = 0; j < Nloop - 1; ++j)
+                {
+                    lmesh.Faces.AddFace(
+                      (i + 1) * Nloop + j,
+                      (i + 1) * Nloop + j + 1,
+                      i * Nloop + j + 1,
+                      i * Nloop + j
+                      );
+                }
+                lmesh.Faces.AddFace(
+                  (i + 1) * Nloop + Nloop - 1,
+                  (i + 1) * Nloop,
+                  i * Nloop,
+                  i * Nloop + Nloop - 1
+                  );
+            }
+
+            // Make mesh data for end faces
+
+            int c = lmesh.Vertices.Count;
+
+            for (int i = 0; i < Ny; ++i)
+                for (int j = 0; j < Nx; ++j)
+                {
+                    lmesh.Vertices.Add(-hw + stepX * j, -hh + stepY * i, 0);
+                }
+
+            for (int i = 0; i < Ny - 1; ++i)
+                for (int j = 0; j < Nx - 1; ++j)
+                {
+                    lmesh.Faces.AddFace(
+                      c + Nx * i + j,
+                      c + Nx * (i + 1) + j,
+                      c + Nx * (i + 1) + j + 1,
+                      c + Nx * i + j + 1
+                      );
+                }
+
+            c = lmesh.Vertices.Count;
+
+            for (int i = 0; i < Ny; ++i)
+                for (int j = 0; j < Nx; ++j)
+                {
+                    lmesh.Vertices.Add(-hw + stepX * j, -hh + stepY * i, length);
+                }
+
+            for (int i = 0; i < Ny - 1; ++i)
+                for (int j = 0; j < Nx - 1; ++j)
+                {
+                    lmesh.Faces.AddFace(
+                      c + Nx * i + j + 1,
+                      c + Nx * (i + 1) + j + 1,
+                      c + Nx * (i + 1) + j,
+                      c + Nx * i + j
+                      );
+                }
+
+            return lmesh;
+        }
+
         public static Plane PlaneFromNormalAndYAxis(Point3d origin, Vector3d normal, Vector3d yaxis)
         {
             return new Plane(origin, Vector3d.CrossProduct(yaxis, normal), yaxis);

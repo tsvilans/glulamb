@@ -116,19 +116,32 @@ namespace GluLamb
 
         public abstract void GenerateCrossSectionPlanes(int N, out Plane[] planes, out double[] t, GlulamData.Interpolation interpolation = GlulamData.Interpolation.LINEAR);
 
-        public List<Mesh> GetUnbentLamellaeMeshes(double resolution=50.0)
+        public List<Polyline> GetUnbentLamellaOutlines()
         {
+            var lam_crvs = GetLamellaeCurves();
 
+            var outlines = new List<Polyline>();
+
+            return outlines;
+        }
+
+        public List<Mesh> GetUnbentLamellaeMeshes(double resolution = 50.0, bool thick = true)
+        {
+            var xforms = new List<Transform>();
+            var lams = GetUnbentLamellaeMeshes(out xforms, resolution, thick);
+
+            for (int i = 0; i < lams.Count; ++i)
+            {
+                lams[i].Transform(xforms[i]);
+            }
+
+            return lams;
+        }
+
+        public List<Mesh> GetUnbentLamellaeMeshes(out List<Transform> xforms, double resolution=50.0, bool thick = true)
+        {
+            xforms = new List<Transform>();
             var lams = new List<Mesh>();
-            //var xforms = new List<Transform>();
-
-            double length = Centreline.GetLength();
-            int Nz = (int)Math.Ceiling(length / resolution) + 1;
-            int Nx = (int)Math.Ceiling(Width / resolution) + 1;
-            int Ny = (int)Math.Ceiling(Height / resolution) + 1;
-
-            double sz = length / (Nz - 1);
-            double sx = Width / (Nx - 1);
 
             double width = Width;
             double hwidth = width / 2;
@@ -140,38 +153,22 @@ namespace GluLamb
 
             for (int i = 0; i < Data.NumHeight; ++i)
             {
-                sz = lam_crvs[i].GetLength() / (Nz - 1);
 
-                //var xform = Rhino.Geometry.Transform.Translation(new Vector3d(0, i * Data.LamHeight + (Data.LamHeight / 2), 0));
-                double ycoord = i * Data.LamHeight + (Data.LamHeight / 2) - hheight;
-                //ycoord = -hheight;
-
-                var mesh = new Mesh();
-                for (int z = 0; z < Nz; ++z)
+                for (int j = 0; j < Data.NumWidth; ++j)
                 {
-                    for (int x = 0; x < Nx; ++x)
-                    {
-                        double xcoord = sx * x - hwidth;
-                        mesh.Vertices.Add(xcoord, ycoord, sz * z);
-                    }
+                    Mesh lmesh;
+
+                    if (thick)
+                        lmesh = GluLamb.Utility.Create3dMeshGrid(Data.LamWidth, Data.LamHeight, lam_crvs[i].GetLength(), resolution);
+                    else
+                        lmesh = GluLamb.Utility.Create2dMeshGrid(Data.LamWidth, lam_crvs[i].GetLength(), resolution);
+
+                    xforms.Add(Rhino.Geometry.Transform.Translation(
+                        Data.LamWidth * j - hwidth + Data.LamWidth * 0.5, 
+                        Data.LamHeight * i - hheight + Data.LamHeight * 0.5, 0));
+                    lams.Add(lmesh);
                 }
-
-                for (int z = 0; z < Nz - 1; ++z)
-                    for (int x = 0; x < Nx - 1; ++x)
-                    {
-                        int a = z * Nx + x,
-                          b = z * Nx + x + 1,
-                          c = (z + 1) * Nx + x + 1,
-                          d = (z + 1) * Nx + x;
-
-                        mesh.Faces.AddFace(
-                          a, b, c, d);
-                    }
-
-                lams.Add(mesh);
-                //xforms.Add(xform);
             }
-
             return lams;
         }
     }
