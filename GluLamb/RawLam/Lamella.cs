@@ -18,7 +18,9 @@ namespace RawLam
 
         private int stackPositionX;
         private int stackPositionY;
+        public double Width;
         public double Thickness;
+        public double Length;
 
 
         public int StackPositionX

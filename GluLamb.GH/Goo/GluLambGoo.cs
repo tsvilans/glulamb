@@ -37,17 +37,15 @@ namespace GluLamb.GH
         #endregion
 
         #region Constructors
-        public GH_Glulam() : this(null) { }
         //public GH_Glulam(GH_Glulam goo) { this.Value = goo.Value; this.DisplayMesh = goo.DisplayMesh.DuplicateMesh(); }
         //public GH_Glulam(Glulam native) { this.Value = native; this.DisplayMesh = native.GetBoundingMesh(0, Value.Data.InterpolationType); }
         public GH_Glulam(Glulam native) { this.Value = native; }
+        public GH_Glulam() { this.Value = null; }
+        public GH_Glulam(GH_Glulam goo) { this.Value = goo.Value?.Duplicate(); }
 
         public override IGH_Goo Duplicate()
         {
-            if (Value == null)
-                return new GH_Glulam();
-            else
-                return new GH_Glulam(Value.Duplicate());
+            return new GH_Glulam(this);
         }
         #endregion
 
@@ -58,50 +56,46 @@ namespace GluLamb.GH
             else
                 return obj as Glulam;
         }
-        public override string ToString()
-        {
-            if (Value == null) return "Null glulam";
-            return Value.ToString();
-        }
 
         public override string TypeName => "GlulamGoo";
         public override string TypeDescription => "GlulamGoo";
         public override object ScriptVariable() => Value;
         //public BoundingBox ClippingBox => DisplayMesh.GetBoundingBox(true);
 
-        public override bool IsValid
+        public override bool IsValid => true;
+        /*
+    {
+
+        get
         {
-            get
-            {
-                if (Value == null) return false;
-                return true;
-            }
+            if (Value == null) return false;
+            return true;
         }
-        public override string IsValidWhyNot
-        {
+
+    }*/
+        public override string IsValidWhyNot => "You tell me.";
+        /*{
             get
             {
                 if (Value == null) return "No data";
                 return string.Empty;
             }
-        }
+        }*/
+        public override string ToString() => this.Value?.ToString();
 
         #region Casting
         public override bool CastFrom(object source)
         {
-            if (source == null) return false;
-            if (source is Glulam glulam)
+            switch (source)
             {
-                Value = glulam;
-                //DisplayMesh = Value.GetBoundingMesh(0, Value.Data.InterpolationType);
-                return true;
+                case Glulam glulam:
+                    Value = glulam;
+                    return true;
+                case GH_Glulam gh_glulam:
+                    Value = gh_glulam.Value;
+                    return true;
             }
-            if (source is GH_Glulam ghGlulam)
-            {
-                Value = ghGlulam.Value;
-                //DisplayMesh = ghGlulam.DisplayMesh;
-                return true;
-            }
+
             return false;
         }
 
@@ -156,22 +150,18 @@ namespace GluLamb.GH
                 args.Pipeline.DrawMeshWires(DisplayMesh, args.Color);
         }
         */
+        
         #region Serialization
-
         public override bool Write(GH_IWriter writer)
         {
-            if (Value == null) return false;
-            byte[] centrelineBytes = GH_Convert.CommonObjectToByteArray(Value.Centreline);
-            writer.SetByteArray("guide", centrelineBytes);
-            writer.SetInt32("lcx", Value.Data.NumWidth);
-            writer.SetInt32("lcy", Value.Data.NumHeight);
-            writer.SetDouble("lsx", Value.Data.LamWidth);
-            writer.SetDouble("lsy", Value.Data.LamHeight);
-            writer.SetInt32("interpolation", (int)Value.Data.InterpolationType);
-            writer.SetInt32("samples", Value.Data.Samples);
+            if (Value == null) throw new Exception("GlulamParameter.Value is null.");
 
+            writer.SetByteArray("guide", GH_Convert.CommonObjectToByteArray(Value.Centreline));
 
-            return true;
+            GH_Glulam.WriteCrossSectionOrientation(writer, Value.Orientation);
+            GH_GlulamData.WriteGlulamData(writer, Value.Data);
+
+            return base.Write(writer);
         }
 
         public override bool Read(GH_IReader reader)
@@ -182,50 +172,96 @@ namespace GluLamb.GH
                 throw new Exception("Couldn't retrieve 'guide'.");
             }
 
-            byte[] rawGuide = reader.GetByteArray("guide");
-
-            Curve guide = GH_Convert.ByteArrayToCommonObject<Curve>(rawGuide);
+            Curve guide = GH_Convert.ByteArrayToCommonObject<Curve>(reader.GetByteArray("guide"));
             if (guide == null)
                 throw new Exception("Failed to convert 'guide'.");
 
-            int N = reader.GetInt32("num_frames");
-            Plane[] frames = new Plane[N];
+            CrossSectionOrientation ori = GH_Glulam.ReadCrossSectionOrientation(reader);
+            GlulamData data = GH_GlulamData.ReadGlulamData(reader);
 
-            for (int i = 0; i < N; ++i)
+            Value = Glulam.CreateGlulam(guide, ori, data);
+
+            return base.Read(reader);
+        }
+
+        public static void WriteCrossSectionOrientation(GH_IWriter writer, CrossSectionOrientation ori)
+        {
+            writer.SetString("orientation", ori.ToString());
+
+            switch (ori)
             {
-                var gp = reader.GetPlane("frames", i);
-                frames[i] = new Plane(
-                    new Point3d(
-                        gp.Origin.x,
-                        gp.Origin.y,
-                        gp.Origin.z),
-                    new Vector3d(
-                        gp.XAxis.x,
-                        gp.XAxis.y,
-                        gp.XAxis.z),
-                    new Vector3d(
-                        gp.YAxis.x,
-                        gp.YAxis.y,
-                        gp.YAxis.z)
-                        );
+                case RmfOrientation rmf:
+                    return;
+                case PlanarOrientation plan:
+                    var plane = plan.Plane;
+                    writer.SetPlane("orientation_plane", new GH_IO.Types.GH_Plane(
+                        plane.Origin.X, plane.Origin.Y, plane.Origin.Z,
+                        plane.XAxis.X, plane.XAxis.Y, plane.XAxis.Z,
+                        plane.YAxis.X, plane.YAxis.Y, plane.YAxis.Z
+                        
+                        ));
+                    return;
+                case VectorOrientation vec:
+                    var v = (Vector3d)vec.GetDriver();
+                    writer.SetPoint3D("orientation_vector", new GH_IO.Types.GH_Point3D(v.X, v.Y, v.Z));
+                    return;
+                case SurfaceOrientation srf:
+                    writer.SetByteArray("orientation_surface", GH_Convert.CommonObjectToByteArray(srf.GetDriver() as Brep));
+                    return;
+                case VectorListOrientation vlist:
+                    writer.SetInt32("orientation_num_vectors", vlist.Vectors.Count);
+                    writer.SetByteArray("orientation_guide", GH_Convert.CommonObjectToByteArray(vlist.GetCurve()));
+                    for (int i = 0; i < vlist.Parameters.Count; ++i)
+                    {
+                        writer.SetDouble("orientation_parameter", i, vlist.Parameters[i]);
+                        writer.SetPoint3D("orientation_vector", i, new GH_IO.Types.GH_Point3D(
+                            vlist.Vectors[i].X, vlist.Vectors[i].Y, vlist.Vectors[i].Z));
+                    }
+                    return;
+                default:
+                    return;
             }
+        }
 
-            int lcx = reader.GetInt32("lcx");
-            int lcy = reader.GetInt32("lcy");
-            double lsx = reader.GetDouble("lsx");
-            double lsy = reader.GetDouble("lsy");
-            int interpolation = reader.GetInt32("interpolation");
-            int samples = reader.GetInt32("samples");
+        public static CrossSectionOrientation ReadCrossSectionOrientation(GH_IReader reader)
+        {
+            var type = reader.GetString("orientation");
 
-            GlulamData data = new GlulamData(lcx, lcy, lsx, lsy, samples);
-            data.InterpolationType = (GlulamData.Interpolation)interpolation;
+            switch (type)
+            {
+                case "RmfOrientation":
+                    return new RmfOrientation();
+                case "PlanarOrientation":
+                    var plane = reader.GetPlane("orientation_plane");
 
-            Value = Glulam.CreateGlulam(guide, null , data);
+                    return new PlanarOrientation(new Plane(
+                        new Point3d(plane.Origin.x, plane.Origin.y, plane.Origin.z), 
+                        new Vector3d(plane.XAxis.x, plane.XAxis.y, plane.XAxis.z),
+                        new Vector3d(plane.YAxis.x, plane.YAxis.y, plane.YAxis.z)));
+                case "VectorOrientation":
+                    var pt = reader.GetPoint3D("orientation_vector");
+                    return new VectorOrientation(new Vector3d(pt.x, pt.y, pt.z));
+                case "SurfaceOrientation":
+                    var srf_bytes = reader.GetByteArray("orientation_surface");
+                    var srf = GH_Convert.ByteArrayToCommonObject<Brep>(srf_bytes);
+                    return new SurfaceOrientation(srf);
+                case "VectorListOrientation":
+                    var vlguide = reader.GetByteArray("orientation_guide");
 
-            if (Value == null)
-                throw new Exception("What in the...");
+                    var num_vecs = reader.GetInt32("orientation_num_vectors");
+                    List<Vector3d> vectors = new List<Vector3d>();
+                    List<double> parameters = new List<double>();
 
-            return true;
+                    for (int i = 0; i < num_vecs; ++i)
+                    {
+                        var v = reader.GetPoint3D("orientation_vector", i);
+                        var t = reader.GetDouble("orientation_parameter", i);
+                        vectors.Add(new Vector3d(v.x, v.y, v.z));
+                    }
+                    return new VectorListOrientation(GH_Convert.ByteArrayToCommonObject<Curve>(vlguide), parameters, vectors);
+                default:
+                    return new RmfOrientation();
+            }
         }
         #endregion
 
@@ -244,6 +280,33 @@ namespace GluLamb.GH
         public override object ScriptVariable() => Value;
 
         #region Serialization
+
+        public static void WriteGlulamData(GH_IWriter writer, GlulamData data)
+        {
+            writer.SetInt32("data_NumWidth", data.NumWidth);
+            writer.SetInt32("data_NumHeight", data.NumHeight);
+            writer.SetDouble("data_LamWidth", data.LamWidth);
+            writer.SetDouble("data_LamHeight", data.LamHeight);
+            writer.SetInt32("data_Samples", data.Samples);
+            writer.SetInt32("data_Interpolation", (int)data.InterpolationType);
+            writer.SetInt32("data_SectionAlignment", (int)data.SectionAlignment);
+        }
+
+        public static GlulamData ReadGlulamData(GH_IReader reader)
+        {
+            var data = new GlulamData(
+                reader.GetInt32("data_NumWidth"),
+                reader.GetInt32("data_NumHeight"),
+                reader.GetDouble("data_LamWidth"),
+                reader.GetDouble("data_LamHeight")
+                );
+
+            data.Samples = reader.GetInt32("data_Samples");
+            data.InterpolationType = (GlulamData.Interpolation)reader.GetInt32("data_Interpolation");
+            data.SectionAlignment = (GlulamData.CrossSectionPosition)reader.GetInt32("data_SectionAlignment");
+
+            return data;
+        }
 
         public override bool Write(GH_IWriter writer)
         {

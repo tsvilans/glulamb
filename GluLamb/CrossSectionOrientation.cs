@@ -93,6 +93,11 @@ namespace GluLamb
             m_vector = v;
         }
 
+        public override string ToString()
+        {
+            return "VectorOrientation";
+        }
+
         public override Vector3d GetOrientation(Curve crv, double t)
         {
             return NormalizeVector(crv, t, m_vector);
@@ -243,6 +248,11 @@ namespace GluLamb
                 }
 
             Array.Sort(m_guides, (a, b) => a.Parameter.CompareTo(b.Parameter));
+        }
+
+        public override string ToString()
+        {
+            return "VectorListOrientation";
         }
 
         public VectorListOrientation(Curve curve, IList<double> parameters, IList<Vector3d> vectors)
@@ -524,6 +534,11 @@ namespace GluLamb
             return new_orientations;
         }
 
+        public Curve GetCurve()
+        {
+            return m_curve;
+        }
+
 
         public override object GetDriver()
         {
@@ -572,6 +587,11 @@ namespace GluLamb
         public SurfaceOrientation(Brep srf)
         {
             m_surface = srf;
+        }
+
+        public override string ToString()
+        {
+            return "SurfaceOrientation";
         }
 
         public override Vector3d GetOrientation(Curve crv, double t)
@@ -654,6 +674,10 @@ namespace GluLamb
             m_curve = curve.DuplicateCurve();
             m_closest = true;
         }
+        public override string ToString()
+        {
+            return "RailCurveOrientation";
+        }
 
         public override Vector3d GetOrientation(Curve crv, double t)
         {
@@ -717,6 +741,11 @@ namespace GluLamb
         {
         }
 
+        public override string ToString()
+        {
+            return "KCurveOrientation";
+        }
+
         public override Vector3d GetOrientation(Curve crv, double t)
         {
             Vector3d k = crv.CurvatureAt(t);
@@ -772,6 +801,11 @@ namespace GluLamb
 
         public RmfOrientation()
         {
+        }
+
+        public override string ToString()
+        {
+            return "RmfOrientation";
         }
 
         public override Vector3d GetOrientation(Curve crv, double t)
@@ -846,6 +880,11 @@ namespace GluLamb
         public PlanarOrientation(Plane plane)
         {
             Plane = plane;
+        }
+
+        public override string ToString()
+        {
+            return "PlanarOrientation";
         }
 
         public override Vector3d GetOrientation(Curve crv, double t)

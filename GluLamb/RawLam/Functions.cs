@@ -12,7 +12,7 @@ namespace RawLam
 {
     public static class Functions
     {
-        public static List<Lamella> ExtractUnbentLamellas(GluLamb.Glulam g, double resolution = 50.0)
+        public static List<Lamella> ExtractUnbentLamellas(GluLamb.Glulam g, double resolution = 50.0, double extra_tolerance = 0.0)
         {
             var lams = new List<Lamella>();
             var lamcrvs = g.GetLamellaeCurves();
@@ -23,112 +23,24 @@ namespace RawLam
             double lw = g.Data.LamWidth;
             double lh = g.Data.LamHeight;
 
-            double hlw = g.Data.LamWidth / 2;
-            double hlh = g.Data.LamHeight / 2;
-
-            int Nx = (int)Math.Ceiling(g.Data.LamWidth / resolution);
-            int Ny = (int)Math.Ceiling(g.Data.LamHeight / resolution);
-
-            double stepX = g.Data.LamWidth / Nx;
-            double stepY = g.Data.LamHeight / Ny;
-
-            int Nloop = Nx * 2 + Ny * 2; // Num verts in a loop
-
-            Nx++; Ny++;
+            double hlw = lw / 2;
+            double hlh = lh / 2;
 
             int l = 0;
             for (int x = 0; x < g.Data.NumWidth; ++x)
             {
                 for (int y = 0; y < g.Data.NumHeight; ++y)
                 {
-                    var lam = new Lamella(g.Id, g, g.Data.LamHeight, x, y);
-                    Mesh lmesh = GluLamb.Utility.Create3dMeshGrid(g.Data.LamWidth, g.Data.LamHeight, lamcrvs[l].GetLength(), resolution);
-                    /*
-                    double length = lamcrvs[l].GetLength();
+                    var length = lamcrvs[l].GetLength();
+                    var lam = new Lamella(g.Id, g, lh, x, y);
+                    Mesh lmesh = GluLamb.Utility.Create3dMeshGrid(lw + extra_tolerance, lh, length + extra_tolerance, resolution);
 
-                    int Nz = (int)Math.Ceiling(length / resolution);
-                    double stepZ = length / Nz;
-                    Nz++;
-
-                    // Make mesh data for body
-
-                    for (int i = 0; i < Nz; ++i)
-                    {
-                        double posX = i * stepZ;
-
-                        for (int j = 0; j < Ny; ++j)
-                            lmesh.Vertices.Add(-hlw, -hlh + j * stepY, posX);
-
-                        for (int k = 1; k < Nx; ++k)
-                            lmesh.Vertices.Add(-hlw + k * stepX, -hlh + lh, posX);
-
-                        for (int j = Ny - 2; j >= 0; --j)
-                            lmesh.Vertices.Add(-hlw + lw, -hlh + j * stepY, posX);
-
-                        for (int k = Nx - 2; k > 0; --k)
-                            lmesh.Vertices.Add(-hlw + k * stepX, -hlh, posX);
-                    }
-
-                    for (int i = 0; i < Nz - 1; ++i)
-                    {
-                        for (int j = 0; j < Nloop - 1; ++j)
-                        {
-                            lmesh.Faces.AddFace(
-                              (i + 1) * Nloop + j,
-                              (i + 1) * Nloop + j + 1,
-                              i * Nloop + j + 1,
-                              i * Nloop + j
-                            );
-                        }
-                        lmesh.Faces.AddFace(
-                          (i + 1) * Nloop + Nloop - 1,
-                          (i + 1) * Nloop,
-                          i * Nloop,
-                          i * Nloop + Nloop - 1
-                        );
-                    }
-
-                    // Make mesh data for end faces
-
-                    int c = lmesh.Vertices.Count;
-
-                    for (int i = 0; i < Ny; ++i)
-                        for (int j = 0; j < Nx; ++j)
-                        {
-                            lmesh.Vertices.Add(-hlw + stepX * j, -hlh + stepY * i, 0);
-                        }
-
-                    for (int i = 0; i < Ny - 1; ++i)
-                        for (int j = 0; j < Nx - 1; ++j)
-                        {
-                            lmesh.Faces.AddFace(
-                            c + Nx * i + j,
-                            c + Nx * (i + 1) + j,
-                            c + Nx * (i + 1) + j + 1,
-                            c + Nx * i + j + 1
-                            );
-                        }
-
-                    c = lmesh.Vertices.Count;
-
-                    for (int i = 0; i < Ny; ++i)
-                        for (int j = 0; j < Nx; ++j)
-                        {
-                            lmesh.Vertices.Add(-hlw + stepX * j, -hlh + stepY * i, length);
-                        }
-
-                    for (int i = 0; i < Ny - 1; ++i)
-                        for (int j = 0; j < Nx - 1; ++j)
-                        {
-                            lmesh.Faces.AddFace(
-                              c + Nx * i + j + 1,
-                              c + Nx * (i + 1) + j + 1,
-                              c + Nx * (i + 1) + j,
-                              c + Nx * i + j
-                              );
-                        }
-                    */
                     lam.Mesh = lmesh;
+                    lam.Length = length;
+                    lam.Width = g.Data.LamWidth;
+                    //lam.Thickness = g.Data.LamHeight;
+                    //lam.StackPositionX = x;
+                    //lam.StackPositionY = y;
                     lam.Plane = new Plane(
                       new Point3d(
                           -hw + lw * x + hlw,
@@ -217,117 +129,134 @@ namespace RawLam
         }
     }
 
-    public class BoardPlacement
-    {
-        public BoardPlacement(Polyline poly)
-        {
-            Outline = poly;
-            BoundingBox = poly.BoundingBox;
-
-            RangeX = BoundingBox.Max.X - BoundingBox.Min.X;
-            RangeY = BoundingBox.Max.Y - BoundingBox.Min.Y;
-
-            MinX = BoundingBox.Min.X;
-            MinY = BoundingBox.Min.Y;
-
-            Lamellas = new List<Rectangle3d>();
-            Full = false;
-        }
-
-        public List<Rectangle3d> Lamellas;
-        public bool Full;
-        public BoundingBox BoundingBox;
-        public Polyline Outline;
-
-        public double RangeX;
-        public double RangeY;
-
-        public double MinX;
-        public double MinY;
-
-    }
 
     /// <summary>
     /// Class to allocate Lamellas to Boards. IN PROGRESS. Needs to be integrated with SortingHat.
     /// </summary>
-    public class LamellaAllocator
+    public class Alligator
     {
-        public bool UseRotation;
+        public Plane LamellaPlane;
+        public Plane BoardPlane;
+
+        public List<Board> Boards;
+        public List<int> BoardLogIndices;
+        public List<Lamella> Lamellas;
+
+        public List<Plane> Planes;
+        public List<Guid> BoardIds;
+
+        public double MaxRotation = 0.1;
+        public bool UseRotation = false;
+
+        public int Tries = 300;
+        public int MaxTries = 500;
+
+        // Debugging
+        public List<string> Log;
+
         private Random rnd;
-        public LamellaAllocator()
+
+        public Alligator()
         {
+            LamellaPlane = Plane.WorldXY;
+            BoardPlane = Plane.WorldXY;
+            Boards = new List<Board>();
+            BoardLogIndices = new List<int>();
+            Lamellas = new List<Lamella>();
+
+            Planes = new List<Plane>();
+            BoardIds = new List<Guid>();
+
+            Log = new List<string>();
+
             rnd = new Random();
         }
 
-        public void Run(List<Polyline> B, Rectangle3d L)
+        public List<LamellaPlacement> Alligate()
         {
-            /* ---- Initialize ---- */
-            var boards = new List<BoardPlacement>();
+            // Check for stupid inputs
+            if (Boards.Count < 1) throw new Exception("No boards to alligate onto.");
+            if (Lamellas.Count < 1) throw new Exception("No lamellas to alligate.");
 
-            for (int i = 0; i < B.Count; ++i)
+            // Initialize geometry, boards, and lamellas
+            var bps = new List<BoardPlacement>();
+            var lrecs = new List<Rectangle3d>();
+            var lps = new List<LamellaPlacement>();
+
+            for (int i = 0; i < Boards.Count; ++i)
             {
-                boards.Add(new BoardPlacement(B[i]));
+                var centre = Boards[i].Centre.Duplicate();
+                centre.Transform(Transform.PlaneToPlane(Boards[i].Plane, Plane.WorldXY));
+
+                var bp = new BoardPlacement(centre);
+                bps.Add(bp);
             }
 
-            var lamellas = new List<Rectangle3d>();
-            int N = 1000;
-
-            for (int i = 0; i < N; ++i)
+            for (int i = 0; i < Lamellas.Count; ++i)
             {
-                lamellas.Add(new Rectangle3d(Plane.WorldXY, L.Width, L.Height + rnd.NextDouble() * 200.0));
-                //lamellas.Add(L);
+                lps.Add(new LamellaPlacement());
+                lrecs.Add(new Rectangle3d(
+                  Plane.WorldXY,
+                  new Interval(Lamellas[i].Width * -0.5, Lamellas[i].Width * 0.5),
+                  new Interval(0, Lamellas[i].Length)
+                  ));
             }
 
-            var placed = new List<Rectangle3d>();
-            var debug = new List<object>();
-
-            int tries = 200;
+            // Initialize allocator variables
+            int N = 300;
+            int max_tries = N * 2;
             bool flag = false;
             int index = -1;
-
-            double rotation = 0.1;
 
             // Metrics
             int counter = 0;
             int num_lamellas_placed = 0;
 
-            for (int i = 0; i < lamellas.Count; ++i)
+            // Alligate the alligator
+            for (int i = 0; i < lrecs.Count; ++i)
             {
-                Rectangle3d lam = lamellas[i];
-
-                for (int j = 0; j < tries; ++j)
+                for (int j = 0; j < Tries; ++j)
                 {
                     counter++;
 
-                    index = rnd.Next(0, boards.Count);
-                    var board = boards[index];
-                    if (board.Full) continue;
+                    index = rnd.Next(0, bps.Count);
+                    var board = bps[index];
 
-                    lam = lamellas[i];
+                    if (Lamellas[i].Thickness >= Boards[index].Thickness)
+                        continue;
+                    if (Lamellas[i].Thickness + 15.0 < Boards[index].Thickness)
+                        continue;
+
+                    //Log.Add(string.Format("Lamella {0} (t{2:0.0}): matching to board {1} ({3})",
+                    //  i, index, Lamellas[i].Thickness, j));
+
+                    var lam = lrecs[i];
 
                     double xRange = board.RangeX - lam.Width;
                     double yRange = board.RangeY - lam.Height;
 
-                    flag = false;
                     var x = rnd.NextDouble() * xRange + board.MinX;
                     var y = rnd.NextDouble() * yRange + board.MinY;
 
-                    //Print("range {0} {1}", xRange, yRange);
-                    //Print("xy {0} {1}", x, y);
+                    //Plane plane = LamellaPlane;
+                    Plane plane = Lamellas[i].Plane;
+
                     if (UseRotation)
-                        lam.Transform(Transform.Rotation(rnd.NextDouble() * rotation, Point3d.Origin));
-                    lam.Transform(Transform.Translation(new Vector3d(x, y, 0)));
-
-
-                    debug.Add(lam);
-
-                    if (!IsInside(boards[index].Outline.ToNurbsCurve(), lam))
                     {
-                        //Print("Outside!");
-                        continue;
+                        plane.Transform(Transform.Rotation(rnd.NextDouble() * MaxRotation, Point3d.Origin));
                     }
 
-                    foreach (var p in boards[index].Lamellas)
+                    plane.Transform(Transform.Translation(new Vector3d(x, y, 0)));
+                    //xform = Transform.Multiply(xform, Transform.Translation(new Vector3d(x, y, 0)));
+
+                    lam.Transform(Transform.PlaneToPlane(Plane.WorldXY, plane));
+
+                    if (!IsInside(bps[index].Outline.ToNurbsCurve(), lam))
+                        continue;
+
+                    flag = false;
+
+                    foreach (var p in bps[index].Lamellas)
                     {
                         if (IsOverlapping(p, lam))
                         {
@@ -338,20 +267,50 @@ namespace RawLam
 
                     if (!flag)
                     {
-                        boards[index].Lamellas.Add(lam);
+                        bps[index].Lamellas.Add(lam);
+                        plane.Transform(Transform.PlaneToPlane(Plane.WorldXY, Boards[index].Plane));
+                        Planes.Add(plane);
+                        BoardIds.Add(Boards[index].BoardId);
+                        lrecs[i] = lam;
+
+                        lps[i].Plane = plane;
+                        lps[i].Placed = true;
+                        lps[i].BoardIndex = index;
+                        lps[i].LogIndex = BoardLogIndices[index];
+
+                        var mesh = Lamellas[i].Mesh.DuplicateMesh();
+                        mesh.Transform(Transform.PlaneToPlane(new Plane(Point3d.Origin, Vector3d.XAxis, Vector3d.ZAxis), plane));
+
                         num_lamellas_placed++;
+                        Log.Add("Success!");
                         break;
                     }
-
+                    else
+                    {
+                        bps[index].FalseTries++;
+                        if (bps[index].FalseTries > MaxTries)
+                        {
+                            //bps[index].Full = true;
+                        }
+                    }
                 }
 
                 if (flag)
                 {
-                    boards[index].Full = true;
-                    break;
+                    //Log.Add(string.Format("Ran out of tries: {0}", counter));
+                    //Print("Ran out of tries!");
+                    //boards[index].Full = true;
+                    //break;
                 }
+
+                Log.Add(string.Format("Moving on from lamella {0}", i));
             }
+
+            Log.Add(string.Format("Placed {0} lamellas on {1} boards.", num_lamellas_placed, Boards.Count));
+
+            return lps;
         }
+
         public bool IsOverlapping(Rectangle3d r1, Rectangle3d r2)
         {
             if (!UseRotation) // Use simple, axis-aligned method
@@ -381,5 +340,54 @@ namespace RawLam
             return true;
         }
     }
+
+    public class LamellaPlacement
+    {
+        public int LogIndex = -1;
+        public int BoardIndex = -1;
+        public bool Placed = false;
+        public Plane Plane;
+
+        public LamellaPlacement()
+        {
+            Plane = Plane.Unset;
+        }
+    }
+
+
+    public class BoardPlacement
+    {
+        public BoardPlacement(Polyline poly)
+        {
+            Outline = poly;
+            BoundingBox = poly.BoundingBox;
+
+            RangeX = BoundingBox.Max.X - BoundingBox.Min.X;
+            RangeY = BoundingBox.Max.Y - BoundingBox.Min.Y;
+
+            MinX = BoundingBox.Min.X;
+            MinY = BoundingBox.Min.Y;
+
+            Lamellas = new List<Rectangle3d>();
+            LamellaMeshes = new List<Mesh>();
+            Full = false;
+        }
+
+        public List<Rectangle3d> Lamellas;
+        public List<Mesh> LamellaMeshes;
+        public bool Full;
+        public BoundingBox BoundingBox;
+        public Polyline Outline;
+
+        public double RangeX;
+        public double RangeY;
+
+        public double MinX;
+        public double MinY;
+
+        public int FalseTries = 0;
+
+    }
+
 }
 #endif

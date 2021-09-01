@@ -43,11 +43,13 @@ namespace GluLamb.GH
         public override System.Guid ComponentGuid => new Guid("A43600E5-70B5-4B63-85DE-A6D40DC20DCB");
         protected override GH_GetterResult Prompt_Singular(ref GH_Glulam value)
         {
-            return GH_GetterResult.cancel;
+            value = new GH_Glulam();
+            return GH_GetterResult.success;
         }
         protected override GH_GetterResult Prompt_Plural(ref List<GH_Glulam> values)
         {
-            return GH_GetterResult.cancel;
+            values = new List<GH_Glulam>();
+            return GH_GetterResult.success;
         }
 
         protected override Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
@@ -67,11 +69,13 @@ namespace GluLamb.GH
         public override System.Guid ComponentGuid => new Guid("83A42E0E-ACB8-4B25-B455-3448A391CEB2");
         protected override GH_GetterResult Prompt_Singular(ref GH_GlulamData value)
         {
-            return GH_GetterResult.cancel;
+            value = new GH_GlulamData();
+            return GH_GetterResult.success;
         }
         protected override GH_GetterResult Prompt_Plural(ref List<GH_GlulamData> values)
         {
-            return GH_GetterResult.cancel;
+            values = new List<GH_GlulamData>();
+            return GH_GetterResult.success;
         }
     }
 
