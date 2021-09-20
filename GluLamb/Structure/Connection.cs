@@ -26,6 +26,7 @@ namespace GluLamb
         public Plane Plane; // Optional plane for precise positioning
         public List<Brep> Geometry; // Optional geometry to associate with this connection
         public List<string> GeometryTags;
+        public List<object> Objects; // Optional list of associated objects -> i.e. Feature objects from tasMachine
 
         public Connection(Element eleA, Element eleB, double positionA, double positionB, string name = "")
         {
@@ -37,6 +38,7 @@ namespace GluLamb
             Plane = Plane.Unset;
             Geometry = new List<Brep>();
             GeometryTags = new List<string>();
+            Objects = new List<object>();
         }
 
         public static void Disconnect(Connection conn)
