@@ -406,7 +406,10 @@ namespace GluLamb
 
             var joined = Brep.JoinBreps(body.Concat(start_cap).Concat(end_cap), Tolerance);
             if (joined.Length > 0)
+            {
+                joined[0].Faces.SplitKinkyFaces(0.1, true);
                 return joined[0];
+            }
             else throw new Exception("FreeformGlulam.ToBrep(): Joined Brep failed.");
         }
 #endif
