@@ -12,9 +12,11 @@ namespace GluLamb
         public List<Connection> Connections;
         public List<Element> Elements;
         public Dictionary<string, List<Element>> Groups;
+        public string Name;
 
-        public Structure()
+        public Structure(string name = "Structure")
         {
+            Name = name;
             Connections = new List<Connection>();
             Elements = new List<Element>();
             Groups = new Dictionary<string, List<Element>>();
@@ -29,7 +31,7 @@ namespace GluLamb
             int counter = 0;
             foreach (var ele in elements)
             {
-                ele.Name = string.Format("Element_{0:000}", counter);
+                //ele.Name = string.Format("Element_{0:000}", counter);
                 counter++;
             }
 
