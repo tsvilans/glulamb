@@ -67,6 +67,7 @@
     <Compile Include="CrossSectionOrientation.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Factory\Blank.cs" />
+    <Compile Include="Factory\StructureFactory.cs" />
     <Compile Include="Glulam\DoubleCurvedGlulam.cs" />
     <Compile Include="Glulam\FreeformGlulam.cs" />
     <Compile Include="Glulam\GlulamAnalysis.cs" />
@@ -89,6 +90,7 @@
     <Compile Include="Structure\Connection.cs" />
     <Compile Include="Structure\Element.cs" />
     <Compile Include="Structure\ElementGroup.cs" />
+    <Compile Include="Structure\Joint.cs" />
     <Compile Include="Structure\Structure.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="Glulam\GlulamBase.cs" />

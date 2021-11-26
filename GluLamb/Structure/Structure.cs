@@ -9,6 +9,7 @@ namespace GluLamb
 {
     public class Structure
     {
+        public List<Joint<Element>> Joints;
         public List<Connection> Connections;
         public List<Element> Elements;
         public Dictionary<string, List<Element>> Groups;

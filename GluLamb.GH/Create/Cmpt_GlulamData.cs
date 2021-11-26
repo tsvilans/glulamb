@@ -62,7 +62,7 @@ namespace GluLamb.GH.Components
             ExpireSolution(true);
         }
 
-        GH_ValueList valueList = null;
+        //GH_ValueList valueList = null;
         Guid LastValueList = Guid.Empty;
         IGH_Param alignment_parameter = null;
 
