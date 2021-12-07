@@ -14,7 +14,7 @@ namespace GluLamb
         public T Element { get; }
         public Joint<T> Joint { get; }
         public List<Brep> Geometry;
-        public int Index { get; }
+        public int Index { get; set; }
 
         public JointPart(T element, Joint<T> joint, int index = 0)
         {
@@ -23,6 +23,15 @@ namespace GluLamb
             Element = element;
             Joint = joint;
             Index = index;
+            Geometry = new List<Brep>();
+        }
+
+        public JointPart(JointPart<T> jp)
+        {
+            Element = jp.Element;
+            Joint = jp.Joint;
+            Index = jp.Index;
+            Geometry = jp.Geometry;
         }
 
         public override string ToString()
@@ -179,13 +188,13 @@ namespace GluLamb
         }
     }
 
-    public class VFloorJoint: Joint3<BeamElement>
+    public class VBeamJoint: Joint3<BeamElement>
     {
         /// <summary>
         /// Creates a joint between three beam elements.
         /// </summary>
         /// <param name="elements">Array of three beam elements.</param>
-        public VFloorJoint(Element[] elements) : base()
+        public VBeamJoint(Element[] elements) : base()
         {
             if (elements.Length != Parts.Length) throw new Exception("SpliceJoint needs 2 elements.");
             for (int i = 0; i < Parts.Length; ++i)
@@ -199,7 +208,7 @@ namespace GluLamb
         /// <param name="v0">First beam element in V.</param>
         /// <param name="v1">Second beam element in V.</param>
         /// <param name="floor">Floor plate beam element.</param>
-        public VFloorJoint(Element v0, Element v1, Element floor) : base()
+        public VBeamJoint(Element v0, Element v1, Element floor) : base()
         {
             Parts[0] = new JointPart<BeamElement>(v0 as BeamElement, this, 0);
             Parts[1] = new JointPart<BeamElement>(v1 as BeamElement, this, 1);
@@ -208,10 +217,10 @@ namespace GluLamb
 
         public JointPart<BeamElement> V0 { get { return Parts[0]; } }
         public JointPart<BeamElement> V1 { get { return Parts[1]; } }
-        public JointPart<BeamElement> Floor { get { return Parts[2]; } }
+        public JointPart<BeamElement> Beam { get { return Parts[2]; } }
         public override string ToString()
         {
-            return "VFloorJoint";
+            return "VBeamJoint";
         }
     }
 

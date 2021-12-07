@@ -153,6 +153,40 @@ namespace GluLamb
         {
             return new Plane(P.Origin, -P.XAxis, P.YAxis);
         }
+
+        public static Transform ProjectPointAlongVector(this Plane Pln, Vector3d V)
+        {
+            Transform oblique = new Transform(1);
+            double[] eq = Pln.GetPlaneEquation();
+            double a, b, c, d, dx, dy, dz, D;
+            a = eq[0];
+            b = eq[1];
+            c = eq[2];
+            d = eq[3];
+            dx = V.X;
+            dy = V.Y;
+            dz = V.Z;
+            D = a * dx + b * dy + c * dz;
+            oblique.M00 = 1 - a * dx / D;
+            oblique.M01 = -a * dy / D;
+            oblique.M02 = -a * dz / D;
+            oblique.M03 = 0;
+            oblique.M10 = -b * dx / D;
+            oblique.M11 = 1 - b * dy / D;
+            oblique.M12 = -b * dz / D;
+            oblique.M13 = 0;
+            oblique.M20 = -c * dx / D;
+            oblique.M21 = -c * dy / D;
+            oblique.M22 = 1 - c * dz / D;
+            oblique.M23 = 0;
+            oblique.M30 = -d * dx / D;
+            oblique.M31 = -d * dy / D;
+            oblique.M32 = -d * dz / D;
+            oblique.M33 = 1;
+            oblique = oblique.Transpose();
+            return oblique;
+        }
+
     }
 
     public static class PointExtensionMethods

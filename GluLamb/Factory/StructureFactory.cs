@@ -44,7 +44,7 @@ namespace GluLamb.Factory
                 }
                 if (matches.Count == 3)
                 {
-                    var vjoint = new VFloorJoint(matches.Select(x => elements[x]).ToArray());
+                    var vjoint = new VBeamJoint(matches.Select(x => elements[x]).ToArray());
                     vjoint.Plane = new Plane(endpoints0[0], Vector3d.XAxis, Vector3d.YAxis);
 
                     joints.Add(vjoint);
@@ -132,6 +132,13 @@ namespace GluLamb.Factory
             Parameter = parameter; // parameter on curve where the intersection is closest to
         }
 
+        public JointConditionPart(JointConditionPart jcp)
+        {
+            Index = jcp.Index;
+            Case = jcp.Case;
+            Parameter = jcp.Parameter;
+        }
+
         public override bool Equals(object other)
         {
             if (other is JointConditionPart)
@@ -187,8 +194,14 @@ namespace GluLamb.Factory
                         var tA = r.ParameterA;
                         var tB = r.ParameterB;
 
-                        int case0 = Math.Abs(tA - crv0.Domain.Min) < end_threshold || Math.Abs(tA - crv0.Domain.Max) < end_threshold ? 0 : 1;
-                        int case1 = Math.Abs(tB - crv1.Domain.Min) < end_threshold || Math.Abs(tB - crv1.Domain.Max) < end_threshold ? 0 : 1;
+                        var lA = crv0.GetLength(new Interval(crv0.Domain.Min, tA));
+                        var lB = crv1.GetLength(new Interval(crv1.Domain.Min, tB));
+
+                        var crv0Length = crv0.GetLength();
+                        var crv1Length = crv1.GetLength();
+
+                        int case0 = Math.Abs(lA) < end_threshold || Math.Abs(lA - crv0Length) < end_threshold ? 0 : 1;
+                        int case1 = Math.Abs(lB ) < end_threshold || Math.Abs(lB - crv1Length) < end_threshold ? 0 : 1;
 
                         var jc = new JointCondition(pos,
                           new List<JointConditionPart>()
@@ -203,6 +216,124 @@ namespace GluLamb.Factory
             }
 
             return MergeJointConditions(jcs, merge_distance);
+        }
+
+        public static List<Joint<BeamElement>> ClassifyJoints2(List<BeamElement> beams, List<JointCondition> jcs)
+        {
+            var types = new List<Joint<BeamElement>>();
+            int c = 0;
+
+            foreach (var jc in jcs)
+            {
+                Joint<BeamElement> type = null;
+
+                switch (jc.Parts.Count)
+                {
+                    // The joint has 2 members
+                    case (2):
+                        c = jc.Parts[0].Case | (jc.Parts[1].Case << 1);
+                        switch (c)
+                        {
+                            case (0):
+                                //type = "EndToEndJoint";
+                                type = new SpliceJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
+                                break;
+                            case (1):
+                                //type = "TenonJoint";
+                                type = new TenonJoint(beams[jc.Parts[1].Index], beams[jc.Parts[0].Index]);
+                                type.Parts[0].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[0].Index = jc.Parts[1].Index;
+                                type.Parts[1].Index = jc.Parts[0].Index;
+
+                                break;
+                            case (2):
+                                //type = "TenonJoint";
+                                type = new TenonJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
+                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[0].Index = jc.Parts[0].Index;
+                                type.Parts[1].Index = jc.Parts[1].Index;
+
+                                break;
+                            case (3):
+                                //type = "CrossJoint";
+                                type = new CrossJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
+                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[0].Index = jc.Parts[0].Index;
+                                type.Parts[1].Index = jc.Parts[1].Index;
+                                break;
+                        }
+                        break;
+                    // The joint has 3 members
+                    case (3):
+                        c = jc.Parts[0].Case | (jc.Parts[1].Case << 1) | (jc.Parts[2].Case << 2);
+                        switch (c)
+                        {
+                            case (0):
+                                type = null;
+                                //type = "ThreeWayEndToEndJoint";
+                                break;
+                            case (1):
+                                type = new VBeamJoint(beams[jc.Parts[1].Index], beams[jc.Parts[2].Index], beams[jc.Parts[0].Index]);
+                                type.Parts[0].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[2].Parameter;
+                                type.Parts[2].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[0].Index = jc.Parts[1].Index;
+                                type.Parts[1].Index = jc.Parts[2].Index;
+                                type.Parts[2].Index = jc.Parts[0].Index;
+                                break;
+                                goto case (2);
+                            case (2):
+                                type = new VBeamJoint(beams[jc.Parts[0].Index], beams[jc.Parts[2].Index], beams[jc.Parts[1].Index]);
+                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[2].Parameter;
+                                type.Parts[2].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[0].Index = jc.Parts[0].Index;
+                                type.Parts[1].Index = jc.Parts[2].Index;
+                                type.Parts[2].Index = jc.Parts[1].Index;
+                                break;
+                                goto case (4);
+                            case (4):
+
+                                type = new VBeamJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index], beams[jc.Parts[2].Index]);
+                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[2].Parameter = jc.Parts[2].Parameter;
+                                type.Parts[0].Index = jc.Parts[0].Index;
+                                type.Parts[1].Index = jc.Parts[1].Index;
+                                type.Parts[2].Index = jc.Parts[2].Index;
+
+                                //type = "VFloorJoint";
+                                break;
+                            default:
+                                type = null;
+                                //type = "ThreeWayJoint";
+                                break;
+                        }
+
+                        break;
+                    // The joint has 4 members
+                    case (4):
+                        type = new FourWayJoint(new Element[] { beams[jc.Parts[0].Index], beams[jc.Parts[1].Index], beams[jc.Parts[2].Index], beams[jc.Parts[3].Index] });
+                        type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                        type.Parts[1].Parameter = jc.Parts[1].Parameter;
+                        type.Parts[2].Parameter = jc.Parts[2].Parameter;
+                        type.Parts[3].Parameter = jc.Parts[3].Parameter;
+                        type.Parts[0].Index = jc.Parts[0].Index;
+                        type.Parts[1].Index = jc.Parts[1].Index;
+                        type.Parts[2].Index = jc.Parts[2].Index;
+                        type.Parts[3].Index = jc.Parts[3].Index;
+                        //type = "FourWayJoint";
+                        break;
+                    default:
+                        break;
+                }
+                types.Add(type);
+            }
+
+            return types;
         }
 
         public static List<string> ClassifyJoints(List<JointCondition> jcs)
