@@ -142,7 +142,7 @@ namespace GluLamb.Factory
         public override bool Equals(object other)
         {
             if (other is JointConditionPart)
-                return Index == (other as JointConditionPart).Index && Case == (other as JointConditionPart).Case;
+                return Equals(other as JointConditionPart);
             return false;
         }
 
@@ -237,6 +237,10 @@ namespace GluLamb.Factory
                             case (0):
                                 //type = "EndToEndJoint";
                                 type = new SpliceJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
+                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
+                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
+                                type.Parts[0].Index = jc.Parts[0].Index;
+                                type.Parts[1].Index = jc.Parts[1].Index;
                                 break;
                             case (1):
                                 //type = "TenonJoint";
