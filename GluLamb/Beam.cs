@@ -319,6 +319,28 @@ namespace GluLamb
             return m_mesh;
         }
 
+        public Brep ToBrep()
+        {
+            var tt = Centreline.DivideByLength((int)(Centreline.GetLength() / 50.0), true);
+            var planes = GetPlanes(tt);
+
+            var xsections = new List<Curve>();
+
+            foreach (Plane plane in planes)
+            {
+                var rec = new Rectangle3d(plane, new Interval(-Width * 0.5, Width * 0.5),
+                  new Interval(-Height * 0.5, Height * 0.5)).ToNurbsCurve();
+                xsections.Add(rec);
+            }
+
+            var loft = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false);
+            loft[0] = loft[0].CapPlanarHoles(0.01);
+            loft[0].Flip();
+
+            return loft[0];
+
+        }
+
 
 
     }

@@ -10,27 +10,32 @@ namespace GluLamb.Factory
 {
     public class StructureFactory
     {
-        public static List<Joint<BeamElement>> FindJointConditions(List<BeamElement> elements, double searchDistance, double overlapDistance, double end_threshold = 0.1)
+        public static List<Joint> FindBeamJointConditions(List<Element> elements, double searchDistance, double overlapDistance, double end_threshold = 0.1)
         {
             int counter = 0;
             foreach (var ele in elements)
             {
                 counter++;
             }
+            BeamElement be0, be1;
 
-            var joints = new List<Joint<BeamElement>>();
-
+            var joints = new List<Joint>();
             var joined = new List<List<int>>();
 
             // Find joints between more than 2 elements
             for (int i = 0; i < elements.Count - 1; ++i)
             {
-                var endpoints0 = new Point3d[] { elements[i].Beam.Centreline.PointAtStart, elements[i].Beam.Centreline.PointAtEnd };
+                be0 = elements[i] as BeamElement;
+                if (be0 == null) continue;
+
+                var endpoints0 = new Point3d[] { be0.Beam.Centreline.PointAtStart, be0.Beam.Centreline.PointAtEnd };
                 var matches = new List<int>();
 
                 for (int j = i + 1; j < elements.Count; ++j)
                 {
-                    var endpoints1 = new Point3d[] { elements[j].Beam.Centreline.PointAtStart, elements[j].Beam.Centreline.PointAtEnd };
+                    be1 = elements[j] as BeamElement;
+                    if (be1 == null) continue;
+                    var endpoints1 = new Point3d[] { be1.Beam.Centreline.PointAtStart, be1.Beam.Centreline.PointAtEnd };
                     for (int k = 0; k < 2; ++k)
                     {
                         for (int l = 0; l < 2; ++l)
@@ -64,15 +69,18 @@ namespace GluLamb.Factory
 
             for (int i = 0; i < elements.Count - 1; ++i)
             {
+                be0 = elements[i] as BeamElement;
+                if (be0 == null) continue;
+
                 for (int j = i + 1; j < elements.Count; ++j)
                 {
                     if (joined[i].Contains(j)) continue;
 
-                    var e0 = elements[i];
-                    var e1 = elements[j];
+                    be1 = elements[j] as BeamElement;
+                    if (be1 == null) continue;
 
-                    var crv0 = e0.Beam.Centreline;
-                    var crv1 = e1.Beam.Centreline;
+                    var crv0 = be0.Beam.Centreline;
+                    var crv1 = be1.Beam.Centreline;
                     var intersections = Rhino.Geometry.Intersect.Intersection.CurveCurve(crv0, crv1, searchDistance, overlapDistance);
 
                     foreach (var intersection in intersections)
@@ -87,22 +95,21 @@ namespace GluLamb.Factory
                         if (Math.Abs(tB - crv1.Domain.Min) < end_threshold || Math.Abs(tB - crv1.Domain.Max) < end_threshold)
                             type += 2;
 
-                        Joint<BeamElement> joint;
+                        Joint joint;
 
                         switch (type)
                         {
                             case (0):
-                                joint = new CrossJoint(e0, e1);
+                                joint = new CrossJoint(be0, tA, be1, tB);
                                 break;
                             case (3):
-                                joint = new CrossJoint(e0, e1);
+                                joint = new CrossJoint(be0, tA, be1, tB);
                                 break;
                             case (1):
-                                joint = new TenonJoint(e0, e1);
-
+                                joint = new TenonJoint(be0, tA, be1, tB);
                                 break;
                             case (2):
-                                joint = new TenonJoint(e1, e0);
+                                joint = new TenonJoint(be1, tB, be0, tA);
 
                                 break;
                             default:
@@ -218,14 +225,65 @@ namespace GluLamb.Factory
             return MergeJointConditions(jcs, merge_distance);
         }
 
-        public static List<Joint<BeamElement>> ClassifyJoints2(List<BeamElement> beams, List<JointCondition> jcs)
+        public static List<JointCondition> FindJointConditions(List<Element> elements, double radius = 100.0, double end_threshold = 10.0, double merge_distance = 50.0)
         {
-            var types = new List<Joint<BeamElement>>();
+            var jcs = new List<JointCondition>();
+
+            for (int i = 0; i < elements.Count - 1; ++i)
+            {
+                var crv0 = (elements[i] as BeamElement).Beam.Centreline;
+
+                for (int j = i + 1; j < elements.Count; ++j)
+                {
+                    var crv1 = (elements[j] as BeamElement).Beam.Centreline;
+
+                    var res = Rhino.Geometry.Intersect.Intersection.CurveCurve(crv0, crv1, radius, radius);
+
+                    foreach (var r in res)
+                    {
+                        var pos = (r.PointA + r.PointB) / 2;
+
+                        var tA = r.ParameterA;
+                        var tB = r.ParameterB;
+
+                        var lA = crv0.GetLength(new Interval(crv0.Domain.Min, tA));
+                        var lB = crv1.GetLength(new Interval(crv1.Domain.Min, tB));
+
+                        var crv0Length = crv0.GetLength();
+                        var crv1Length = crv1.GetLength();
+
+                        int case0 = Math.Abs(lA) < end_threshold || Math.Abs(lA - crv0Length) < end_threshold ? 0 : 1;
+                        int case1 = Math.Abs(lB) < end_threshold || Math.Abs(lB - crv1Length) < end_threshold ? 0 : 1;
+
+                        if ((case0 | (case1 << 1)) > 0 && Math.Abs(crv0.TangentAt(tA) * crv1.TangentAt(tB)) > 0.95)
+                        {
+                            case0 = 0;
+                            case1 = 0;
+                        }
+
+                        var jc = new JointCondition(pos,
+                          new List<JointConditionPart>()
+                          {
+                              new JointConditionPart(i, case0, tA),
+                              new JointConditionPart(j, case1, tB)
+                            });
+
+                        jcs.Add(jc);
+                    }
+                }
+            }
+
+            return MergeJointConditions(jcs, merge_distance);
+        }
+
+        public static List<Joint> ClassifyJoints(List<Element> beams, List<JointCondition> jcs)
+        {
+            var types = new List<Joint>();
             int c = 0;
 
             foreach (var jc in jcs)
             {
-                Joint<BeamElement> type = null;
+                Joint type = null;
 
                 switch (jc.Parts.Count)
                 {
@@ -236,100 +294,29 @@ namespace GluLamb.Factory
                         {
                             case (0):
                                 //type = "EndToEndJoint";
-                                type = new SpliceJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
-                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[0].Index = jc.Parts[0].Index;
-                                type.Parts[1].Index = jc.Parts[1].Index;
+                                type = new SpliceJoint(beams, jc);
                                 break;
                             case (1):
                                 //type = "TenonJoint";
-                                type = new TenonJoint(beams[jc.Parts[1].Index], beams[jc.Parts[0].Index]);
-                                type.Parts[0].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[0].Index = jc.Parts[1].Index;
-                                type.Parts[1].Index = jc.Parts[0].Index;
-
+                                type = new TenonJoint(beams, jc.Parts[1], jc.Parts[0]);
                                 break;
                             case (2):
                                 //type = "TenonJoint";
-                                type = new TenonJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
-                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[0].Index = jc.Parts[0].Index;
-                                type.Parts[1].Index = jc.Parts[1].Index;
-
+                                type = new TenonJoint(beams, jc.Parts[0], jc.Parts[1]);
                                 break;
                             case (3):
                                 //type = "CrossJoint";
-                                type = new CrossJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index]);
-                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[0].Index = jc.Parts[0].Index;
-                                type.Parts[1].Index = jc.Parts[1].Index;
+                                type = new CrossJoint(beams, jc);
                                 break;
                         }
                         break;
                     // The joint has 3 members
                     case (3):
-                        c = jc.Parts[0].Case | (jc.Parts[1].Case << 1) | (jc.Parts[2].Case << 2);
-                        switch (c)
-                        {
-                            case (0):
-                                type = null;
-                                //type = "ThreeWayEndToEndJoint";
-                                break;
-                            case (1):
-                                type = new VBeamJoint(beams[jc.Parts[1].Index], beams[jc.Parts[2].Index], beams[jc.Parts[0].Index]);
-                                type.Parts[0].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[2].Parameter;
-                                type.Parts[2].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[0].Index = jc.Parts[1].Index;
-                                type.Parts[1].Index = jc.Parts[2].Index;
-                                type.Parts[2].Index = jc.Parts[0].Index;
-                                break;
-                                goto case (2);
-                            case (2):
-                                type = new VBeamJoint(beams[jc.Parts[0].Index], beams[jc.Parts[2].Index], beams[jc.Parts[1].Index]);
-                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[2].Parameter;
-                                type.Parts[2].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[0].Index = jc.Parts[0].Index;
-                                type.Parts[1].Index = jc.Parts[2].Index;
-                                type.Parts[2].Index = jc.Parts[1].Index;
-                                break;
-                                goto case (4);
-                            case (4):
-
-                                type = new VBeamJoint(beams[jc.Parts[0].Index], beams[jc.Parts[1].Index], beams[jc.Parts[2].Index]);
-                                type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                                type.Parts[1].Parameter = jc.Parts[1].Parameter;
-                                type.Parts[2].Parameter = jc.Parts[2].Parameter;
-                                type.Parts[0].Index = jc.Parts[0].Index;
-                                type.Parts[1].Index = jc.Parts[1].Index;
-                                type.Parts[2].Index = jc.Parts[2].Index;
-
-                                //type = "VFloorJoint";
-                                break;
-                            default:
-                                type = null;
-                                //type = "ThreeWayJoint";
-                                break;
-                        }
-
+                        type = new VBeamJoint(beams, jc);
                         break;
                     // The joint has 4 members
                     case (4):
-                        type = new FourWayJoint(new Element[] { beams[jc.Parts[0].Index], beams[jc.Parts[1].Index], beams[jc.Parts[2].Index], beams[jc.Parts[3].Index] });
-                        type.Parts[0].Parameter = jc.Parts[0].Parameter;
-                        type.Parts[1].Parameter = jc.Parts[1].Parameter;
-                        type.Parts[2].Parameter = jc.Parts[2].Parameter;
-                        type.Parts[3].Parameter = jc.Parts[3].Parameter;
-                        type.Parts[0].Index = jc.Parts[0].Index;
-                        type.Parts[1].Index = jc.Parts[1].Index;
-                        type.Parts[2].Index = jc.Parts[2].Index;
-                        type.Parts[3].Index = jc.Parts[3].Index;
-                        //type = "FourWayJoint";
+                        type = new FourWayJoint(beams, jc);
                         break;
                     default:
                         break;
@@ -340,68 +327,12 @@ namespace GluLamb.Factory
             return types;
         }
 
-        public static List<string> ClassifyJoints(List<JointCondition> jcs)
+        public static void FindAndClassifyJoints(Structure structure, double search_distance, double end_distance, double merge_distance)
         {
-            var types = new List<string>();
-            int c = 0;
+            var jcs = FindJointConditions(structure.Elements, search_distance, end_distance, merge_distance);
+            var joints = ClassifyJoints(structure.Elements, jcs);
 
-            foreach (var jc in jcs)
-            {
-                string type = "Unknown";
-
-                switch (jc.Parts.Count)
-                {
-                    // The joint has 2 members
-                    case (2):
-                        c = jc.Parts[0].Case | (jc.Parts[1].Case << 1);
-                        switch (c)
-                        {
-                            case (0):
-                                type = "EndToEndJoint";
-                                break;
-                            case (1):
-                                type = "TenonJoint";
-                                break;
-                            case (2):
-                                type = "TenonJoint";
-                                break;
-                            case (3):
-                                type = "CrossJoint";
-                                break;
-                        }
-                        break;
-                    // The joint has 3 members
-                    case (3):
-                        c = jc.Parts[0].Case | (jc.Parts[1].Case << 1) | (jc.Parts[2].Case << 2);
-                        switch (c)
-                        {
-                            case (0):
-                                type = "ThreeWayEndToEndJoint";
-                                break;
-                            case (1):
-                                goto case (2);
-                            case (2):
-                                goto case (4);
-                            case (4):
-                                type = "VFloorJoint";
-                                break;
-                            default:
-                                type = "ThreeWayJoint";
-                                break;
-                        }
-
-                        break;
-                    // The joint has 4 members
-                    case (4):
-                        type = "FourWayJoint";
-                        break;
-                    default:
-                        break;
-                }
-                types.Add(type);
-            }
-
-            return types;
+            structure.Joints = joints;
         }
 
         public static List<JointCondition> MergeJointConditions(List<JointCondition> jcs, double merge_distance = 50.0)
@@ -423,6 +354,10 @@ namespace GluLamb.Factory
                 }
                 jcs_new.Add(jcs[i]);
             }
+
+
+            if (!flags[jcs.Count - 1])
+                jcs_new.Add(jcs[jcs.Count - 1]);
 
             return jcs_new;
         }

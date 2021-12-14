@@ -1,6 +1,4 @@
-﻿#if RAWLAM
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,7 +7,7 @@ using System.Threading.Tasks;
 using Rhino.Geometry;
 using GluLamb;
 
-namespace RawLam
+namespace GluLamb
 { 
     public class Lamella
     {
@@ -67,4 +65,3 @@ namespace RawLam
         }
     }
 }
-#endif

@@ -63,7 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Beam.cs" />
-    <Compile Include="Connections\CrossingLapJoint.cs" />
+    <Compile Include="Joints\CrossingLapJoint.cs" />
     <Compile Include="CrossSectionOrientation.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Factory\Blank.cs" />
@@ -78,9 +78,11 @@
     <Compile Include="Glulam\SingleCurvedGlulam.cs" />
     <Compile Include="Glulam\Stick.cs" />
     <Compile Include="Glulam\StraightGlulam.cs" />
+    <Compile Include="Joints\JointConstructor.cs" />
+    <Compile Include="Joints\JointUtil.cs" />
     <Compile Include="RawLam\Board.cs" />
     <Compile Include="RawLam\Functions.cs" />
-    <Compile Include="RawLam\Lamella.cs" />
+    <Compile Include="Glulam\Lamella.cs" />
     <Compile Include="RawLam\Log.cs" />
     <Compile Include="Standards\ANSI.cs" />
     <Compile Include="Standards\CSA.cs" />
