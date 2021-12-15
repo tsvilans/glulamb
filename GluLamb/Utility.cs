@@ -662,6 +662,51 @@ namespace GluLamb
 
             return planes;
         }
+
+        public static double ApproximateAtan2(double y, double x)
+        {
+            int o = 0;
+            if (y < 0) { x = -x; y = -y; o |= 4; }
+            if (x <= 0) { double t = x; x = y; y = -t; o |= 2; }
+            if (x <= y) { double t = y - x; x += y; y = t; o |= 1; }
+            return o + y / x;
+        }
+
+        /// <summary>
+        /// Sorts vectors around a point and vector.
+        /// </summary>
+        /// <param name="V">Input vectors.</param>
+        /// <param name="p">Point to sort around.</param>
+        /// <param name="normal">Normal vector to sort around.</param>
+        /// <param name="sorted_indices">(out) List of vector indices in order.</param>
+        /// <returns>Sorted angles of vectors.</returns>
+        public static List<double> SortVectorsAroundPoint(List<Vector3d> V, Point3d p, Vector3d normal, out List<int> sorted_indices)
+        {
+            Plane plane = new Plane(p, normal);
+
+            List<Tuple<double, int>> angles = new List<Tuple<double, int>>();
+
+            sorted_indices = new List<int>();
+            List<double> angleValues = new List<double>();
+
+            for (int i = 0; i < V.Count; ++i)
+            {
+                double dx = Vector3d.Multiply(V[i], plane.XAxis);
+                double dy = Vector3d.Multiply(V[i], plane.YAxis);
+
+                angles.Add(new Tuple<double, int>(Math.Atan2(dy, dx), i));
+            }
+
+            angles.Sort();
+
+            foreach (Tuple<double, int> t in angles)
+            {
+                sorted_indices.Add(t.Item2);
+                angleValues.Add(t.Item1);
+            }
+
+            return angleValues;
+        }
     }
 
 }

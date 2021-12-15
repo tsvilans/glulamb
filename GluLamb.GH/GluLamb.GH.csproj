@@ -82,6 +82,7 @@
     <Compile Include="Map\Cmpt_GetFrameAtParameter.cs" />
     <Compile Include="Map\Cmpt_GetFrameList.cs" />
     <Compile Include="Map\Cmpt_MapToGlulamSpace.cs" />
+    <Compile Include="Modify\Cmpt_CutBrep.cs" />
     <Compile Include="Modify\Cmpt_GetEdgePoints.cs" />
     <Compile Include="Modify\Cmpt_GetGlulamFace.cs" />
     <Compile Include="Modify\Cmpt_GetGlulamSideSrf.cs" />

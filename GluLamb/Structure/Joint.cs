@@ -124,6 +124,13 @@ namespace GluLamb
             return "CrossJoint";
         }
 
+        public void Flip()
+        {
+            var temp = Parts[1];
+            Parts[1] = Parts[0];
+            Parts[0] = temp;
+        }
+
     }
 
     public class TenonJoint : Joint2
@@ -171,10 +178,37 @@ namespace GluLamb
         public FourWayJoint(List<Element> elements, Factory.JointCondition jc)
         {
             if (jc.Parts.Count != Parts.Length) throw new Exception("FourWayJoint needs 4 elements.");
+
+            // Sort elements around the joint normal
+            var vectors = new List<Vector3d>();
+            var normal = Vector3d.Zero;
+
+            for (int i = 0; i < jc.Parts.Count; ++i)
+            {
+                var tan = GluLamb.Joints.JointUtil.GetEndConnectionVector((elements[jc.Parts[i].Index] as BeamElement).Beam, jc.Position);
+                vectors.Add(tan);
+            }
+            for (int i = 0; i < vectors.Count; ++i)
+            {
+                int ii = (i + 1).Modulus(4);
+
+                normal += Vector3d.CrossProduct(vectors[i], vectors[ii]);
+            }
+
+            normal /= vectors.Count;
+
+            List<int> indices;
+            Utility.SortVectorsAroundPoint(vectors, jc.Position, normal, out indices);
+
             for (int i = 0; i < Parts.Length; ++i)
             {
-                Parts[i] = new JointPart(elements, jc.Parts[i], this);
+                Parts[i] = new JointPart(elements, jc.Parts[indices[i]], this);
             }
+
+            var xaxis = Vector3d.CrossProduct(normal, Vector3d.ZAxis);
+            if (xaxis.IsTiny(0.001)) xaxis = Vector3d.XAxis;
+            var yaxis = Vector3d.CrossProduct(xaxis, normal);
+            this.Plane = new Plane(jc.Position, xaxis, yaxis);
         }
         /// <summary>
         /// Creates a joint between four beam elements.
@@ -182,6 +216,7 @@ namespace GluLamb
         /// <param name="elements">Array of 4 beam elements.</param>
         public FourWayJoint(Element[] elements) : base()
         {
+
             if (elements.Length != Parts.Length) throw new Exception("FourWayJoint needs 4 elements.");
             for (int i = 0; i < Parts.Length; ++i)
             {
@@ -197,6 +232,53 @@ namespace GluLamb
             return "FourWayJoint";
         }
 
+    }
+
+    public class CornerJoint : Joint2
+    {
+        public CornerJoint(List<Element> elements, Factory.JointCondition jc)
+        {
+            if (jc.Parts.Count != Parts.Length) throw new Exception("CornerJoint needs 2 elements.");
+            for (int i = 0; i < Parts.Length; ++i)
+            {
+                Parts[i] = new JointPart(elements, jc.Parts[i], this);
+            }
+        }
+        /// <summary>
+        /// Creates a splice joint between two beam elements.
+        /// </summary>
+        /// <param name="elements">Array of two beam elements.</param>
+        public CornerJoint(Element[] elements) : base()
+        {
+            if (elements.Length != Parts.Length) throw new Exception("CornerJoint needs 2 elements.");
+            for (int i = 0; i < Parts.Length; ++i)
+            {
+                Parts[i] = new JointPart(elements[i] as BeamElement, this, i);
+            }
+        }
+
+        /// <summary>
+        /// Creates a splice joint between two beam elements.
+        /// </summary>
+        /// <param name="eA">First beam element.</param>
+        /// <param name="eB">Second beam element.</param>
+        public CornerJoint(Element eA, double parameterA, Element eB, double parameterB) : base()
+        {
+            Parts[0] = new JointPart(eA as BeamElement, this, 0, parameterA);
+            Parts[1] = new JointPart(eB as BeamElement, this, 1, parameterB);
+        }
+        public JointPart FirstHalf { get { return Parts[0]; } }
+        public JointPart SecondHalf { get { return Parts[1]; } }
+        public override string ToString()
+        {
+            return "CornerJoint";
+        }
+        public void Flip()
+        {
+            var temp = Parts[1];
+            Parts[1] = Parts[0];
+            Parts[0] = temp;
+        }
     }
 
     public class SpliceJoint: Joint2
@@ -237,6 +319,13 @@ namespace GluLamb
         public override string ToString()
         {
             return "SpliceJoint";
+        }
+
+        public void Flip()
+        {
+            var temp = Parts[1];
+            Parts[1] = Parts[0];
+            Parts[0] = temp;
         }
     }
 

@@ -348,4 +348,84 @@ namespace GluLamb
             return m;
         }
     }
+
+    public static class BrepExtensionMethods
+    {
+        public static Brep Cut(this Brep brep, IEnumerable<Brep> cutters, double tolerance = 0.01)
+        {
+            var solids = new List<Brep>();
+            var surfs = new List<Brep>();
+            if (brep == null) throw new Exception("Brep is null in CutBrep()");
+
+            if (brep.SolidOrientation != BrepSolidOrientation.Outward)
+                brep.Flip();
+
+            for (int i = 0; i < brep.Faces.Count; ++i)
+            {
+                //brep.Surfaces[i].Reverse(0, true);
+
+                //x.Faces.Flip(false);
+                if (brep.Faces[i].OrientationIsReversed)
+                    brep.Faces[i].Reverse(0, true);
+            }
+
+            foreach (Brep ctr in cutters)
+            {
+                if (ctr.IsSolid)
+                {
+                    solids.Add(ctr);
+                }
+                else
+                {
+                    surfs.Add(ctr);
+                }
+            }
+
+            Brep[] pieces;
+            if (surfs.Count > 0)
+            {
+
+                pieces = Brep.CreateBooleanSplit(new Brep[] { brep }, surfs, tolerance);
+                if (pieces.Length < 1)
+                    pieces = new Brep[] { brep };
+            }
+            else
+            {
+                pieces = new Brep[] { brep };
+            }
+
+            int index = -1;
+            double volume = 0;
+
+            for (int i = 0; i < pieces.Length; ++i)
+            {
+                if (pieces[i] == null || !pieces[i].IsSolid)
+                    continue;
+
+                var vmp = Rhino.Geometry.VolumeMassProperties.Compute(pieces[i], true, false, false, false);
+                if (vmp == null) continue;
+
+                if (vmp.Volume > volume)
+                {
+                    index = i;
+                    volume = vmp.Volume;
+                }
+            }
+
+            Brep largest;
+
+            if (index >= 0)
+                largest = pieces[index];
+            else
+                largest = pieces[0];
+
+            var diff = Brep.CreateBooleanDifference(new Brep[] { largest }, solids, 0.1);
+
+            if (diff.Length < 1)
+                return largest;
+            else
+                return diff[0];
+
+        }
+    }
 }

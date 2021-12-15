@@ -12,6 +12,7 @@ namespace GluLamb.Joints
     {
         public Func<TenonJoint, bool> ProcessTenonJoint;
         public Func<SpliceJoint, bool> ProcessSpliceJoint;
+        public Func<CornerJoint, bool> ProcessCornerJoint;
         public Func<CrossJoint, bool> ProcessCrossJoint;
         public Func<VBeamJoint, bool> ProcessVBeamJoint;
         public Func<FourWayJoint, bool> ProcessFourWayJoint;
@@ -20,6 +21,7 @@ namespace GluLamb.Joints
         {
             ProcessTenonJoint = DefaultTenonJoint;
             ProcessSpliceJoint = DefaultSpliceJoint;
+            ProcessCornerJoint = DefaultCornerJoint;
             ProcessCrossJoint = DefaultCrossJoint;
             ProcessVBeamJoint = DefaultVBeamJoint;
             ProcessFourWayJoint = DefaultFourWayJoint;
@@ -58,6 +60,11 @@ namespace GluLamb.Joints
                     {
                         var sj = joints[i] as SpliceJoint;
                         var jgeo = ProcessSpliceJoint.Invoke(sj);
+                    }
+                    else if (joints[i] is CornerJoint)
+                    {
+                        var cj = joints[i] as CornerJoint;
+                        var jgeo = ProcessCornerJoint.Invoke(cj);
                     }
                 }
                 catch (Exception e)
@@ -133,7 +140,7 @@ namespace GluLamb.Joints
                 if (joined == null) joined = new Brep[] { tsrf0, tsrf1 };
                 //breps.AddRange(joined, new GH_Path(tj.Tenon.Index));
 
-                tj.Tenon.Geometry = new List<Brep>();
+                //tj.Tenon.Geometry = new List<Brep>();
                 tj.Tenon.Geometry.AddRange(joined);
 
                 // Create trim cut surface
@@ -240,6 +247,43 @@ namespace GluLamb.Joints
             //return breps;
             return true;
         }
+        public bool DefaultCornerJoint(CornerJoint cj)
+        {
+            var part0 = cj.Parts[0];
+            var part1 = cj.Parts[1];
+            var beam0 = (part0.Element as BeamElement).Beam;
+            var beam1 = (part1.Element as BeamElement).Beam;
+
+            var plane0 = beam0.GetPlane(part0.Parameter);
+            var plane1 = beam1.GetPlane(part1.Parameter);
+
+            var origin = (plane0.Origin + plane1.Origin) / 2;
+
+            int sign0 = 1;
+            int sign1 = -1;
+
+            var v0Crv = (part0.Element as BeamElement).Beam.Centreline;
+            var v1Crv = (part1.Element as BeamElement).Beam.Centreline;
+
+            var vv0 = GluLamb.Joints.JointUtil.GetEndConnectionVector(beam0, origin);
+            var vv1 = GluLamb.Joints.JointUtil.GetEndConnectionVector(beam1, origin);
+
+            if (vv1 * plane0.XAxis > 0)
+                sign0 = -sign0;
+
+            if (vv0 * plane1.XAxis > 0)
+                sign1 = -sign1;
+
+            var trimPlane = new Plane(plane0.Origin + plane0.XAxis * beam0.Width * 0.5 * sign0, plane0.ZAxis, plane0.YAxis);
+            var trimmers = Brep.CreatePlanarBreps(new Curve[] { new Rectangle3d(trimPlane, new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve() }, 0.01);
+            part1.Geometry.AddRange(trimmers);
+
+            trimPlane = new Plane(plane1.Origin + plane1.XAxis * beam1.Width * 0.5 * sign1, plane1.ZAxis, plane1.YAxis);
+            trimmers = Brep.CreatePlanarBreps(new Curve[] { new Rectangle3d(trimPlane, new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve() }, 0.01);
+            part0.Geometry.AddRange(trimmers);
+
+            return true;
+        }
         public bool DefaultCrossJoint(CrossJoint cj)
         {
             //var breps = new DataTree<Brep>();
@@ -292,6 +336,8 @@ namespace GluLamb.Joints
             oSrf[2] = Brep.CreateFromCornerPoints(oPoints[2], oPoints[3], oPoints[3] + plane.ZAxis * height, oPoints[2] + plane.ZAxis * height, 0.01);
 
             var oJoined = Brep.JoinBreps(oSrf, 0.1);
+            if (oJoined == null) oJoined = oSrf;
+
             cj.Under.Geometry.AddRange(oJoined);
             //if (oJoined != null && oJoined.Length > 0)
             //    breps.AddRange(oJoined, new GH_Path(cj.Under.Index));
@@ -315,6 +361,7 @@ namespace GluLamb.Joints
             uSrf[2] = Brep.CreateFromCornerPoints(uPoints[1], uPoints[3], uPoints[3] - plane.ZAxis * height, uPoints[1] - plane.ZAxis * height, 0.01);
 
             var uJoined = Brep.JoinBreps(uSrf, 0.1);
+            if (uJoined == null) uJoined = uSrf;
             //breps.AddRange(uJoined, new GH_Path(cj.Over.Index));
             cj.Over.Geometry.AddRange(uJoined);
 
@@ -424,7 +471,7 @@ namespace GluLamb.Joints
 
             return true;
         }
-        public bool DefaultFourWayJoint(FourWayJoint vj)
+        public bool DefaultFourWayJoint(FourWayJoint fj)
         {
             //var breps = new DataTree<Brep>();
 
@@ -433,14 +480,14 @@ namespace GluLamb.Joints
 
             var average = Point3d.Origin;
 
-            for (int i = 0; i < vj.Parts.Length; ++i)
+            for (int i = 0; i < fj.Parts.Length; ++i)
             {
-                var be = vj.Parts[i].Element as BeamElement;
+                var be = fj.Parts[i].Element as BeamElement;
                 if (be == null) throw new Exception(string.Format("ProcessFourWayJoint() failed. Couldn't parse beam {0}", i));
 
                 var crv = be.Beam.Centreline;
-                points[i] = crv.PointAt(vj.Parts[i].Parameter);
-                vectors[i] = crv.TangentAt(vj.Parts[i].Parameter);
+                points[i] = crv.PointAt(fj.Parts[i].Parameter);
+                vectors[i] = crv.TangentAt(fj.Parts[i].Parameter);
 
 
                 var midpt = crv.PointAt(crv.Domain.Mid);
@@ -473,13 +520,13 @@ namespace GluLamb.Joints
             for (int i = 0; i < 4; ++i)
             {
                 int ii = (i + 1).Modulus(4);
-                var plane0 = JointUtil.GetDividingPlane((vj.Parts[i].Element as BeamElement).Beam, (vj.Parts[ii].Element as BeamElement).Beam, average);
+                var plane0 = JointUtil.GetDividingPlane((fj.Parts[i].Element as BeamElement).Beam, (fj.Parts[ii].Element as BeamElement).Beam, average);
                 var cutter0 = Brep.CreatePlanarBreps(new Curve[]{
                     new Rectangle3d(plane0, new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve()}, 0.01);
 
-                vj.Parts[i].Geometry.Add(cyl);
-                vj.Parts[i].Geometry.AddRange(cutter0);
-                vj.Parts[ii].Geometry.AddRange(cutter0);
+                fj.Parts[i].Geometry.Add(cyl);
+                fj.Parts[i].Geometry.AddRange(cutter0);
+                fj.Parts[ii].Geometry.AddRange(cutter0);
 
                 //breps.Add(cyl, new GH_Path(vj.Parts[i].Index));
                 //breps.AddRange(cutter0, new GH_Path(vj.Parts[i].Index));
