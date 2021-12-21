@@ -365,12 +365,13 @@ namespace GluLamb
                 //brep.Surfaces[i].Reverse(0, true);
 
                 //x.Faces.Flip(false);
-                if (brep.Faces[i].OrientationIsReversed)
-                    brep.Faces[i].Reverse(0, true);
+                //if (brep.Faces[i].OrientationIsReversed)
+                //    brep.Faces[i].Reverse(0, true);
             }
 
             foreach (Brep ctr in cutters)
             {
+                if (ctr == null) continue;
                 if (ctr.IsSolid)
                 {
                     solids.Add(ctr);

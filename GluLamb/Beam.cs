@@ -341,6 +341,33 @@ namespace GluLamb
 
         }
 
+        /// <summary>
+        /// Evaluate torsion at curve parameter.
+        /// </summary>
+        /// <param name="t">Parameter to evaluate torsion at.</param>
+        /// <param name="tolerance">Tolerance.</param>
+        /// <returns>Torsion (radians per unit distance).</returns>
+        public double EvaluateTorsion(double t, double tolerance = 0.001)
+        {
+            if (!Centreline.Domain.IncludesParameter(t)) return 0.0;
+
+            double t0 = t - tolerance;
+            double t1 = t + tolerance;
+
+            if (!Centreline.Domain.IncludesParameter(t0)) return 0.0;
+            if (!Centreline.Domain.IncludesParameter(t1)) return 0.0;
+
+            var p0 = GetPlane(t0);
+            var p1 = GetPlane(t1);
+
+            var plane0 = new Plane(p0.Origin, p0.ZAxis, p0.YAxis);
+            var plane1 = new Plane(p1.Origin, p1.ZAxis, p1.YAxis);
+
+            double torsion = Math.Acos(Math.Min(1.0, Math.Max(-1.0, plane0.ZAxis * plane1.ZAxis))) / p0.Origin.DistanceTo(p1.Origin);
+
+            return torsion;
+        }
+
 
 
     }

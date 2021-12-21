@@ -234,6 +234,53 @@ namespace GluLamb
 
     }
 
+    public class BranchJoint : Joint2
+    {
+        public BranchJoint(List<Element> elements, Factory.JointCondition jc)
+        {
+            if (jc.Parts.Count != Parts.Length) throw new Exception("BranchJoint needs 2 elements.");
+            for (int i = 0; i < Parts.Length; ++i)
+            {
+                Parts[i] = new JointPart(elements, jc.Parts[i], this);
+            }
+        }
+        /// <summary>
+        /// Creates a splice joint between two beam elements.
+        /// </summary>
+        /// <param name="elements">Array of two beam elements.</param>
+        public BranchJoint(Element[] elements) : base()
+        {
+            if (elements.Length != Parts.Length) throw new Exception("BranchJoint needs 2 elements.");
+            for (int i = 0; i < Parts.Length; ++i)
+            {
+                Parts[i] = new JointPart(elements[i] as BeamElement, this, i);
+            }
+        }
+
+        /// <summary>
+        /// Creates a splice joint between two beam elements.
+        /// </summary>
+        /// <param name="eA">First beam element.</param>
+        /// <param name="eB">Second beam element.</param>
+        public BranchJoint(Element eA, double parameterA, Element eB, double parameterB) : base()
+        {
+            Parts[0] = new JointPart(eA as BeamElement, this, 0, parameterA);
+            Parts[1] = new JointPart(eB as BeamElement, this, 1, parameterB);
+        }
+        public JointPart FirstHalf { get { return Parts[0]; } }
+        public JointPart SecondHalf { get { return Parts[1]; } }
+        public override string ToString()
+        {
+            return "BranchJoint";
+        }
+        public void Flip()
+        {
+            var temp = Parts[1];
+            Parts[1] = Parts[0];
+            Parts[0] = temp;
+        }
+    }
+
     public class CornerJoint : Joint2
     {
         public CornerJoint(List<Element> elements, Factory.JointCondition jc)

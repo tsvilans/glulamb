@@ -173,6 +173,7 @@ namespace GluLamb.Factory
         /// Angle at which a joint is considered either a splice or a corner.
         /// </summary>
         public static double SpliceCornerThreshold = Rhino.RhinoMath.ToRadians(15.0);
+        public static double BranchThreshold = Rhino.RhinoMath.ToRadians(30.0);
 
         public JointCondition(Point3d pos, List<JointConditionPart> parts)
         {
@@ -232,6 +233,8 @@ namespace GluLamb.Factory
 
         public static List<JointCondition> FindJointConditions(List<Element> elements, double radius = 100.0, double end_threshold = 10.0, double merge_distance = 50.0)
         {
+            if (elements.Count < 1) throw new Exception("FindJointConditions(): No elements in list!");
+
             var jcs = new List<JointCondition>();
 
             for (int i = 0; i < elements.Count - 1; ++i)
@@ -301,9 +304,13 @@ namespace GluLamb.Factory
                                 //type = "EndToEndJoint";
                                 var t0 = (beams[jc.Parts[0].Index] as BeamElement).Beam.Centreline.TangentAt(jc.Parts[0].Parameter);
                                 var t1 = (beams[jc.Parts[1].Index] as BeamElement).Beam.Centreline.TangentAt(jc.Parts[1].Parameter);
+                                if (t0 * t1 < 0)
+                                    t1 = -t1;
 
                                 if (Math.Abs(t0 * t1) < Math.Cos(SpliceCornerThreshold))
                                     type = new CornerJoint(beams, jc);
+                                else if (t0 * t1 < Math.Cos(BranchThreshold))
+                                    type = new BranchJoint(beams, jc);
                                 else
                                     type = new SpliceJoint(beams, jc);
                                 break;
