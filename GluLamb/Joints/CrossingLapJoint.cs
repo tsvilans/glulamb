@@ -10,7 +10,7 @@ namespace GluLamb.Joints
 {
     public partial class JointConstructor
     {
-        public bool CrossingLapJoint_Tapered2Sides(CrossJoint cj)
+        public static bool CrossingLapJoint_Tapered2Sides(CrossJoint cj)
         {
             var m_glulam1 = (cj.Over.Element as BeamElement).Beam as Glulam;
             var m_glulam2 = (cj.Under.Element as BeamElement).Beam as Glulam;

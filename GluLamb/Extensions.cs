@@ -154,7 +154,7 @@ namespace GluLamb
             return new Plane(P.Origin, -P.XAxis, P.YAxis);
         }
 
-        public static Transform ProjectPointAlongVector(this Plane Pln, Vector3d V)
+        public static Transform ProjectAlongVector(this Plane Pln, Vector3d V)
         {
             Transform oblique = new Transform(1);
             double[] eq = Pln.GetPlaneEquation();
@@ -186,6 +186,8 @@ namespace GluLamb
             oblique = oblique.Transpose();
             return oblique;
         }
+
+        public static Vector3d Project(this Plane plane, Vector3d v) => new Vector3d(v - (plane.ZAxis * Vector3d.Multiply(plane.ZAxis, v)));
 
     }
 

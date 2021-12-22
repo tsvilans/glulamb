@@ -10,7 +10,7 @@ namespace GluLamb.Joints
 {
     public partial class JointConstructor
     {
-        public bool ButtJoint1(TenonJoint tj)
+        public static bool ButtJoint1(TenonJoint tj)
         {
             double dowelLength = 100.0;
             double dowelExtra = 50.0;
@@ -34,7 +34,7 @@ namespace GluLamb.Joints
             var trimmer = Brep.CreatePlanarBreps(new Curve[]{new Rectangle3d(trimPlane,
                 new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve()}, 0.01);
 
-            var xform = trimPlane.ProjectPointAlongVector(tplane.ZAxis);
+            var xform = trimPlane.ProjectAlongVector(tplane.ZAxis);
 
             for (int i = -1; i < 2; i += 2)
             {

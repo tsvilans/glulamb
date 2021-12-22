@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Beam.cs" />
+    <Compile Include="Joints\VBeamJoint2.cs" />
     <Compile Include="Joints\ButtJoint1.cs" />
     <Compile Include="Joints\CrossingLapJoint.cs" />
     <Compile Include="CrossSectionOrientation.cs" />

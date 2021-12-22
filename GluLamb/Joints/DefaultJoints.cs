@@ -41,8 +41,8 @@ namespace GluLamb.Joints
 
             double added = 10.0;
             {
-                var proj0 = mSidePlane.ProjectPointAlongVector(tz);
-                var proj1 = mSidePlane2.ProjectPointAlongVector(tz);
+                var proj0 = mSidePlane.ProjectAlongVector(tz);
+                var proj1 = mSidePlane2.ProjectAlongVector(tz);
 
                 var pt0 = new Point3d(-tbeam.Width * 0.5 - added, 0, 0);
                 var pt1 = new Point3d(tbeam.Width * 0.5 + added, 0, 0);
@@ -109,8 +109,8 @@ namespace GluLamb.Joints
                 var mSidePlane1 = new Plane(mplane.Origin - mplane.XAxis * mbeam.Width * 0.5 * sign + tz * added,
                   mplane.ZAxis, mplane.YAxis);
 
-                var proj0 = mSidePlane0.ProjectPointAlongVector(tz);
-                var proj1 = mSidePlane1.ProjectPointAlongVector(tz);
+                var proj0 = mSidePlane0.ProjectAlongVector(tz);
+                var proj1 = mSidePlane1.ProjectAlongVector(tz);
 
                 pt0.Transform(proj0);
                 pt1.Transform(proj0);
