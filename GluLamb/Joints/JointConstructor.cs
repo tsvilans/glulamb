@@ -253,23 +253,6 @@ namespace GluLamb.Joints
         public Func<FourWayJoint, bool> ProcessFourWayJoint;
         public Func<BranchJoint, bool> ProcessBranchJoint;
 
-        private Type _FWJ;
-        public Type FWJ
-        {
-            set
-            {
-                if (value.IsSubclassOf(typeof(FourWayJoint)))
-                {
-                    _FWJ = value;
-                }
-                else
-                    throw new ArgumentException("Type needs to inherit from FourWayJoint.");
-            }
-            get
-            {
-                return _FWJ;
-            }
-        }
 
         public JointConstructor()
         {
@@ -284,12 +267,6 @@ namespace GluLamb.Joints
 
         public void ProcessJoints(List<Joint> joints)
         {
-            var types = new Type[] { typeof(FourWayJoint) };
-            ConstructorInfo constructorInfoObj = FWJ.GetConstructor(
-                BindingFlags.Instance | BindingFlags.Public, null,
-                CallingConventions.HasThis, types, null);
-
-
             for (int i = 0; i < joints.Count; ++i)
             {
                 if (joints[i] == null) throw new Exception(string.Format("JointConstructor.ProcessJoints(): Null joint at index {0}", i));
@@ -304,21 +281,16 @@ namespace GluLamb.Joints
                     {
                         var cj = joints[i] as CrossJoint;
                         var jgeo = ProcessCrossJoint.Invoke(cj);
-
                     }
                     else if (joints[i] is FourWayJoint)
                     {
                         var fj = joints[i] as FourWayJoint;
                         var jgeo = ProcessFourWayJoint.Invoke(fj);
-
-                        constructorInfoObj.Invoke(new object[] { fj });
-
                     }
                     else if (joints[i] is VBeamJoint)
                     {
                         var vj = joints[i] as VBeamJoint;
                         var jgeo = ProcessVBeamJoint.Invoke(vj);
-
                     }
                     else if (joints[i] is SpliceJoint)
                     {
