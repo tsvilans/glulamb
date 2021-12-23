@@ -69,6 +69,8 @@ namespace GluLamb
         {
             return "Joint";
         }
+
+        public abstract bool Construct(bool append=false);
     }
 
     public abstract class Joint2 : Joint
@@ -131,6 +133,11 @@ namespace GluLamb
             Parts[0] = temp;
         }
 
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
     public class TenonJoint : Joint2
@@ -170,6 +177,11 @@ namespace GluLamb
         public override string ToString()
         {
             return "TenonJoint";
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -232,6 +244,11 @@ namespace GluLamb
             return "FourWayJoint";
         }
 
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
     public class BranchJoint : Joint2
@@ -278,6 +295,11 @@ namespace GluLamb
             var temp = Parts[1];
             Parts[1] = Parts[0];
             Parts[0] = temp;
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -326,6 +348,11 @@ namespace GluLamb
             Parts[1] = Parts[0];
             Parts[0] = temp;
         }
+
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class SpliceJoint: Joint2
@@ -373,6 +400,11 @@ namespace GluLamb
             var temp = Parts[1];
             Parts[1] = Parts[0];
             Parts[0] = temp;
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -435,6 +467,11 @@ namespace GluLamb
         public override string ToString()
         {
             return "VBeamJoint";
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            throw new NotImplementedException();
         }
     }
 
