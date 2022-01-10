@@ -8,19 +8,27 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
-    public partial class JointConstructor
+    public class ButtJoint1 : TenonJoint
     {
-        public static bool ButtJoint1(TenonJoint tj)
+        public double TrimPlaneSize = 300.0;
+        public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
+        {
+
+        }
+
+        public override bool Construct(bool append = false)
         {
             double dowelLength = 100.0;
             double dowelExtra = 50.0;
-            var tbeam = (tj.Tenon.Element as BeamElement).Beam;
-            var mbeam = (tj.Mortise.Element as BeamElement).Beam;
+            var tbeam = (Tenon.Element as BeamElement).Beam;
+            var mbeam = (Mortise.Element as BeamElement).Beam;
 
-            var mplane = mbeam.GetPlane(tj.Mortise.Parameter);
-            var tplane = tbeam.GetPlane(tj.Tenon.Parameter);
+            var trimInterval = new Interval(-TrimPlaneSize, TrimPlaneSize);
 
-            var vec = tbeam.Centreline.PointAt(tbeam.Centreline.Domain.Mid) - tbeam.Centreline.PointAt(tj.Tenon.Parameter);
+            var mplane = mbeam.GetPlane(Mortise.Parameter);
+            var tplane = tbeam.GetPlane(Tenon.Parameter);
+
+            var vec = tbeam.Centreline.PointAt(tbeam.Centreline.Domain.Mid) - tbeam.Centreline.PointAt(Tenon.Parameter);
             int sign = 1;
 
             if (vec * mplane.XAxis < 0)
@@ -32,7 +40,7 @@ namespace GluLamb.Joints
 
             var trimPlane = new Plane(mplane.Origin + mplane.XAxis * mbeam.Width * 0.5 * sign, mplane.ZAxis, mplane.YAxis);
             var trimmer = Brep.CreatePlanarBreps(new Curve[]{new Rectangle3d(trimPlane,
-                new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve()}, 0.01);
+                trimInterval, trimInterval).ToNurbsCurve()}, 0.01);
 
             var xform = trimPlane.ProjectAlongVector(tplane.ZAxis);
 
@@ -48,13 +56,13 @@ namespace GluLamb.Joints
                 var cyl = new Cylinder(
                   new Circle(dowelPlane, 6.0), dowelLength + dowelExtra).ToBrep(true, true);
 
-                tj.Tenon.Geometry.Add(cyl);
-                tj.Mortise.Geometry.Add(cyl);
+                Tenon.Geometry.Add(cyl);
+                Mortise.Geometry.Add(cyl);
             }
-            tj.Tenon.Geometry.AddRange(trimmer);
+            Tenon.Geometry.AddRange(trimmer);
 
             return true;
         }
-
     }
+
 }

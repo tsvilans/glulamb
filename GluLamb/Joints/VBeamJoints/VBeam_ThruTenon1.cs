@@ -8,19 +8,24 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
-    public partial class JointConstructor
+    public class VBeam_ThruTenon1 : VBeamJoint
     {
-        public bool VBeamThroughTenon1(VBeamJoint vj)
+        public VBeam_ThruTenon1(List<Element> elements, Factory.JointCondition jc): base (elements, jc)
         {
-            var bPart = vj.Beam;
+
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            var bPart = Beam;
             var beam = (bPart.Element as BeamElement).Beam;
-            var v0beam = (vj.V0.Element as BeamElement).Beam;
-            var v1beam = (vj.V1.Element as BeamElement).Beam;
+            var v0beam = (V0.Element as BeamElement).Beam;
+            var v1beam = (V1.Element as BeamElement).Beam;
 
             var bplane = beam.GetPlane(bPart.Parameter);
             int sign = 1;
 
-            var v0Crv = (vj.V0.Element as BeamElement).Beam.Centreline;
+            var v0Crv = (V0.Element as BeamElement).Beam.Centreline;
             if ((bplane.Origin - v0Crv.PointAt(v0Crv.Domain.Mid)) * bplane.XAxis > 0)
             {
                 sign = -1;
@@ -32,11 +37,11 @@ namespace GluLamb.Joints
 
             var average = Point3d.Origin;
 
-            for (int i = 0; i < vj.Parts.Length; ++i)
+            for (int i = 0; i < Parts.Length; ++i)
             {
-                var crv = (vj.Parts[i].Element as BeamElement).Beam.Centreline;
-                points[i] = crv.PointAt(vj.Parts[i].Parameter);
-                vectors[i] = crv.TangentAt(vj.Parts[i].Parameter);
+                var crv = (Parts[i].Element as BeamElement).Beam.Centreline;
+                points[i] = crv.PointAt(Parts[i].Parameter);
+                vectors[i] = crv.TangentAt(Parts[i].Parameter);
 
                 var midpt = crv.PointAt(crv.Domain.Mid);
 
@@ -64,7 +69,7 @@ namespace GluLamb.Joints
             var vv0 = JointUtil.GetEndConnectionVector(v0beam, vx);
             var vv1 = JointUtil.GetEndConnectionVector(v1beam, vx);
 
-            var yaxis = (v0beam.GetPlane(vj.V0.Parameter).YAxis + v1beam.GetPlane(vj.V1.Parameter).YAxis) / 2;
+            var yaxis = (v0beam.GetPlane(V0.Parameter).YAxis + v1beam.GetPlane(V1.Parameter).YAxis) / 2;
             var v0plane = v0beam.GetPlane(vx);
             var v1plane = v1beam.GetPlane(vx);
 
@@ -79,10 +84,10 @@ namespace GluLamb.Joints
             var divPlane = new Plane(vx, (vv0 + vv1) / 2, yaxis);
 
             var divider = Brep.CreatePlanarBreps(new Curve[]{
-      new Rectangle3d(divPlane, new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve()}, 0.01);
+                new Rectangle3d(divPlane, new Interval(-300, 300), new Interval(-300, 300)).ToNurbsCurve()}, 0.01);
 
             //vj.V0.Geometry.AddRange(divider);
-            vj.V1.Geometry.AddRange(divider);
+            V1.Geometry.AddRange(divider);
 
 
             // Create temporary plate
@@ -97,9 +102,9 @@ namespace GluLamb.Joints
 
             var proj = sillPlane.ProjectAlongVector(divPlane.XAxis);
 
-            vj.V0.Geometry.AddRange(trimmers);
-            vj.V1.Geometry.AddRange(trimmers);
-            vj.V1.Geometry.AddRange(sillTrimmer);
+            V0.Geometry.AddRange(trimmers);
+            V1.Geometry.AddRange(trimmers);
+            V1.Geometry.AddRange(sillTrimmer);
 
 
             // Create cutter for through-tenon (V0)
@@ -142,7 +147,7 @@ namespace GluLamb.Joints
 
                 var joined = Brep.JoinBreps(srfs, 0.01);
 
-                vj.V0.Geometry.AddRange(joined);
+                V0.Geometry.AddRange(joined);
             }
 
             // Create cutter for tenon cover (V1)
@@ -178,7 +183,7 @@ namespace GluLamb.Joints
 
             var joined2 = Brep.JoinBreps(srfs2, 0.01);
 
-            vj.V1.Geometry.AddRange(joined2);
+            V1.Geometry.AddRange(joined2);
 
             // Create cutter for beam (Beam)
             var dot = vv0 * trimPlane.ZAxis;
@@ -203,10 +208,9 @@ namespace GluLamb.Joints
 
 
             var joinedTenon = Brep.JoinBreps(srfTenon, 0.01);
-            vj.Beam.Geometry.AddRange(joinedTenon);
+            Beam.Geometry.AddRange(joinedTenon);
 
             return true;
         }
-
     }
 }

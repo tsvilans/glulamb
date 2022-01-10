@@ -8,16 +8,30 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
-    public partial class JointConstructor
+    public class CrossingLapJoint_Tapered2Sides : CrossJoint
     {
-        public static bool CrossingLapJoint_Tapered2Sides(CrossJoint cj)
+        public double Offset1 = 3.0;
+        public double Offset2 = 3.0;
+        public double Extension = 2.0;
+        public double OffsetCentre = 10.0;
+
+        public CrossingLapJoint_Tapered2Sides(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {
-            var m_glulam1 = (cj.Over.Element as BeamElement).Beam as Glulam;
-            var m_glulam2 = (cj.Under.Element as BeamElement).Beam as Glulam;
-            var m_offset1 = 3.0;
-            var m_offset2 = 3.0;
-            var m_extension = 2.0;
-            var offset_center = 10;
+        }
+
+        public override string ToString()
+        {
+            return "CrossingLapJoint_Tapered2Sides";
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            var m_glulam1 = (Over.Element as BeamElement).Beam as Glulam;
+            var m_glulam2 = (Under.Element as BeamElement).Beam as Glulam;
+            var m_offset1 = Offset1;
+            var m_offset2 = Offset2;
+            var m_extension = Extension;
+            var offset_center = OffsetCentre;
 
             var m_result = new List<Brep>();
 
@@ -299,8 +313,8 @@ namespace GluLamb.Joints
                 m_result.AddRange(temp);
             }
 
-            cj.Under.Geometry.AddRange(m_result);
-            cj.Over.Geometry.AddRange(m_result);
+            Under.Geometry.AddRange(m_result);
+            Over.Geometry.AddRange(m_result);
 
             //var drill0 = new DoubleSidedCounterSunkDrill(
             //  cPlane,
@@ -311,7 +325,7 @@ namespace GluLamb.Joints
             //m_result.AddRange(drill0.GetCuttingGeometry());
 
             return true;
-
         }
     }
+
 }

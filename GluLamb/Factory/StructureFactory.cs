@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Rhino.Geometry;
+using GluLamb.Joints;
 
 namespace GluLamb.Factory
 {

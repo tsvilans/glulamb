@@ -142,6 +142,17 @@ namespace GluLamb.Joints
             }
         }
 
+        public JointSolver()
+        {
+            TenonJoint = typeof(TenonJoint);
+            CrossJoint = typeof(CrossJoint);
+            BranchJoint = typeof(BranchJoint);
+            SpliceJoint = typeof(SpliceJoint);
+            CornerJoint = typeof(CornerJoint);
+            FourWayJoint = typeof(FourWayJoint);
+            VBeamJoint = typeof(VBeamJoint);
+        }
+
         public List<Joint> Solve(List<Element> beams, List<Factory.JointCondition> jcs)
         {
             var joints = new List<Joint>();
