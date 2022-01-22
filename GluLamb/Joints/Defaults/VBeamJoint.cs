@@ -71,6 +71,13 @@ namespace GluLamb.Joints
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             //var breps = new DataTree<Brep>();
 
             // Get beam for trimming the other ones

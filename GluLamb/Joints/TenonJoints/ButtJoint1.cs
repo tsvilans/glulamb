@@ -11,15 +11,31 @@ namespace GluLamb.Joints
     public class ButtJoint1 : TenonJoint
     {
         public double TrimPlaneSize = 300.0;
+        public double DowelLength = 100.0;
+        public double DowelOffset = 30.0;
+        public double DowelDiameter = 12;
+        public double DowelLengthExtra = 50.0;
+
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
+        {
+
+        }
+
+        public ButtJoint1(List<Element> elements, Factory.JointConditionPart tenon, Factory.JointConditionPart mortise) : base(elements, tenon, mortise)
         {
 
         }
 
         public override bool Construct(bool append = false)
         {
-            double dowelLength = 100.0;
-            double dowelExtra = 50.0;
+            if (!append)
+            {
+                foreach(var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
+
             var tbeam = (Tenon.Element as BeamElement).Beam;
             var mbeam = (Mortise.Element as BeamElement).Beam;
 
@@ -47,14 +63,15 @@ namespace GluLamb.Joints
             for (int i = -1; i < 2; i += 2)
             {
                 Point3d dp = new Point3d(tplane.Origin
-                  + tplane.YAxis * 0.16 * tbeam.Height * i);
+                  + tplane.YAxis * (tbeam.Height * i - DowelOffset)
+                  );
 
                 dp.Transform(xform);
-                dp.Transform(Transform.Translation(-tz * dowelLength * 0.5));
+                dp.Transform(Transform.Translation(-tz * DowelLength * 0.5));
 
                 var dowelPlane = new Plane(dp, tz);
                 var cyl = new Cylinder(
-                  new Circle(dowelPlane, 6.0), dowelLength + dowelExtra).ToBrep(true, true);
+                  new Circle(dowelPlane, DowelDiameter * 0.5), DowelLength + DowelLengthExtra).ToBrep(true, true);
 
                 Tenon.Geometry.Add(cyl);
                 Mortise.Geometry.Add(cyl);

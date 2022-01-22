@@ -63,6 +63,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Beam.cs" />
+    <Compile Include="Joints\FourWayJoints\FourWayJoint_Split.cs" />
+    <Compile Include="Joints\CrossJoints\CrossJoint_SingleBackCut.cs" />
     <Compile Include="Joints\Defaults\BranchJoint.cs" />
     <Compile Include="Joints\Defaults\CornerJoint.cs" />
     <Compile Include="Joints\Defaults\CrossJoint.cs" />
@@ -72,7 +74,7 @@
     <Compile Include="Joints\Defaults\VBeamJoint.cs" />
     <Compile Include="Joints\VBeamJoints\VBeam_ThruTenon1.cs" />
     <Compile Include="Joints\TenonJoints\ButtJoint1.cs" />
-    <Compile Include="Joints\CrossJoints\CrossingLapJoint_Tapered2Sides.cs" />
+    <Compile Include="Joints\CrossJoints\CrossJoint_DoubleBackcut.cs" />
     <Compile Include="CrossSectionOrientation.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Factory\Blank.cs" />
@@ -110,7 +112,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Joints\CornerJoints\" />
-    <Folder Include="Joints\FourWayJoints\" />
     <Folder Include="Joints\SpliceJoints\" />
   </ItemGroup>
   <ItemGroup>

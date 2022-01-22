@@ -69,6 +69,13 @@ namespace GluLamb.Joints
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             // Get point and normal of intersection
             var points = new Point3d[4];
             var vectors = new Vector3d[4];

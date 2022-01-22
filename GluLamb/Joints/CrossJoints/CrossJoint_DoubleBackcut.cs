@@ -8,24 +8,31 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
-    public class CrossingLapJoint_Tapered2Sides : CrossJoint
+    public class CrossJoint_DoubleBackcut : CrossJoint
     {
         public double Offset1 = 3.0;
         public double Offset2 = 3.0;
         public double Extension = 2.0;
         public double OffsetCentre = 10.0;
 
-        public CrossingLapJoint_Tapered2Sides(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
+        public CrossJoint_DoubleBackcut(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {
         }
 
         public override string ToString()
         {
-            return "CrossingLapJoint_Tapered2Sides";
+            return "CrossJoint_DoubleBackcut";
         }
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             var m_glulam1 = (Over.Element as BeamElement).Beam as Glulam;
             var m_glulam2 = (Under.Element as BeamElement).Beam as Glulam;
             var m_offset1 = Offset1;

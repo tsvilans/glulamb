@@ -49,6 +49,13 @@ namespace GluLamb.Joints
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             var tbeam = (Tenon.Element as BeamElement).Beam;
             var mbeam = (Mortise.Element as BeamElement).Beam;
 

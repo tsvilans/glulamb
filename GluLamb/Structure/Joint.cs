@@ -64,7 +64,7 @@ namespace GluLamb
             return "Joint";
         }
 
-        public abstract bool Construct(bool append=false);
+        public abstract bool Construct(bool append = false);
     }
 
     public abstract class Joint2 : Joint

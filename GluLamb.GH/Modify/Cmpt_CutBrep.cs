@@ -89,6 +89,7 @@ namespace GluLamb.GH.Components
                 }
                 else if (cutters.PathCount == 1 && breps[path].Count > 0) // Handle a single list of cutters
                 {
+                    if (cutters[0].Count > 0 && breps[path][0] != null)
                     resTree[path].Add(new GH_Brep(breps[path][0].Value.Cut(
                         cutters[cutters.Paths[0]].Select(x => x.Value))));
                 }

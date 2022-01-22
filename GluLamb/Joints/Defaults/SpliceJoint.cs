@@ -57,6 +57,13 @@ namespace GluLamb.Joints
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             var tbeam = (FirstHalf.Element as BeamElement).Beam;
             var mbeam = (SecondHalf.Element as BeamElement).Beam;
 

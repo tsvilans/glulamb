@@ -46,6 +46,13 @@ namespace GluLamb.Joints
 
         public override bool Construct(bool append = false)
         {
+            if (!append)
+            {
+                foreach (var part in Parts)
+                {
+                    part.Geometry.Clear();
+                }
+            }
             //var breps = new DataTree<Brep>();
 
             var obeam = (Over.Element as BeamElement).Beam;

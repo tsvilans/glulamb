@@ -188,11 +188,11 @@ namespace GluLamb.Joints
               BindingFlags.Instance | BindingFlags.Public, null,
               CallingConventions.HasThis, types, null);
 
-            for (int i = 0; i < jcs.Count; ++i)
-            {
-                var joint = tenonXtor.Invoke(new object[] { beams, jcs[i] }) as Joint;
-                joints.Add(joint);
-            }
+            //for (int i = 0; i < jcs.Count; ++i)
+            //{
+            //    var joint = tenonXtor.Invoke(new object[] { beams, jcs[i] }) as Joint;
+            //    joints.Add(joint);
+            //}
             int c = 0;
 
             foreach (var jc in jcs)

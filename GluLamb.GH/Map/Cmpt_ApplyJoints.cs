@@ -66,7 +66,7 @@ namespace GluLamb.GH.Components
 
             for (int i = 0; i < BaseJointTypes.Count; ++i)
             {
-                int res = pManager.AddIntegerParameter(BaseJointTypes[i].Name, BaseJointShortnames[i], "Type of joint to apply.", GH_ParamAccess.item);
+                int res = pManager.AddIntegerParameter(BaseJointTypes[i].Name, BaseJointShortnames[i], $"Type of {BaseJointTypes[i].Name} to apply.", GH_ParamAccess.item);
                 JointParams.Add(pManager[res]);
                 LastJointId.Add(Guid.Empty);
                 JointTypes.Add(new List<Type>());
