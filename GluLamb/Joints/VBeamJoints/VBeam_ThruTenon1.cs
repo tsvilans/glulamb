@@ -15,6 +15,11 @@ namespace GluLamb.Joints
 
         }
 
+        public override string ToString()
+        {
+            return "KJoint_ThruTenon1";
+        }
+
         public override bool Construct(bool append = false)
         {
             if (!append)

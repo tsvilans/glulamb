@@ -17,7 +17,7 @@ namespace GluLamb.Joints
             int x = 1, y = 1;
             if (p0.YAxis * p1.YAxis < 0)
                 y = -1;
-            if (p0.XAxis * p1.XAxis < 0)
+            if (p0.ZAxis * p1.XAxis < 0)
                 x = -1;
 
             return new Plane(p1.Origin, p1.XAxis * x, p1.YAxis * y);
@@ -39,6 +39,7 @@ namespace GluLamb.Joints
 
         public double TaperAngle = 3.0;
         public double DepthOverride = 0.0;
+        public double ExtraLength = 50.0;
 
         public override bool Construct(bool append = false)
         {
@@ -50,7 +51,7 @@ namespace GluLamb.Joints
                 }
             }
 
-            double added = 50.0;
+            double added = ExtraLength;
 
             var obeam = (Over.Element as BeamElement).Beam;
             var ubeam = (Under.Element as BeamElement).Beam;

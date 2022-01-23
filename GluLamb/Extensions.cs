@@ -424,7 +424,7 @@ namespace GluLamb
 
             var diff = Brep.CreateBooleanDifference(new Brep[] { largest }, solids, 0.1);
 
-            if (diff.Length < 1)
+            if (diff == null || diff.Length < 1)
                 return largest;
             else
                 return diff[0];

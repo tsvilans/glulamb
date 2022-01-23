@@ -14,11 +14,25 @@ namespace GluLamb.Joints
         public Brep InnerSurface;
         public Brep OuterSurface;
         public Vector3d Normal;
+        public double PlateThickness = 20.0;
+        public double PlateLength = 100.0;
+        public double DowelPosition = 70.0;
+        public double DowelDiameter = 12.0;
+        public double DowelLength = 140.0;
+
+        public double CutterExtension = 500.0;
+        public double CutterToleranceExtension = 1.0;
+        public double CutterLipWidth = 5.0;
 
         public List<object> debug;
 
         public FourWayJoint_Split(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+        }
+
+        public override string ToString()
+        {
+            return "FourWayJoint_Split";
         }
 
         private List<Vector3d> SortPartsClockwise()
@@ -139,7 +153,7 @@ namespace GluLamb.Joints
                 xline.Transform(Transform.Scale((xline.From + xline.To) * 0.5, 500));
                 var xlineCrv = xline.ToNurbsCurve();
 
-                // Find intersection points between surfaces and seam
+                // Find intersection between surfaces and seam
                 Point3d[] xpts;
                 Curve[] overlapCurves;
                 Rhino.Geometry.Intersect.Intersection.CurveBrep(xlineCrv, InnerSurface, 0.01,
@@ -174,6 +188,8 @@ namespace GluLamb.Joints
 
             var cutterInterval = new Interval(-1000, 1000);
 
+            /* INTERIOR JOINT SURFACES */
+
             // Construct cutters
             for (int i = 0; i < 4; ++i)
             {
@@ -181,8 +197,8 @@ namespace GluLamb.Joints
 
                 Point3d origin;
                 Vector3d xaxis, yaxis;
-                double d = 200.0;
-                double lip = 5.0;
+                double d = CutterExtension;
+                double lip = CutterLipWidth;
 
                 // Handle first seam
 
@@ -198,8 +214,8 @@ namespace GluLamb.Joints
                 var projOuter0 = this.Plane.ProjectAlongVector(xaxis);
 
                 pts[0] = origin + pOuter0.XAxis * d + pOuter0.YAxis * d;
-                pts[1] = origin + pOuter0.XAxis * d - pOuter0.YAxis * d;
-                pts[2] = origin - pOuter0.XAxis * d - pOuter0.YAxis * d;
+                pts[1] = origin + pOuter0.XAxis * d - pOuter0.YAxis * CutterToleranceExtension;
+                pts[2] = origin - pOuter0.XAxis * d - pOuter0.YAxis * CutterToleranceExtension;
                 pts[3] = origin - pOuter0.XAxis * d + pOuter0.YAxis * d;
 
                 pts[0].Transform(projOuter0); pts[0] = pts[0] - pOuter0.XAxis * lip;
@@ -216,8 +232,8 @@ namespace GluLamb.Joints
                 var projInner0 = this.Plane.ProjectAlongVector(xaxis);
 
                 pts[4] = origin + pInner0.XAxis * d + pInner0.YAxis * d;
-                pts[5] = origin + pInner0.XAxis * d - pInner0.YAxis * d;
-                pts[6] = origin - pInner0.XAxis * d - pInner0.YAxis * d;
+                pts[5] = origin + pInner0.XAxis * d - pInner0.YAxis * CutterToleranceExtension;
+                pts[6] = origin - pInner0.XAxis * d - pInner0.YAxis * CutterToleranceExtension;
                 pts[7] = origin - pInner0.XAxis * d + pInner0.YAxis * d;
 
                 pts[4].Transform(projInner0); pts[4] = pts[4] - pInner0.XAxis * lip;
@@ -226,6 +242,11 @@ namespace GluLamb.Joints
                 cutter0[1] = Brep.CreateFromCornerPoints(pts[4], pts[5], pts[6], pts[7], 0.01);
                 cutter0[2] = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[5], 0.01);
                 cutter0[3] = Brep.CreateFromCornerPoints(pts[5], pts[4], pts[0], 0.01);
+
+                debug.Add(pts[0]);
+                //debug.Add(pts[1]);
+                //debug.Add(pts[4]);
+                //debug.Add(pts[5]);
 
                 var cutter0Joined = Brep.JoinBreps(cutter0, 0.01);
 
@@ -244,8 +265,8 @@ namespace GluLamb.Joints
                 var projOuter1 = this.Plane.ProjectAlongVector(xaxis);
 
                 pts[0] = origin + pOuter1.XAxis * d + pOuter1.YAxis * d;
-                pts[1] = origin + pOuter1.XAxis * d - pOuter1.YAxis * d;
-                pts[2] = origin - pOuter1.XAxis * d - pOuter1.YAxis * d;
+                pts[1] = origin + pOuter1.XAxis * d - pOuter1.YAxis * CutterToleranceExtension;
+                pts[2] = origin - pOuter1.XAxis * d - pOuter1.YAxis * CutterToleranceExtension;
                 pts[3] = origin - pOuter1.XAxis * d + pOuter1.YAxis * d;
 
                 pts[0].Transform(projOuter1); pts[0] = pts[0] - pOuter1.XAxis * lip;
@@ -262,24 +283,80 @@ namespace GluLamb.Joints
                 var projInner1 = this.Plane.ProjectAlongVector(xaxis);
 
                 pts[4] = origin + pInner1.XAxis * d + pInner1.YAxis * d;
-                pts[5] = origin + pInner1.XAxis * d - pInner1.YAxis * d;
-                pts[6] = origin - pInner1.XAxis * d - pInner1.YAxis * d;
+                pts[5] = origin + pInner1.XAxis * d - pInner1.YAxis * CutterToleranceExtension;
+                pts[6] = origin - pInner1.XAxis * d - pInner1.YAxis * CutterToleranceExtension;
                 pts[7] = origin - pInner1.XAxis * d + pInner1.YAxis * d;
 
                 pts[4].Transform(projInner1); pts[4] = pts[4] - pInner1.XAxis * lip;
                 pts[5].Transform(projInner1); pts[5] = pts[5] - pInner1.XAxis * lip;
 
                 cutter1[1] = Brep.CreateFromCornerPoints(pts[4], pts[5], pts[6], pts[7], 0.01);
+                //cutter1[2] = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[5], pts[4], 0.01);
                 cutter1[2] = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[5], 0.01);
                 cutter1[3] = Brep.CreateFromCornerPoints(pts[5], pts[4], pts[0], 0.01);
+
                 var cutter1Joined = Brep.JoinBreps(cutter1, 0.01);
 
                 Parts[i].Geometry.AddRange(cutter1Joined);
 
             }
 
+            /* PLATE AND DOWELS */
+            // Create interior plate cutter and dowel positions
+
+            var endPlanes = new Plane[4];
+            var dowelPlanes = new Plane[4];
+            var dowelCutters = new Brep[4];
+
+            for (int i = 0; i < 4; ++i)
+            {
+                var dir = dirs[i];
+                dir.Unitize();
+
+                endPlanes[i] = new Plane(this.Plane.Origin + dir * PlateLength, dir);
+                var dowelPt = this.Plane.Origin + dir * DowelPosition;
+
+                var dp = beams[i].GetPlane(dowelPt);
+
+                debug.Add(endPlanes[i]);
+
+                dowelCutters[i] = new Cylinder(
+                  new Circle(new Plane(dp.Origin - dp.YAxis * DowelLength * 0.5, dp.YAxis),
+                  DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+
+                dowelPlanes[i] = dp;
+            }
+
+            var platePlane0 = new Plane(this.Plane.Origin - this.Plane.ZAxis * PlateThickness * 0.5,
+              this.Plane.XAxis, this.Plane.YAxis);
+
+            var platePlane1 = new Plane(this.Plane.Origin + this.Plane.ZAxis * PlateThickness * 0.5,
+              this.Plane.XAxis, this.Plane.YAxis);
+
+            var platePts = new Point3d[4];
+
+            for (int i = 0; i < 4; ++i)
+            {
+                int ii = (i + 1).Modulus(4);
+                Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(
+                  endPlanes[i], endPlanes[ii], platePlane0, out platePts[i]);
+            }
+
+            // Create plate outline and cutter
+            var plateOutline = new Polyline() { platePts[0], platePts[1], platePts[2], platePts[3], platePts[0] }.ToNurbsCurve();
+            var plateSrf = Brep.CreateTrimmedPlane(platePlane0, plateOutline);
+            Brep[] outBlends, outWalls;
+            var plateBrep = Brep.CreateOffsetBrep(plateSrf, PlateThickness, true, true, 0.01, out outBlends, out outWalls)[0];
+            plateBrep.Flip();
+
+            for (int i = 0; i < 4; ++i)
+            {
+                Parts[i].Geometry.Add(plateBrep);
+                Parts[i].Geometry.Add(dowelCutters[i]);
+                debug.Add(dowelCutters[i]);
+            }
+
             return true;
         }
     }
-
 }

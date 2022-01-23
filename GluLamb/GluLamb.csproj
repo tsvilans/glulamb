@@ -72,6 +72,7 @@
     <Compile Include="Joints\Defaults\SpliceJoint.cs" />
     <Compile Include="Joints\Defaults\TenonJoint.cs" />
     <Compile Include="Joints\Defaults\VBeamJoint.cs" />
+    <Compile Include="Joints\VBeamJoints\KJoint_Plate.cs" />
     <Compile Include="Joints\VBeamJoints\VBeam_ThruTenon1.cs" />
     <Compile Include="Joints\TenonJoints\ButtJoint1.cs" />
     <Compile Include="Joints\CrossJoints\CrossJoint_DoubleBackcut.cs" />

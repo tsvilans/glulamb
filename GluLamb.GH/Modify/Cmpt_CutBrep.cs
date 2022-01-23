@@ -49,6 +49,7 @@ namespace GluLamb.GH.Components
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddBrepParameter("Result", "R", "Result of cutting operation.", GH_ParamAccess.item);
+            pManager.AddTextParameter("Errors", "e", "Errors in cutting operation.", GH_ParamAccess.item);
 
         }
 
@@ -78,6 +79,8 @@ namespace GluLamb.GH.Components
                 resTree.EnsurePath(path);
             }
 
+            List<string> errors = new List<string>();
+
             Parallel.For(0, breps.Paths.Count, index =>
             {
 
@@ -89,13 +92,21 @@ namespace GluLamb.GH.Components
                 }
                 else if (cutters.PathCount == 1 && breps[path].Count > 0) // Handle a single list of cutters
                 {
-                    if (cutters[0].Count > 0 && breps[path][0] != null)
-                    resTree[path].Add(new GH_Brep(breps[path][0].Value.Cut(
-                        cutters[cutters.Paths[0]].Select(x => x.Value))));
+                    try
+                    {
+                        if (cutters[0].Count > 0 && breps[path][0] != null)
+                            resTree[path].Add(new GH_Brep(breps[path][0].Value.Cut(
+                                cutters[cutters.Paths[0]].Select(x => x.Value))));
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(ex.Message);
+                    }
                 }
             });
 
             DA.SetDataTree(0, resTree);
+            DA.SetDataList("Errors", errors);
         }
 
         protected override System.Drawing.Bitmap Icon
