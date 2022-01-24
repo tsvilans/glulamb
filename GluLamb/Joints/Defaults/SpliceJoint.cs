@@ -18,6 +18,12 @@ namespace GluLamb.Joints
                 Parts[i] = new JointPart(elements, jc.Parts[i], this);
             }
         }
+        public SpliceJoint(SpliceJoint sj)
+        {
+            Parts = sj.Parts;
+            this.Plane = sj.Plane;
+        }
+
         /// <summary>
         /// Creates a splice joint between two beam elements.
         /// </summary>

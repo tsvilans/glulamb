@@ -26,6 +26,11 @@ namespace GluLamb.Joints
 
         }
 
+        public override string ToString()
+        {
+            return "ButtJoint_Flat2Dowels";
+        }
+
         public override bool Construct(bool append = false)
         {
             if (!append)
@@ -57,16 +62,16 @@ namespace GluLamb.Joints
             var trimPlane = new Plane(mplane.Origin + mplane.XAxis * mbeam.Width * 0.5 * sign, mplane.ZAxis, mplane.YAxis);
             var trimmer = Brep.CreatePlanarBreps(new Curve[]{new Rectangle3d(trimPlane,
                 trimInterval, trimInterval).ToNurbsCurve()}, 0.01);
+            Tenon.Geometry.AddRange(trimmer);
 
-            var xform = trimPlane.ProjectAlongVector(tplane.ZAxis);
+            var projTrim = trimPlane.ProjectAlongVector(tplane.ZAxis);
 
             for (int i = -1; i < 2; i += 2)
             {
-                Point3d dp = new Point3d(tplane.Origin
-                  + tplane.YAxis * (tbeam.Height * i - DowelOffset)
-                  );
+                //Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (tbeam.Height * i - DowelOffset));
+                Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (DowelOffset * i));
 
-                dp.Transform(xform);
+                dp.Transform(projTrim);
                 dp.Transform(Transform.Translation(-tz * DowelLength * 0.5));
 
                 var dowelPlane = new Plane(dp, tz);
@@ -76,7 +81,6 @@ namespace GluLamb.Joints
                 Tenon.Geometry.Add(cyl);
                 Mortise.Geometry.Add(cyl);
             }
-            Tenon.Geometry.AddRange(trimmer);
 
             return true;
         }
