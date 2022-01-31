@@ -10,7 +10,7 @@ namespace GluLamb.Joints
 {
     public class VBeamJoint : Joint3<BeamElement>
     {
-        public VBeamJoint(List<Element> elements, Factory.JointCondition jc)
+        public VBeamJoint(List<Element> elements, Factory.JointCondition jc) : base()
         {
             if (jc.Parts.Count != Parts.Length) throw new Exception("VBeamJoint needs 3 elements.");
             var c = jc.Parts[0].Case | (jc.Parts[1].Case << 1) | (jc.Parts[2].Case << 2);
