@@ -51,6 +51,16 @@ namespace GluLamb.Joints
             endPlanes[0] = beams[0].GetPlane(planes[0].Origin - planes[0].ZAxis * TenonLength * 0.5);
             endPlanes[1] = beams[1].GetPlane(planes[1].Origin + planes[1].ZAxis * TenonLength * 0.5);
 
+            var x0 = endPlanes[0].XAxis;
+            var x1 = endPlanes[1].XAxis;
+            if (x0 * x1 < 0)
+                x1 = -x1;
+
+            var common = (x0 + x1) / 2;
+
+            endPlanes[0] = new Plane(endPlanes[0].Origin, common, endPlanes[0].YAxis);
+            endPlanes[1] = new Plane(endPlanes[1].Origin, common, endPlanes[1].YAxis);
+
             debug.Add(planes[0]);
             debug.Add(planes[1]);
             debug.Add(endPlanes[0]);
