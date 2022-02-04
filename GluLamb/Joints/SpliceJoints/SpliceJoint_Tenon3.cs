@@ -16,6 +16,7 @@ namespace GluLamb.Joints
         public double TenonLength = 100;
         public double DowelLength = 150;
         public double DowelDiameter = 12.0;
+        public double DowelInclination = 0.0;
         public double Added = 10.0;
 
         public SpliceJoint_Tenon3(List<Element> elements, JointCondition jc) : base(elements, jc)
@@ -100,6 +101,7 @@ namespace GluLamb.Joints
             debug.Add(btmOutline);
 
             var tenonCutter = Brep.CreateFromLoft(new Curve[] { topOutline, btmOutline }, Point3d.Unset, Point3d.Unset, LoftType.Straight, false)[0];
+            tenonCutter.Faces.SplitKinkyFaces();
 
             FirstHalf.Geometry.Add(tenonCutter);
             SecondHalf.Geometry.Add(tenonCutter);
@@ -113,6 +115,11 @@ namespace GluLamb.Joints
 
             dowelPlanes[0].Transform(Transform.Translation(dowelPlanes[0].ZAxis * -DowelLength * 0.5));
             dowelPlanes[1].Transform(Transform.Translation(dowelPlanes[1].ZAxis * -DowelLength * 0.5));
+
+            for (int i = 0; i < 2; ++i)
+            {
+                dowelPlanes[i].Transform(Transform.Rotation(DowelInclination, planes[0].ZAxis, planes[0].Origin));
+            }
 
             var dowels = new Brep[2];
             for (int i = 0; i < 2; ++i)

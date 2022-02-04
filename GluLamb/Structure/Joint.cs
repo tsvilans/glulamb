@@ -67,6 +67,14 @@ namespace GluLamb
         public abstract bool Construct(bool append = false);
     }
 
+    public abstract class Joint1 : Joint
+    {
+        protected Joint1()
+        {
+            Parts = new JointPart[1];
+        }
+    }
+
     public abstract class Joint2 : Joint
     {
         protected Joint2()

@@ -19,6 +19,8 @@ namespace GluLamb.Joints
         public double DowelDiameter = 12.0;
         public double Angle = RhinoMath.ToRadians(30.0);
         public double Added = 10.0;
+        public bool Rotate = false;
+
 
         public SpliceJoint_BirdsMouth(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
@@ -55,6 +57,14 @@ namespace GluLamb.Joints
             var commonY = (y0 + y1) / 2;
 
             var jplane = new Plane((planes[0].Origin + planes[1].Origin) / 2, commonX, commonY);
+
+            bool flag = true;
+            if (beams[0].Width > beams[0].Height)
+                flag = false;
+
+            if (flag == Rotate)
+                jplane = new Plane(jplane.Origin, jplane.YAxis, -jplane.XAxis);
+
             debug.Add(jplane);
 
             var width0 = beams[0].Width;
@@ -67,9 +77,12 @@ namespace GluLamb.Joints
             double height = Math.Max(height0, height1) + Added;
             double depth = Math.Tan(Angle) * (height / 2);
 
-            //if (width < height)
-            //  jplane = new Plane(jplane.Origin, jplane.YAxis, -jplane.XAxis);
-
+            if (flag == Rotate)
+            {
+                double temp = width;
+                width = height;
+                height = temp;
+            }
 
             double hw = width / 2, hh = height / 2, hd = depth / 2;
 
