@@ -84,6 +84,10 @@ namespace GluLamb.Joints
                 height = temp;
             }
 
+            //if (width < height)
+            //  jplane = new Plane(jplane.Origin, jplane.YAxis, -jplane.XAxis);
+
+
             double hw = width / 2, hh = height / 2, hd = depth / 2;
 
             // Create middle points
@@ -108,10 +112,12 @@ namespace GluLamb.Joints
 
             // Create dowels
             var dowelPlanes = new Plane[2];
-            double dowelDistance = beams[0].Height / 2;
+            double dowelDistance = flag ? beams[0].Height * 0.5 : beams[0].Width * 0.5;
 
-            dowelPlanes[0] = new Plane(planes[0].Origin + planes[0].YAxis * dowelDistance * 0.5, planes[0].ZAxis);
-            dowelPlanes[1] = new Plane(planes[0].Origin - planes[0].YAxis * dowelDistance * 0.5, planes[0].ZAxis);
+            Vector3d dowelY = flag ? planes[0].YAxis : planes[0].XAxis;
+
+            dowelPlanes[0] = new Plane(planes[0].Origin + dowelY * dowelDistance * 0.5, planes[0].ZAxis);
+            dowelPlanes[1] = new Plane(planes[0].Origin - dowelY * dowelDistance * 0.5, planes[0].ZAxis);
 
             dowelPlanes[0].Transform(Transform.Translation(dowelPlanes[0].ZAxis * -DowelLength * 0.5));
             dowelPlanes[1].Transform(Transform.Translation(dowelPlanes[1].ZAxis * -DowelLength * 0.5));

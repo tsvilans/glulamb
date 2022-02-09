@@ -707,6 +707,29 @@ namespace GluLamb
 
             return angleValues;
         }
+
+        public static Interval OverlapCurves(Curve c0, Curve c1)
+        {
+            Point3d min, max;
+
+            if (c0.PointAtStart.DistanceTo(c1.PointAtStart) < c0.PointAtStart.DistanceTo(c1.PointAtEnd))
+            {
+                min = c1.PointAtStart;
+                max = c1.PointAtEnd;
+            }
+            else
+            {
+                min = c1.PointAtEnd;
+                max = c1.PointAtStart;
+            }
+
+            double t0, t1;
+            c0.ClosestPoint(min, out t0);
+            c0.ClosestPoint(max, out t1);
+
+            return new Interval(Math.Max(t0, c0.Domain.Min), Math.Min(t1, c0.Domain.Max));
+        }
+
     }
 
 }

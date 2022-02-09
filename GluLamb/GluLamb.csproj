@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Beam.cs" />
+    <Compile Include="Joints\BranchJoints\BranchJointSimple.cs" />
     <Compile Include="Joints\Defaults\EndJoint.cs" />
     <Compile Include="Joints\FourWayJoints\FourWayJoint_Split.cs" />
     <Compile Include="Joints\CrossJoints\CrossJoint_SingleBackCut.cs" />
