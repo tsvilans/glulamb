@@ -63,5 +63,50 @@ namespace GluLamb
             Glulam = glulam;
             GlulamId = glulam_id;
         }
+
+        public static List<Lamella> ExtractUnbentLamellas(Glulam g, double resolution = 50.0, double extra_tolerance = 0.0)
+        {
+            var lams = new List<Lamella>();
+            var lamcrvs = g.GetLamellaeCurves();
+
+            double hw = g.Width / 2;
+            double hh = g.Height / 2;
+
+            double lw = g.Data.LamWidth;
+            double lh = g.Data.LamHeight;
+
+            double hlw = lw / 2;
+            double hlh = lh / 2;
+
+            int l = 0;
+            for (int x = 0; x < g.Data.NumWidth; ++x)
+            {
+                for (int y = 0; y < g.Data.NumHeight; ++y)
+                {
+                    var length = lamcrvs[l].GetLength();
+                    var lam = new Lamella(g.Id, g, lh, x, y);
+                    Mesh lmesh = GluLamb.Utility.Create3dMeshGrid(lw + extra_tolerance, lh, length + extra_tolerance, resolution);
+
+                    lam.Mesh = lmesh;
+                    lam.Length = length;
+                    lam.Width = g.Data.LamWidth;
+                    //lam.Thickness = g.Data.LamHeight;
+                    //lam.StackPositionX = x;
+                    //lam.StackPositionY = y;
+                    lam.Plane = new Plane(
+                      new Point3d(
+                          -hw + lw * x + hlw,
+                          -hh + lh * y + hlh,
+                          0),
+                      Vector3d.XAxis,
+                      Vector3d.YAxis);
+                    lams.Add(lam);
+                    l++;
+
+                }
+            }
+
+            return lams;
+        }
     }
 }

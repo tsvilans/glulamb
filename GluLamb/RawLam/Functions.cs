@@ -11,7 +11,7 @@ using GluLamb;
 
 namespace GluLamb
 {
-    public static class RawLam
+    public static class RawLamProject
     {
         public static Curve[] SegmentCurve(Curve crv, double extension = 200, double max_length = 2600, double min_length = 500)
         {
