@@ -103,6 +103,10 @@ namespace GluLamb.GH.Components
                         errors.Add(ex.Message);
                     }
                 }
+                else
+                {
+                    resTree[path].AddRange(breps[path]);
+                }
             });
 
             DA.SetDataTree(0, resTree);
