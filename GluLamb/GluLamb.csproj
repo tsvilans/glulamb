@@ -100,6 +100,7 @@
     <Compile Include="Joints\JointConstructor.cs" />
     <Compile Include="Joints\JointUtil.cs" />
     <Compile Include="RawLam\Board.cs" />
+    <Compile Include="RawLam\LamellaPerformance.cs" />
     <Compile Include="RawLam\Functions.cs" />
     <Compile Include="Glulam\Lamella.cs" />
     <Compile Include="RawLam\Log.cs" />
