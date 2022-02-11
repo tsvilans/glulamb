@@ -270,6 +270,8 @@ namespace GluLamb
 
             if (curve.IsLinear())
             {
+                curve.Domain = new Interval(0, length);
+
                 Parallel.For(0, pts.Count, i =>
                 {
                     Plane m_plane;
