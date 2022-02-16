@@ -11,16 +11,27 @@ namespace GluLamb.Joints
 {
     public class SpliceJoint_Tenon3 : SpliceJoint
     {
+        public static double DefaultTenonLength = 100;
+        public static double DefaultDowelLength = 150;
+        public static double DefaultDowelDiameter = 12.0;
+        public static double DefaultDowelInclination = 0.0;
+        public static double DefaultAdded = 10.0;
+
         public List<object> debug;
 
-        public double TenonLength = 100;
-        public double DowelLength = 150;
-        public double DowelDiameter = 12.0;
-        public double DowelInclination = 0.0;
-        public double Added = 10.0;
+        public double TenonLength;
+        public double DowelLength;
+        public double DowelDiameter;
+        public double DowelInclination;
+        public double Added;
 
         public SpliceJoint_Tenon3(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+            TenonLength = DefaultTenonLength;
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
+            DowelInclination = DefaultDowelInclination;
+            Added = DefaultAdded;
         }
 
         public SpliceJoint_Tenon3(SpliceJoint sj) : base(sj)

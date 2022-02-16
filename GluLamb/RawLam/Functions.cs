@@ -169,6 +169,163 @@ namespace GluLamb
             }
         }
 
+        public static bool CreatePressingTemplate(Glulam glulam, out List<Curve> profiles, out Plane handle, double extension = 150)
+        {
+            profiles = new List<Curve>();
+            //label_planes = new List<Plane>();
+
+            var beam = glulam;
+
+
+            //label_planes.Add(handle);
+
+            var cl = beam.Centreline.DuplicateCurve();
+
+            if (cl.IsLinear())
+            {
+                var gplane = beam.GetPlane(beam.Centreline.PointAtStart);
+                handle = new Plane(gplane.Origin, gplane.ZAxis, gplane.YAxis);
+            }
+            else
+            { 
+            handle = new Plane(beam.Centreline.PointAtStart, beam.Centreline.PointAtStart - beam.Centreline.PointAtEnd,
+                beam.Centreline.PointAt(beam.Centreline.Domain.Mid) - beam.Centreline.PointAtStart);
+               }
+
+            var startPt = cl.PointAtStart;
+            var midPt = cl.PointAt(cl.Domain.Mid);
+            var endPt = cl.PointAtEnd;
+
+            if (!cl.IsLinear())
+                cl = cl.Extend(CurveEnd.Both, extension, CurveExtensionStyle.Line);
+            else
+                cl = cl.Extend(CurveEnd.Both, 30, CurveExtensionStyle.Line);
+
+            var offset0 = cl.Offset(handle, beam.Height * 0.5, 0.01, CurveOffsetCornerStyle.Sharp)[0];
+            var offset1 = cl.Offset(handle, -beam.Height * 0.5, 0.01, CurveOffsetCornerStyle.Sharp)[0];
+
+            var end0 = new Line(offset0.PointAtStart, offset1.PointAtStart).ToNurbsCurve();
+            var end1 = new Line(offset0.PointAtEnd, offset1.PointAtEnd).ToNurbsCurve();
+
+            var profile = Curve.JoinCurves(new Curve[] { offset0, offset1, end0, end1 });
+
+            profiles.AddRange(profile);
+
+
+            double circleRadius = 5.0;
+
+            var handleCircle = new Circle(handle, circleRadius);
+            profiles.Add(handleCircle.ToNurbsCurve());
+
+            var startPlane = new Plane(startPt, handle.XAxis, handle.YAxis);
+            var start = new Circle(startPlane, circleRadius);
+            profiles.Add(start.ToNurbsCurve());
+
+            /* Offset start circles */
+            startPlane = beam.GetPlane(startPt);
+            for (int j = -1; j < 2; j += 2)
+            {
+                var startOffset = new Circle(
+                  new Plane(startPlane.Origin + startPlane.YAxis * j * beam.Height * 0.4,
+                  startPlane.YAxis, startPlane.ZAxis), circleRadius);
+
+                profiles.Add(startOffset.ToNurbsCurve());
+            }
+            //label_planes.Add(startPlane);
+
+
+            var midPlane = new Plane(midPt, handle.XAxis, handle.YAxis);
+            var mid = new Circle(midPlane, circleRadius);
+            profiles.Add(mid.ToNurbsCurve());
+
+            //label_planes.Add(midPlane);
+
+            var endPlane = new Plane(endPt, handle.XAxis, handle.YAxis);
+
+            var end = new Circle(endPlane, circleRadius);
+            profiles.Add(end.ToNurbsCurve());
+
+            /* Offset end circles */
+            endPlane = beam.GetPlane(endPt);
+            for (int j = -1; j < 2; j += 2)
+            {
+                var endOffset = new Circle(
+                  new Plane(endPlane.Origin + endPlane.YAxis * j * beam.Height * 0.4,
+                  endPlane.YAxis, endPlane.ZAxis), circleRadius);
+
+                profiles.Add(endOffset.ToNurbsCurve());
+            }
+
+            //label_planes.Add(endPlane);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Shorten glulam to just fit some geometry.
+        /// </summary>
+        /// <param name="glulam">Glulam to shorten.</param>
+        /// <param name="mesh">Geometry to fit.</param>
+        /// <returns></returns>
+        public static Glulam CompactGlulam(Glulam glulam, Mesh mesh)
+        {
+            var crv = glulam.Centreline.DuplicateCurve();
+
+            double tmin = crv.Domain.Max;
+            double tmax = crv.Domain.Min;
+
+            double t;
+
+            if (crv.Domain.IsDecreasing)
+                crv.Domain.Reverse();
+
+            for (int i = 0; i < mesh.Vertices.Count; ++i)
+            {
+                crv.ClosestPoint(mesh.Vertices[i], out t);
+                tmin = Math.Min(tmin, t);
+                tmax = Math.Max(tmax, t);
+            }
+
+            var ng = glulam.Duplicate();
+            ng.Centreline = ng.Centreline.Trim(tmin, tmax);
+
+            return ng;
+        }
+
+        /// <summary>
+        /// Shorten glulam to just fit some geometry.
+        /// </summary>
+        /// <param name="glulam">Glulam to shorten.</param>
+        /// <param name="brep">Geometry to fit.</param>
+        /// <returns></returns>
+        public static Glulam CompactGlulam(Glulam glulam, Brep brep)
+        {
+            var mesh = new Mesh();
+            mesh.Append(Mesh.CreateFromBrep(brep, MeshingParameters.FastRenderMesh));
+
+
+            var crv = glulam.Centreline.DuplicateCurve();
+
+            double tmin = crv.Domain.Max;
+            double tmax = crv.Domain.Min;
+
+            double t;
+
+            if (crv.Domain.IsDecreasing)
+                crv.Domain.Reverse();
+
+            for (int i = 0; i < mesh.Vertices.Count; ++i)
+            {
+                crv.ClosestPoint(mesh.Vertices[i], out t);
+                tmin = Math.Min(tmin, t);
+                tmax = Math.Max(tmax, t);
+            }
+
+            var ng = glulam.Duplicate();
+            ng.Centreline = ng.Centreline.Trim(tmin, tmax);
+
+            return ng;
+        }
     }
 
 }
