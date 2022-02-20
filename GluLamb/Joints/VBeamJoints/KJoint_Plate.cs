@@ -13,6 +13,25 @@ namespace GluLamb.Joints
     {
         public List<object> debug;
 
+        public static double DefaultPlateDepth = 60.0;
+        public static double DefaultPlateThickness = 20.0;
+
+        public static double DefaultDowelPosition = 60;
+        public static double DefaultDowelLength = 220.0;
+        public static double DefaultDowelDiameter = 12.0;
+
+        public static bool DefaultSingleInsertionDirection = true;
+
+        /// <summary>
+        /// Joint mode for arm beams.
+        ///0 = beams are split down the seam
+        ///-1 = beam0 goes into beam1
+        ///1 = beam1 goes into beam0
+        /// </summary>
+        public static int DefaultMode = 0;
+
+        public static double DefaultCutterSize = 300;
+
         public double PlateDepth = 60.0;
         public double PlateThickness = 20.0;
 
@@ -34,7 +53,18 @@ namespace GluLamb.Joints
 
         public KJoint_Plate(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
-        }
+            PlateDepth = DefaultPlateDepth;
+            PlateThickness = DefaultPlateThickness;
+
+            DowelPosition = DefaultDowelPosition;
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
+
+            SingleInsertionDirection = DefaultSingleInsertionDirection;
+            Mode = DefaultMode;
+
+            CutterSize = DefaultCutterSize;
+    }
 
         public override string ToString()
         {
