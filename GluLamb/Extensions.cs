@@ -376,6 +376,9 @@ namespace GluLamb
                 if (ctr == null) continue;
                 if (ctr.IsSolid)
                 {
+                    if (ctr.SolidOrientation != BrepSolidOrientation.Outward)
+                        ctr.Flip();
+
                     solids.Add(ctr);
                 }
                 else
@@ -420,7 +423,8 @@ namespace GluLamb
             if (index >= 0)
                 largest = pieces[index];
             else
-                largest = pieces[0];
+                largest = brep;
+                //largest = pieces[0];
 
             var diff = Brep.CreateBooleanDifference(new Brep[] { largest }, solids, 0.1);
 

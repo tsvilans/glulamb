@@ -22,6 +22,14 @@ namespace GluLamb.Joints
 
         public bool SingleInsertionDirection = true;
 
+        /// <summary>
+        /// Joint mode for arm beams.
+        ///0 = beams are split down the seam
+        ///-1 = beam0 goes into beam1
+        ///1 = beam1 goes into beam0
+        /// </summary>
+        public int Mode = 0;
+
         public double CutterSize = 300;
 
         public KJoint_Plate(List<Element> elements, JointCondition jc) : base(elements, jc)
@@ -198,19 +206,36 @@ namespace GluLamb.Joints
                 //debug.Add(outOffsetPlanes[i]);
             }
 
-            //return true;
+            Plane seamPlane;
+            Rectangle3d seamRec;
+            Brep seamBrep;
 
+            // Pick method of intersecting the 2 arms beams
+            switch (Mode)
+            {
+                case (-1): // beam0 into the side of beam1
+                    seamRec = new Rectangle3d(seamPlanes[1], cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
+                    Parts[0].Geometry.Add(seamBrep);
+                    break;
+                case (1): // beam1 into the side of beam0
+                    seamRec = new Rectangle3d(seamPlanes[0], cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
+                    Parts[1].Geometry.Add(seamBrep);
+                    break;
+                default: // centre split
+                    Line seam;
+                    Rhino.Geometry.Intersect.Intersection.PlanePlane(seamPlanes[0], seamPlanes[1], out seam);
 
-            Line seam;
-            Rhino.Geometry.Intersect.Intersection.PlanePlane(seamPlanes[0], seamPlanes[1], out seam);
+                    seamPlane = new Plane(seam.From, seam.Direction, dsum);
 
-            var seamPlane = new Plane(seam.From, seam.Direction, dsum);
+                    seamRec = new Rectangle3d(seamPlane, cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
 
-            var seamRec = new Rectangle3d(seamPlane, cutterInterval, cutterInterval);
-            var seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
-
-            Parts[0].Geometry.Add(seamBrep);
-            Parts[1].Geometry.Add(seamBrep);
+                    Parts[0].Geometry.Add(seamBrep);
+                    Parts[1].Geometry.Add(seamBrep);
+                    break;
+            }
 
             // END seam
 
@@ -337,8 +362,6 @@ namespace GluLamb.Joints
                 Parts[i].Geometry.Add(dowelCyl);
 
             }
-
-            //debug.Add(platePlane);
 
             // END plate
 
