@@ -13,6 +13,21 @@ namespace GluLamb.Joints
 {
     public class SpliceJoint_BirdsMouth : SpliceJoint
     {
+        public static double DefaultDowelLength = 150;
+        public static double DefaultDowelDiameter = 12.0;
+        public static double DefaultAngle = RhinoMath.ToRadians(30.0);
+        public static double DefaultAdded = 10.0;
+        public static bool DefaultRotate = false;
+
+        public static double DefaultCountersinkDiameter = 14;
+        public static double DefaultCountersinkDepth = 10;
+        public static double DefaultDrillWidthOffset = 30;
+        public static double DefaultDrillDistanceOffset = 50;
+        public static double DefaultDrillDiameter = 6;
+        public static double DefaultDrillDepth = 180;
+        public static double DefaultDrillAngle = RhinoMath.ToRadians(45);
+        public static double DefaultDrillApproachLength = 20.0;
+
         public List<object> debug;
 
         public double DowelLength = 150;
@@ -21,9 +36,32 @@ namespace GluLamb.Joints
         public double Added = 10.0;
         public bool Rotate = false;
 
+        public bool DoDrilling = true;
+        public double CountersinkDiameter = 14;
+        public double CountersinkDepth = 10;
+        public double DrillWidthOffset = 30;
+        public double DrillDistanceOffset = 50;
+        public double DrillDiameter = 6;
+        public double DrillDepth = 180;
+        public double DrillAngle = RhinoMath.ToRadians(45);
+        public double DrillApproachLength = 20.0;
 
         public SpliceJoint_BirdsMouth(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
+            Angle = DefaultAngle;
+            Added = DefaultAdded;
+            Rotate = DefaultRotate;
+
+            CountersinkDiameter = DefaultCountersinkDiameter;
+            CountersinkDepth = DefaultCountersinkDepth;
+            DrillWidthOffset = DefaultDrillWidthOffset;
+            DrillDistanceOffset = DefaultDrillDistanceOffset;
+            DrillDiameter = DefaultDrillDiameter;
+            DrillDepth = DefaultDrillDepth;
+            DrillAngle = DefaultDrillAngle;
+            DrillApproachLength = DefaultDrillApproachLength;
         }
 
         public override bool Construct(bool append = false)
@@ -131,6 +169,42 @@ namespace GluLamb.Joints
 
             FirstHalf.Geometry.AddRange(dowels);
             SecondHalf.Geometry.AddRange(dowels);
+
+            if (DoDrilling)
+            {
+
+                // Create drillings
+
+                var drillTempPlane = beams[0].GetPlane(jplane.Origin - jplane.ZAxis * DrillDistanceOffset);
+                double drillDistance = flag ? beams[0].Height * 0.5 : beams[0].Width * 0.5;
+                double drillX, drillY;
+                Vector3d drillAngleAxis = flag ? -drillTempPlane.XAxis : drillTempPlane.YAxis;
+
+                for (int i = -1; i < 2; i += 2)
+                {
+                    for (int j = -1; j < 2; j += 2)
+                    {
+                        drillX = flag ? DrillWidthOffset * i + (DrillDiameter + 2) * 0.5 * j : drillDistance * j;
+                        drillY = !flag ? DrillWidthOffset * i + (DrillDiameter + 2) * 0.5 * j : drillDistance * j;
+
+                        var drillPt = drillTempPlane.PointAt(drillX, drillY);
+                        var drillAxis = flag ? drillTempPlane.YAxis * j : drillTempPlane.XAxis * j;
+
+                        var drillPlane = new Plane(drillPt - drillAxis * DrillDepth, drillAxis);
+                        var countersinkPlane = new Plane(drillPt - drillAxis * CountersinkDepth, drillAxis);
+
+                        drillPlane.Transform(Transform.Rotation(DrillAngle * j, drillAngleAxis, drillPt));
+                        countersinkPlane.Transform(Transform.Rotation(DrillAngle * j, drillAngleAxis, drillPt));
+
+                        var countersinking = new Cylinder(new Circle(countersinkPlane, CountersinkDiameter * 0.5), CountersinkDepth + DrillApproachLength).ToBrep(true, true);
+                        FirstHalf.Geometry.Add(countersinking);
+
+                        var drilling = new Cylinder(new Circle(drillPlane, DrillDiameter * 0.5), DrillDepth + DrillApproachLength).ToBrep(true, true);
+                        FirstHalf.Geometry.Add(drilling);
+                        SecondHalf.Geometry.Add(drilling);
+                    }
+                }
+            }
 
             return true;
         }

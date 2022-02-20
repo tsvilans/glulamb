@@ -12,19 +12,36 @@ namespace GluLamb.Joints
 {
     public class SpliceJoint_Lap1 : SpliceJoint
     {
+        public static double DefaultDowelLength = 300;
+        public static double DefaultDowelDiameter = 12.0;
+        public static double DefaultLapLength = 250;
+        public static double DefaultLapAngle = RhinoMath.ToRadians(25.0);
+        public static double DefaultAdded = 10.0;
+
+        public static bool DefaultBackCut = true;
+        public static bool DefaultAngleDowels = false;
+
         public List<object> debug;
 
-        public double DowelLength = 300;
-        public double DowelDiameter = 12.0;
-        double LapLength = 250;
-        public double LapAngle = RhinoMath.ToRadians(25.0);
-        public double Added = 10.0;
+        public double DowelLength;
+        public double DowelDiameter;
+        public double LapLength;
+        public double LapAngle;
+        public double Added;
 
-        public bool BackCut = true;
-        public bool AngleDowels = false;
+        public bool BackCut;
+        public bool AngleDowels;
 
         public SpliceJoint_Lap1(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
+            LapLength = DefaultLapLength;
+            LapAngle = DefaultLapAngle;
+            Added = DefaultAdded;
+
+            BackCut = DefaultBackCut;
+            AngleDowels = DefaultAngleDowels;
         }
 
         public override bool Construct(bool append = false)

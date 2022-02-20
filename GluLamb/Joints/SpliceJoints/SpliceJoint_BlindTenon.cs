@@ -11,23 +11,49 @@ namespace GluLamb.Joints
 {
     public class SpliceJoint_BlindTenon : SpliceJoint
     {
+        public static double DefaultTenonLength = 100;
+        public static double DefaultTenonWidth = 40;
+        public static double DefaultTenonHeight = 80;
+        public static double DefaultAdded = 10;
+        public static double DefaultFilletRadius = 8;
+
+        public static double DefaultDowelLength = 220;
+        public static double DefaultDowelDiameter = 12;
+
+
         public List<object> debug;
 
-        public double TenonLength = 100;
-        public double TenonWidth = 40;
-        public double TenonHeight = 80;
-        public double Added = 10.0;
-        public double FilletRadius = 8.0;
+        public double TenonLength;
+        public double TenonWidth;
+        public double TenonHeight;
+        public double Added;
+        public double FilletRadius;
 
-        public double DowelLength = 220;
-        public double DowelDiameter = 12.0;
+        public double DowelLength;
+        public double DowelDiameter;
 
         public SpliceJoint_BlindTenon(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+            TenonLength = DefaultTenonLength;
+            TenonWidth = DefaultTenonWidth;
+            TenonHeight = DefaultTenonHeight;
+            Added = DefaultAdded;
+            FilletRadius = DefaultFilletRadius;
+
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
         }
 
         public SpliceJoint_BlindTenon(SpliceJoint sj) : base(sj)
         {
+            TenonLength = DefaultTenonLength;
+            TenonWidth = DefaultTenonWidth;
+            TenonHeight = DefaultTenonHeight;
+            Added = DefaultAdded;
+            FilletRadius = DefaultFilletRadius;
+
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
         }
 
         public override string ToString()

@@ -11,14 +11,20 @@ namespace GluLamb.Joints
 {
     public class EndJoint : Joint1
     {
-        public Plane CutPlane = Plane.Unset;
-        public double Added = 30.0;
+        public static Plane DefaultCutPlane = Plane.Unset;
+        public static double DefaultAdded = 30;
+
+        public Plane CutPlane;
+        public double Added;
 
         public EndJoint(List<Element> elements, JointCondition jc)
         {
             if (jc.Parts.Count < Parts.Length) throw new Exception("EndJoint needs 1 elements.");
 
             Parts[0] = new JointPart(elements, jc.Parts[0], this);
+
+            CutPlane = DefaultCutPlane;
+            Added = DefaultAdded;
         }
 
         public override string ToString()

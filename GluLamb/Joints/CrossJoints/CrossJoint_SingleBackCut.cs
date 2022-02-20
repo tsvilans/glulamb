@@ -12,6 +12,10 @@ namespace GluLamb.Joints
 {
     public class CrossJoint_SingleBackcut : CrossJoint
     {
+        public static double DefaultTaperAngle = 3.0;
+        public static double DefaultDepthOverride = 0.0;
+        public static double DefaultExtraLength = 50.0;
+
         public Plane UnifyPlanes(Plane p0, Plane p1)
         {
             int x = 1, y = 1;
@@ -30,6 +34,9 @@ namespace GluLamb.Joints
 #if DEBUG
             debug = new List<object>();
 #endif
+            TaperAngle = DefaultTaperAngle;
+            DepthOverride = DefaultDepthOverride;
+            ExtraLength = DefaultExtraLength;
         }
 
         public override string ToString()
@@ -37,9 +44,9 @@ namespace GluLamb.Joints
             return "CrossJoint_SingleBackcut";
         }
 
-        public double TaperAngle = 3.0;
-        public double DepthOverride = 0.0;
-        public double ExtraLength = 50.0;
+        public double TaperAngle;
+        public double DepthOverride;
+        public double ExtraLength;
 
         public override bool Construct(bool append = false)
         {

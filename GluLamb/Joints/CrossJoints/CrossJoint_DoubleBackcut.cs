@@ -10,13 +10,23 @@ namespace GluLamb.Joints
 {
     public class CrossJoint_DoubleBackcut : CrossJoint
     {
-        public double Offset1 = 3.0;
-        public double Offset2 = 3.0;
-        public double Extension = 2.0;
-        public double OffsetCentre = 10.0;
+        public static double DefaultOffset1 = 3.0;
+        public static double DefaultOffset2 = 3.0;
+        public static double DefaultExtension = 2.0;
+        public static double DefaultOffsetCentre = 10.0;
+
+
+        public double Offset1;
+        public double Offset2;
+        public double Extension;
+        public double OffsetCentre;
 
         public CrossJoint_DoubleBackcut(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
-        {
+        {        
+            Offset1 = DefaultOffset1;
+            Offset2 = DefaultOffset2;
+            Extension = DefaultExtension;
+            OffsetCentre = DefaultOffsetCentre;
         }
 
         public override string ToString()
