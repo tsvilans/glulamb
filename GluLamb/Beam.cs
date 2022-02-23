@@ -43,6 +43,17 @@ namespace GluLamb
         public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation { get; set; }
 
+        public virtual Beam Duplicate()
+        {
+            var beam = new Beam();
+            beam.Centreline = Centreline.DuplicateCurve();
+            beam.Orientation = Orientation.Duplicate();
+            beam.Width = Width;
+            beam.Height = Height;
+
+            return beam;
+        }
+
         public Plane GetPlane(double t) => GetPlane(t, Centreline);
 
         public Plane GetPlane(double t, Curve curve) => Utility.PlaneFromNormalAndYAxis(

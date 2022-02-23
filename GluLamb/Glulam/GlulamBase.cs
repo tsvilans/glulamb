@@ -118,7 +118,7 @@ namespace GluLamb
         /// Duplicate glulam data.
         /// </summary>
         /// <returns></returns>
-        public Glulam Duplicate() => CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+        public new Glulam Duplicate() => CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
 
         public override int GetHashCode() => Id.GetHashCode();
         public override string ToString() => "Glulam";

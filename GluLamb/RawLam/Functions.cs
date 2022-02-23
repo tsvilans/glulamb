@@ -296,6 +296,37 @@ namespace GluLamb
         /// Shorten glulam to just fit some geometry.
         /// </summary>
         /// <param name="glulam">Glulam to shorten.</param>
+        /// <param name="mesh">Geometry to fit.</param>
+        /// <returns></returns>
+        public static Beam CompactBeam(Beam beam, Mesh mesh)
+        {
+            var crv = beam.Centreline.DuplicateCurve();
+
+            double tmin = crv.Domain.Max;
+            double tmax = crv.Domain.Min;
+
+            double t;
+
+            if (crv.Domain.IsDecreasing)
+                crv.Domain.Reverse();
+
+            for (int i = 0; i < mesh.Vertices.Count; ++i)
+            {
+                crv.ClosestPoint(mesh.Vertices[i], out t);
+                tmin = Math.Min(tmin, t);
+                tmax = Math.Max(tmax, t);
+            }
+
+            var nb = beam.Duplicate();
+            nb.Centreline = nb.Centreline.Trim(tmin, tmax);
+
+            return nb;
+        }
+
+        /// <summary>
+        /// Shorten glulam to just fit some geometry.
+        /// </summary>
+        /// <param name="glulam">Glulam to shorten.</param>
         /// <param name="brep">Geometry to fit.</param>
         /// <returns></returns>
         public static Glulam CompactGlulam(Glulam glulam, Brep brep)
