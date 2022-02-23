@@ -311,10 +311,10 @@ namespace GluLamb.Joints
 
             // Create outline for arms
             var plateOutline0 = new Polyline() { pts[0], pts[1], pts[2], pts[4], pts[3], pts[6], pts[5], pts[0] };
-            //plateOutline0.
             debug.Add(plateOutline0);
 
             var plateSrf0 = Brep.CreateTrimmedPlane(platePlane, plateOutline0.ToNurbsCurve());
+            plateSrf0.Transform(Transform.Translation(platePlane.ZAxis * -PlateThickness * 0.5));
 
             Brep[] outBlends, outWalls;
             var plateBreps = Brep.CreateOffsetBrep(plateSrf0, PlateThickness, true, true, 0.01, out outBlends, out outWalls);
