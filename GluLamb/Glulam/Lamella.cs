@@ -19,6 +19,7 @@ namespace GluLamb
         public double Width;
         public double Thickness;
         public double Length;
+        public string Name;
 
 
         public int StackPositionX
