@@ -14,15 +14,52 @@ namespace GluLamb.Joints
         public Brep InnerSurface;
         public Brep OuterSurface;
         public Vector3d Normal;
-        public double PlateThickness = 20.0;
+
+        /// <summary>
+        /// Thickness of connector plate.
+        /// </summary>
+        public double PlateThickness = 21.0;
+
+        /// <summary>
+        /// Length of connector plate along each beam arm.
+        /// </summary>
         public double PlateLength = 100.0;
+
+        /// <summary>
+        /// Dowel position radially from the joint origin.
+        /// </summary>
         public double DowelPosition = 70.0;
+
+        /// <summary>
+        /// Dowel diameter.
+        /// </summary>
         public double DowelDiameter = 12.0;
+
+        /// <summary>
+        /// Dowel length.
+        /// </summary>
         public double DowelLength = 140.0;
 
+        /// <summary>
+        /// Amount to extend the intersection cutter beyond the joint.
+        /// </summary>
         public double CutterExtension = 500.0;
+
+        /// <summary>
+        /// Amount to extend the intersection cutter to ensure good boolean operations.
+        /// </summary>
         public double CutterToleranceExtension = 1.0;
+
+        /// <summary>
+        /// Lip of middle of intersection cutter, to make an orderly transition to each half.
+        /// </summary>
         public double CutterLipWidth = 5.0;
+
+        /// <summary>
+        /// Dowels are aligned with the cross-section plane if true. If false,
+        /// they follow the seam line for a more even distribution.
+        /// </summary>
+        public bool DowelsPerpendicular = false;
 
         public List<object> debug;
 
@@ -317,6 +354,8 @@ namespace GluLamb.Joints
                 var dowelPt = this.Plane.Origin + dir * DowelPosition;
 
                 var dp = beams[i].GetPlane(dowelPt);
+                if (!DowelsPerpendicular)
+                    dp = new Plane(dp.Origin, dp.XAxis, seams[i].Direction);
 
                 debug.Add(endPlanes[i]);
 
@@ -353,7 +392,7 @@ namespace GluLamb.Joints
             {
                 Parts[i].Geometry.Add(plateBrep);
                 Parts[i].Geometry.Add(dowelCutters[i]);
-                debug.Add(dowelCutters[i]);
+                //debug.Add(dowelCutters[i]);
             }
 
             return true;
