@@ -11,24 +11,44 @@ namespace GluLamb.Joints
 {
     public class FourWayJoint_Split : FourWayJoint
     {
+
+        public double DefaultPlateThickness = 20.0;
+        public double DefaultPlateLength = 100.0;
+        public double DefaultDowelPosition = 70.0;
+        public double DefaultDowelDiameter = 12.0;
+        public double DefaultDowelLength = 140.0;
+
+        public double DefaultCutterExtension = 500.0;
+        public double DefaultCutterToleranceExtension = 1.0;
+        public double DefaultCutterLipWidth = 5.0;
+
         public Brep InnerSurface;
         public Brep OuterSurface;
         public Vector3d Normal;
-        public double PlateThickness = 20.0;
-        public double PlateLength = 100.0;
-        public double DowelPosition = 70.0;
-        public double DowelDiameter = 12.0;
-        public double DowelLength = 140.0;
+        public double PlateThickness;
+        public double PlateLength;
+        public double DowelPosition;
+        public double DowelDiameter;
+        public double DowelLength;
 
-        public double CutterExtension = 500.0;
-        public double CutterToleranceExtension = 1.0;
-        public double CutterLipWidth = 5.0;
+        public double CutterExtension;
+        public double CutterToleranceExtension;
+        public double CutterLipWidth;
 
         public List<object> debug;
 
         public FourWayJoint_Split(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
-        }
+            PlateThickness = DefaultPlateThickness;
+            PlateLength = DefaultPlateLength;
+            DowelPosition = DefaultDowelPosition;
+            DowelDiameter = DefaultDowelDiameter;
+            DowelLength = DefaultDowelLength;
+
+            CutterExtension = DefaultCutterExtension;
+            CutterToleranceExtension = DefaultCutterToleranceExtension;
+            CutterLipWidth = DefaultCutterLipWidth;
+    }
 
         public override string ToString()
         {

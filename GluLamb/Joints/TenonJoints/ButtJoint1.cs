@@ -10,6 +10,12 @@ namespace GluLamb.Joints
 {
     public class ButtJoint1 : TenonJoint
     {
+        public static double DefaultTrimPlaneSize = 300.0;
+        public static double DefaultDowelLength = 100.0;
+        public static double DefaultDowelOffset = 30.0;
+        public static double DefaultDowelDiameter = 12;
+        public static double DefaultDowelLengthExtra = 50.0;
+
         public double TrimPlaneSize = 300.0;
         public double DowelLength = 100.0;
         public double DowelOffset = 30.0;
@@ -18,7 +24,11 @@ namespace GluLamb.Joints
 
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {
-
+            TrimPlaneSize = DefaultTrimPlaneSize;
+            DowelLength = DefaultDowelLength;
+            DowelOffset = DefaultDowelOffset;
+            DowelDiameter = DefaultDowelDiameter;
+            DowelLengthExtra = DefaultDowelLengthExtra;
         }
 
         public ButtJoint1(List<Element> elements, Factory.JointConditionPart tenon, Factory.JointConditionPart mortise) : base(elements, tenon, mortise)

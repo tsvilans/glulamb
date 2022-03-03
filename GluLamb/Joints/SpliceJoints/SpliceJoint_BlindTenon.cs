@@ -15,7 +15,7 @@ namespace GluLamb.Joints
         public static double DefaultTenonWidth = 40;
         public static double DefaultTenonHeight = 80;
         public static double DefaultAdded = 10;
-        public static double DefaultFilletRadius = 8;
+        public static double DefaultToolDiameter = 16;
 
         public static double DefaultDowelLength = 220;
         public static double DefaultDowelDiameter = 12;
@@ -27,7 +27,7 @@ namespace GluLamb.Joints
         public double TenonWidth;
         public double TenonHeight;
         public double Added;
-        public double FilletRadius;
+        public double ToolDiameter;
 
         public double DowelLength;
         public double DowelDiameter;
@@ -38,7 +38,7 @@ namespace GluLamb.Joints
             TenonWidth = DefaultTenonWidth;
             TenonHeight = DefaultTenonHeight;
             Added = DefaultAdded;
-            FilletRadius = DefaultFilletRadius;
+            ToolDiameter = DefaultToolDiameter;
 
             DowelLength = DefaultDowelLength;
             DowelDiameter = DefaultDowelDiameter;
@@ -50,7 +50,7 @@ namespace GluLamb.Joints
             TenonWidth = DefaultTenonWidth;
             TenonHeight = DefaultTenonHeight;
             Added = DefaultAdded;
-            FilletRadius = DefaultFilletRadius;
+            ToolDiameter = DefaultToolDiameter;
 
             DowelLength = DefaultDowelLength;
             DowelDiameter = DefaultDowelDiameter;
@@ -107,7 +107,7 @@ namespace GluLamb.Joints
             baseTenonPts[3] = planes[0].PointAt(-TenonWidth * 0.5, TenonHeight * 0.5);
             baseTenonPts[4] = baseTenonPts[0];
             var baseTenonOutline = new Polyline(baseTenonPts).ToNurbsCurve();
-            baseTenonOutline = Curve.CreateFilletCornersCurve(baseTenonOutline, FilletRadius, 0.01, 0.1).ToNurbsCurve();
+            baseTenonOutline = Curve.CreateFilletCornersCurve(baseTenonOutline, ToolDiameter * 0.5, 0.01, 0.1).ToNurbsCurve();
 
             tipTenonPts[0] = endPlane.PointAt(TenonWidth * 0.5, TenonHeight * 0.5);
             tipTenonPts[1] = endPlane.PointAt(TenonWidth * 0.5, -TenonHeight * 0.5);
@@ -115,7 +115,7 @@ namespace GluLamb.Joints
             tipTenonPts[3] = endPlane.PointAt(-TenonWidth * 0.5, TenonHeight * 0.5);
             tipTenonPts[4] = tipTenonPts[0];
             var tipTenonOutline = new Polyline(tipTenonPts).ToNurbsCurve();
-            tipTenonOutline = Curve.CreateFilletCornersCurve(tipTenonOutline, FilletRadius, 0.01, 0.1).ToNurbsCurve();
+            tipTenonOutline = Curve.CreateFilletCornersCurve(tipTenonOutline, ToolDiameter * 0.5, 0.01, 0.1).ToNurbsCurve();
 
             for (int i = 0; i < 4; ++i)
             {
