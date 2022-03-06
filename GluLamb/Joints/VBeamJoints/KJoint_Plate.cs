@@ -22,12 +22,6 @@ namespace GluLamb.Joints
 
         public static bool DefaultSingleInsertionDirection = true;
 
-        /// <summary>
-        /// Joint mode for arm beams.
-        ///0 = beams are split down the seam
-        ///-1 = beam0 goes into beam1
-        ///1 = beam1 goes into beam0
-        /// </summary>
         public static int DefaultMode = 0;
 
         public static double DefaultCutterSize = 300;
