@@ -190,11 +190,11 @@ namespace GluLamb.Joints
             double offset = 0;
             double offsetSqrt = 0;
 
-            if (tilt < 1)
+            if (tilt < 1 || false)
             {
                 double tiltedDepth = depth / tilt;
                 offsetSqrt = Math.Pow(tiltedDepth, 2) - Math.Pow(depth, 2);
-                offset = double.IsNaN(offsetSqrt) ? 0 : Math.Sqrt(offsetSqrt);
+                offset = double.IsNaN(offsetSqrt) || offsetSqrt <= 0 ? 0 : Math.Sqrt(offsetSqrt);
                 depth = Math.Min(MaxPlateDepth, tiltedDepth);
             }
             //debug.Add(plane);
@@ -532,6 +532,7 @@ namespace GluLamb.Joints
                 dowelPlanes[i] = dp;
 
                 Parts[i].Geometry.Add(CreatePlateSlot(i, planes[i].XAxis));
+                Parts[i].Geometry.Add(dowelCutters[i]);
             }
 
             return true;

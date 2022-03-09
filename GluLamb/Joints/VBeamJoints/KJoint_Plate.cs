@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using GluLamb.Factory;
+using Rhino;
 
 namespace GluLamb.Joints
 {
@@ -496,6 +497,7 @@ namespace GluLamb.Joints
             CutterSize = DefaultCutterSize;
         }
 
+
         public override string ToString()
         {
             return "KJoint_Plate";
@@ -517,9 +519,12 @@ namespace GluLamb.Joints
 
             var poly = new Polyline(pts);
             poly.Add(poly[0]);
+            var polyCrv = poly.ToNurbsCurve();
+            if (polyCrv == null) return null;
 
-            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
-                                                                                                               //Extrusion extrusion = Extrusion.CreateExtrusion(profile, SillPlane.ZAxis * -PlateDepth);
+            var profile = Curve.CreateFilletCornersCurve(polyCrv, ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
+            //Extrusion extrusion = Extrusion.CreateExtrusion(profile, SillPlane.ZAxis * -PlateDepth);
+
             var extrusion = Extrusion.Create(profile, PlateDepth + Added, true);
             return extrusion.ToBrep(true);
         }
@@ -544,13 +549,15 @@ namespace GluLamb.Joints
             double depth = PlateDepth + Added;
             double offset = 0;
 
-            if (tilt < 1)
+            if (!RhinoMath.EpsilonEquals(tilt, 1.0, RhinoMath.Epsilon))
             {
                 double tiltedDepth = depth / tilt;
-                double offsetSqrt = Math.Pow(depth, 2) - Math.Pow(tiltedDepth, 2);
-                offset = double.IsNaN(offsetSqrt) ? 0 : Math.Sqrt(offsetSqrt);
+                double offsetSqrt = Math.Pow(tiltedDepth, 2) - Math.Pow(depth, 2);
+                offset = double.IsNaN(offsetSqrt) || offsetSqrt <= 0 ? 0 : Math.Sqrt(offsetSqrt);
                 depth = Math.Min(MaxPlateDepth, tiltedDepth);
             }
+
+            if (double.IsNaN(offset)) offset = 0;
 
             plane.Origin = xpt + (plane.ZAxis * Added) + endPlane.ZAxis * offset;
 
@@ -573,7 +580,10 @@ namespace GluLamb.Joints
 
             debug.Add(poly);
 
-            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
+            var polyCrv = poly.ToNurbsCurve();
+            if (polyCrv == null) return null;
+
+            var profile = Curve.CreateFilletCornersCurve(polyCrv, ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
 
             var extrusion = Extrusion.CreateExtrusion(profile, vec * (depth + Added));
             Brep extBrep = extrusion.ToBrep();
@@ -840,8 +850,9 @@ namespace GluLamb.Joints
 
             for (int i = 0; i < 2; ++i)
             {
-                Parts[i].Geometry.Add(CreatePlateSlot(i, SlotDirections[i]));
-
+                var slot = CreatePlateSlot(i, SlotDirections[i]);
+                if (slot != null)
+                    Parts[i].Geometry.Add(slot);
             }
 
             // ***********************
@@ -875,7 +886,8 @@ namespace GluLamb.Joints
 
             SillPlane.Origin = (pts[0] + pts[1]) * 0.5;
             var tenon = CreateSillCutter();
-            this.Beam.Geometry.Add(tenon);
+            if (tenon != null)
+                this.Beam.Geometry.Add(tenon);
             /*
             var plateOutline1 = new Polyline() { pts[0], pts[1], pts[2], pts[3], pts[0] };
             debug.Add(plateOutline1);
