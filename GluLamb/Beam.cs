@@ -381,7 +381,111 @@ namespace GluLamb
             return torsion;
         }
 
+        public Brep ProfiledTopBottom(Brep topSrf, Brep btmSrf, out Curve[] edges, double sample_dist = 50.0, double maxSrfDistance = 500.0)
+        {
+            var length = Centreline.GetLength();
+            var N = (int)Math.Ceiling(length / sample_dist);
+
+            var tt = Centreline.DivideByCount(N, true);
+
+            var planes = GetPlanes(tt.ToList());
+
+            var xsections = new Curve[planes.Length];
+
+            double hw = Width * 0.5;
+            double hh = Height * 0.5;
+            //double maxSrfDistance = 500.0;
+
+            Brep[] topSrfs, btmSrfs;
+
+            if (topSrf != null)
+                topSrfs = new Brep[] { topSrf };
+            if (btmSrf != null)
+                btmSrfs = new Brep[] { btmSrf };
+
+            /* Check surface direction */
+            int sign = 1;
+            var midN = N / 2;
+            var midPlane = planes[midN];
+
+            if (topSrf != null)
+            {
+                var tPt = topSrf.ClosestPoint(midPlane.Origin);
+                if ((tPt - midPlane.Origin) * midPlane.YAxis < 0)
+                    sign = -1;
+            }
+            else if (btmSrf != null)
+            {
+                var bPt = btmSrf.ClosestPoint(midPlane.Origin);
+                if ((bPt - midPlane.Origin) * midPlane.YAxis > 0)
+                    sign = -1;
+            }
+            //else
+            //  throw new Exception("Neither surface is valid!");
+
+            edges = new Curve[4];
+            var verts = new List<Point3d>[4];
+            for (int i = 0; i < 4; ++i)
+                verts[i] = new List<Point3d>();
 
 
+            for (int i = 0; i < planes.Length; ++i)
+            {
+                double top = topSrf != null ? maxSrfDistance * sign : hh * sign;
+                double btm = btmSrf != null ? maxSrfDistance * -sign : hh * -sign;
+
+                Line side0 = new Line(planes[i].PointAt(hw, btm), planes[i].PointAt(hw, top));
+                Line side1 = new Line(planes[i].PointAt(-hw, btm), planes[i].PointAt(-hw, top));
+
+                Curve[] overlapCrvs;
+                Point3d[] xPts;
+                Polyline xsection = new Polyline();
+
+                if (topSrf != null)
+                {
+                    Rhino.Geometry.Intersect.Intersection.CurveBrep(side0.ToNurbsCurve(), topSrf, 0.01, out overlapCrvs, out xPts); xsection.Add(xPts[0]);
+                    Rhino.Geometry.Intersect.Intersection.CurveBrep(side1.ToNurbsCurve(), topSrf, 0.01, out overlapCrvs, out xPts); xsection.Add(xPts[0]);
+                }
+                else
+                {
+                    xsection.Add(side0.To);
+                    xsection.Add(side1.To);
+                }
+                if (btmSrf != null)
+                {
+                    Rhino.Geometry.Intersect.Intersection.CurveBrep(side1.ToNurbsCurve(), btmSrf, 0.01, out overlapCrvs, out xPts); xsection.Add(xPts[0]);
+                    Rhino.Geometry.Intersect.Intersection.CurveBrep(side0.ToNurbsCurve(), btmSrf, 0.01, out overlapCrvs, out xPts); xsection.Add(xPts[0]);
+                }
+                else
+                {
+                    xsection.Add(side1.From);
+                    xsection.Add(side0.From);
+                }
+
+                for (int j = 0; j < 4; ++j)
+                {
+                    verts[j].Add(xsection[j]);
+                }
+
+                xsection.Add(xsection[0]);
+
+                xsections[i] = xsection.ToNurbsCurve();
+            }
+
+            for (int i = 0; i < 4; ++i)
+            {
+                edges[i] = Curve.CreateInterpolatedCurve(verts[i], 3);
+            }
+
+            Brep loft = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false)[0];
+
+            var capped = loft.CapPlanarHoles(0.01);
+            if (capped != null)
+            {
+                capped.Faces.SplitKinkyFaces(0.1);
+                return capped;
+            }
+            return loft;
+        }
     }
 }
