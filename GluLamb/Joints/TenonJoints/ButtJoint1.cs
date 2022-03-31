@@ -8,7 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
-    public class ButtJoint1 : TenonJoint
+    public class ButtJoint1 : TenonJoint, IDowelJoint
     {
         public static double DefaultTrimPlaneSize = 300.0;
         public static double DefaultDowelLength = 100.0;
@@ -17,10 +17,13 @@ namespace GluLamb.Joints
         public static double DefaultDowelLengthExtra = 50.0;
 
         public double TrimPlaneSize = 300.0;
-        public double DowelLength = 100.0;
         public double DowelOffset = 30.0;
-        public double DowelDiameter = 12;
+        public double DowelDiameter {get;set;}
+        public double DowelLength { get; set; }
+
         public double DowelLengthExtra = 50.0;
+
+        double IDowelJoint.DowelLength { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {

@@ -59,6 +59,8 @@ namespace GluLamb
             protected set;
         }
 
+        public List<object> debug;
+
         public override string ToString()
         {
             return "Joint";
