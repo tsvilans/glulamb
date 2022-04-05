@@ -14,16 +14,15 @@ namespace GluLamb.Joints
         public static double DefaultDowelLength = 100.0;
         public static double DefaultDowelOffset = 30.0;
         public static double DefaultDowelDiameter = 12;
-        public static double DefaultDowelLengthExtra = 50.0;
+        public static double DefaultDowelLengthExtra = 20.0;
 
         public double TrimPlaneSize = 300.0;
         public double DowelOffset = 30.0;
         public double DowelDiameter {get;set;}
         public double DowelLength { get; set; }
+        public double DowelLengthExtra { get; set; }
+        public double DowelSideTolerance { get; set; }
 
-        public double DowelLengthExtra = 50.0;
-
-        double IDowelJoint.DowelLength { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {
@@ -36,7 +35,11 @@ namespace GluLamb.Joints
 
         public ButtJoint1(List<Element> elements, Factory.JointConditionPart tenon, Factory.JointConditionPart mortise) : base(elements, tenon, mortise)
         {
-
+            TrimPlaneSize = DefaultTrimPlaneSize;
+            DowelLength = DefaultDowelLength;
+            DowelOffset = DefaultDowelOffset;
+            DowelDiameter = DefaultDowelDiameter;
+            DowelLengthExtra = DefaultDowelLengthExtra;
         }
 
         public override string ToString()
@@ -77,22 +80,49 @@ namespace GluLamb.Joints
                 trimInterval, trimInterval).ToNurbsCurve()}, 0.01);
             Tenon.Geometry.AddRange(trimmer);
 
+            Tenon.Element.UserDictionary.Set(String.Format("EndCut_{0}", Mortise.Element.Name), trimPlane);
+
             var projTrim = trimPlane.ProjectAlongVector(tplane.ZAxis);
 
+            int counter = 0;
             for (int i = -1; i < 2; i += 2)
             {
                 //Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (tbeam.Height * i - DowelOffset));
                 Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (DowelOffset * i));
 
                 dp.Transform(projTrim);
-                dp.Transform(Transform.Translation(-tz * DowelLength * 0.5));
+                //dp.Transform(Transform.Translation(-tz * DowelLength * 0.5));
 
-                var dowelPlane = new Plane(dp, tz);
-                var cyl = new Cylinder(
-                  new Circle(dowelPlane, DowelDiameter * 0.5), DowelLength + DowelLengthExtra).ToBrep(true, true);
+                var dowelPlaneTenon = new Plane(dp, -tz);
+                var dowelPlaneMortise = new Plane(dp, tz);
 
-                Tenon.Geometry.Add(cyl);
-                Mortise.Geometry.Add(cyl);
+                var cylTenon = new Cylinder(
+                  new Circle(dowelPlaneTenon, DowelDiameter * 0.5), DowelLength);//.ToBrep(true, true);
+
+                cylTenon.Height1 = -DowelLengthExtra;
+                cylTenon.Height2 = DowelLength;
+
+                Tenon.Element.UserDictionary.Set(String.Format("Dowel{0}T_{1}", counter, Mortise.Element.Name),
+                    new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +
+                    cylTenon.BasePlane.ZAxis * cylTenon.Height2));
+
+                var cylMortise = new Cylinder(
+                  new Circle(dowelPlaneMortise, DowelDiameter * 0.5), DowelLength);//.ToBrep(true, true);
+
+                cylMortise.Height1 = -DowelLengthExtra;
+                cylMortise.Height2 = mbeam.Width + DowelLengthExtra;
+
+                Mortise.Element.UserDictionary.Set(String.Format("Dowel{0}M_{1}", counter, Tenon.Element.Name),
+                    new Line(cylMortise.BasePlane.Origin + cylMortise.BasePlane.ZAxis * cylMortise.Height1, cylMortise.BasePlane.Origin +
+                    cylMortise.BasePlane.ZAxis * cylMortise.Height2));
+
+                //throw new Exception(string.Format("{0}: height1 {1}; height2 {2}; baseplane {3}; total height: {4}; radius {5}", 
+                //    DowelDiameter, cylTenon.Height1, cylTenon.Height2, cylTenon.BasePlane, cylTenon.TotalHeight, cylTenon.Radius));
+
+                Tenon.Geometry.Add(cylTenon.ToBrep(true, true));
+                Mortise.Geometry.Add(cylMortise.ToBrep(true, true));
+
+                counter++;
             }
 
             return true;

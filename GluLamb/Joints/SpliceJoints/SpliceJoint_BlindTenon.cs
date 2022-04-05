@@ -9,7 +9,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
-    public class SpliceJoint_BlindTenon : SpliceJoint
+    public class SpliceJoint_BlindTenon : SpliceJoint, IDowelJoint
     {
         public static double DefaultTenonLength = 100;
         public static double DefaultTenonWidth = 40;
@@ -19,6 +19,8 @@ namespace GluLamb.Joints
 
         public static double DefaultDowelLength = 220;
         public static double DefaultDowelDiameter = 12;
+        public static double DefaultDowelLengthExtra = 15;
+        public static double DefaultDowelSideTolerance = 1;
 
 
         public List<object> debug;
@@ -29,8 +31,19 @@ namespace GluLamb.Joints
         public double Added;
         public double ToolDiameter;
 
-        public double DowelLength;
-        public double DowelDiameter;
+        public double DowelLength { get; set; }
+        public double DowelDiameter { get; set; }
+        public double DowelLengthExtra { get; set; }
+        public double DowelSideTolerance { get; set; }
+
+        public double SideTolerance = 0.5;
+        public double EndTolerance = 1.5;
+
+        private Plane EndPlane;
+        private Plane EndPlaneT;
+
+        private Plane FacePlane;
+        private double Width, Height;
 
         public SpliceJoint_BlindTenon(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
@@ -42,6 +55,8 @@ namespace GluLamb.Joints
 
             DowelLength = DefaultDowelLength;
             DowelDiameter = DefaultDowelDiameter;
+            DowelLengthExtra = DefaultDowelLengthExtra;
+            DowelSideTolerance = DefaultDowelSideTolerance;
         }
 
         public SpliceJoint_BlindTenon(SpliceJoint sj) : base(sj)
@@ -61,61 +76,37 @@ namespace GluLamb.Joints
             return "SpliceJoint_BlindTenon";
         }
 
-        public override bool Construct(bool append = false)
+        private Brep CreateTenon(double sideTolerance = 0.0, double endTolerance = 0.0)
         {
-            debug = new List<object>();
-
-            var beams = new Beam[2];
-            beams[0] = (FirstHalf.Element as BeamElement).Beam;
-            beams[1] = (SecondHalf.Element as BeamElement).Beam;
-
-            var planes = new Plane[2];
-            for (int i = 0; i < 2; ++i)
-            {
-                planes[i] = beams[i].GetPlane(Parts[i].Parameter);
-            }
-
-            // TODO: Align curve tangents and ends
-
-            var endPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength, planes[0].XAxis, planes[0].YAxis);
-
-            debug.Add(planes[0]);
-            debug.Add(planes[1]);
-            debug.Add(endPlane);
-
-            double height = Math.Max(beams[0].Height, beams[1].Height);
-            double width = Math.Max(beams[0].Width, beams[1].Width);
-
-            TenonWidth = Math.Min(width, TenonWidth);
-            TenonHeight = Math.Min(height, TenonHeight);
-
             var basePts = new Point3d[5];
             var baseTenonPts = new Point3d[5];
             var tipTenonPts = new Point3d[5];
 
-            basePts[0] = planes[0].PointAt(width * 0.5 + Added, height * 0.5 + Added);
-            basePts[1] = planes[0].PointAt(width * 0.5 + Added, -height * 0.5 - Added);
-            basePts[2] = planes[0].PointAt(-width * 0.5 - Added, -height * 0.5 - Added);
-            basePts[3] = planes[0].PointAt(-width * 0.5 - Added, height * 0.5 + Added);
+            basePts[0] = FacePlane.PointAt(Width * 0.5 + Added, Height * 0.5 + Added);
+            basePts[1] = FacePlane.PointAt(Width * 0.5 + Added, -Height * 0.5 - Added);
+            basePts[2] = FacePlane.PointAt(-Width * 0.5 - Added, -Height * 0.5 - Added);
+            basePts[3] = FacePlane.PointAt(-Width * 0.5 - Added, Height * 0.5 + Added);
             basePts[4] = basePts[0];
 
             var baseOutline = new Polyline(basePts).ToNurbsCurve();
 
-            baseTenonPts[0] = planes[0].PointAt(TenonWidth * 0.5, TenonHeight * 0.5);
-            baseTenonPts[1] = planes[0].PointAt(TenonWidth * 0.5, -TenonHeight * 0.5);
-            baseTenonPts[2] = planes[0].PointAt(-TenonWidth * 0.5, -TenonHeight * 0.5);
-            baseTenonPts[3] = planes[0].PointAt(-TenonWidth * 0.5, TenonHeight * 0.5);
+            baseTenonPts[0] = FacePlane.PointAt(TenonWidth * 0.5 + sideTolerance, TenonHeight * 0.5 + sideTolerance);
+            baseTenonPts[1] = FacePlane.PointAt(TenonWidth * 0.5 + sideTolerance, -TenonHeight * 0.5 - sideTolerance);
+            baseTenonPts[2] = FacePlane.PointAt(-TenonWidth * 0.5 - sideTolerance, -TenonHeight * 0.5 - sideTolerance);
+            baseTenonPts[3] = FacePlane.PointAt(-TenonWidth * 0.5 - sideTolerance, TenonHeight * 0.5 + sideTolerance);
             baseTenonPts[4] = baseTenonPts[0];
             var baseTenonOutline = new Polyline(baseTenonPts).ToNurbsCurve();
-            baseTenonOutline = Curve.CreateFilletCornersCurve(baseTenonOutline, ToolDiameter * 0.5, 0.01, 0.1).ToNurbsCurve();
+            baseTenonOutline = Curve.CreateFilletCornersCurve(baseTenonOutline, ToolDiameter * 0.5 - sideTolerance, 0.01, 0.1).ToNurbsCurve();
 
-            tipTenonPts[0] = endPlane.PointAt(TenonWidth * 0.5, TenonHeight * 0.5);
-            tipTenonPts[1] = endPlane.PointAt(TenonWidth * 0.5, -TenonHeight * 0.5);
-            tipTenonPts[2] = endPlane.PointAt(-TenonWidth * 0.5, -TenonHeight * 0.5);
-            tipTenonPts[3] = endPlane.PointAt(-TenonWidth * 0.5, TenonHeight * 0.5);
+            EndPlaneT = new Plane(EndPlane.Origin - EndPlane.ZAxis * endTolerance, EndPlane.XAxis, EndPlane.YAxis);
+
+            tipTenonPts[0] = EndPlaneT.PointAt(TenonWidth * 0.5 + sideTolerance, TenonHeight * 0.5 + sideTolerance);
+            tipTenonPts[1] = EndPlaneT.PointAt(TenonWidth * 0.5 + sideTolerance, -TenonHeight * 0.5 - sideTolerance);
+            tipTenonPts[2] = EndPlaneT.PointAt(-TenonWidth * 0.5 - sideTolerance, -TenonHeight * 0.5 - sideTolerance);
+            tipTenonPts[3] = EndPlaneT.PointAt(-TenonWidth * 0.5 - sideTolerance, TenonHeight * 0.5 + sideTolerance);
             tipTenonPts[4] = tipTenonPts[0];
             var tipTenonOutline = new Polyline(tipTenonPts).ToNurbsCurve();
-            tipTenonOutline = Curve.CreateFilletCornersCurve(tipTenonOutline, ToolDiameter * 0.5, 0.01, 0.1).ToNurbsCurve();
+            tipTenonOutline = Curve.CreateFilletCornersCurve(tipTenonOutline, ToolDiameter * 0.5 - sideTolerance, 0.01, 0.1).ToNurbsCurve();
 
             for (int i = 0; i < 4; ++i)
             {
@@ -134,18 +125,76 @@ namespace GluLamb.Joints
 
             var cutterJoined = Brep.JoinBreps(new Brep[] { baseSrf, tenonSrf, tenonTipSrf }, 0.01);
 
-            FirstHalf.Geometry.AddRange(cutterJoined);
-            SecondHalf.Geometry.AddRange(cutterJoined);
+            return cutterJoined[0];
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            debug = new List<object>();
+
+            var beams = new Beam[2];
+            beams[0] = (FirstHalf.Element as BeamElement).Beam;
+            beams[1] = (SecondHalf.Element as BeamElement).Beam;
+
+            var planes = new Plane[2];
+            for (int i = 0; i < 2; ++i)
+            {
+                planes[i] = beams[i].GetPlane(Parts[i].Parameter);
+            }
+
+            // TODO: Align curve tangents and ends
+
+            EndPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength, planes[0].XAxis, planes[0].YAxis);
+            FacePlane = planes[0];
+
+            debug.Add(planes[0]);
+            debug.Add(planes[1]);
+            debug.Add(EndPlane);
+
+            Height = Math.Max(beams[0].Height, beams[1].Height);
+            Width = Math.Max(beams[0].Width, beams[1].Width);
+
+            TenonWidth = Math.Min(Width, TenonWidth);
+            TenonHeight = Math.Min(Height, TenonHeight);
+
+            var cutter = CreateTenon(0, EndTolerance);
+            var cutterHole = CreateTenon(SideTolerance, 0);
+
+            FirstHalf.Geometry.Add(cutter);
+            SecondHalf.Geometry.Add(cutterHole);
+
+            FirstHalf.Element.UserDictionary.Set(string.Format("EndCut_{0}", SecondHalf.Element.Name), EndPlaneT);
+            SecondHalf.Element.UserDictionary.Set(string.Format("EndCut_{0}", FirstHalf.Element.Name), FacePlane);
 
             // Create dowels
             var dowelPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength * 0.5, planes[0].YAxis);
-            dowelPlane.Transform(Transform.Translation(dowelPlane.ZAxis * -DowelLength * 0.5));
+            dowelPlane.Transform(Transform.Translation(dowelPlane.ZAxis * Width * 0.5));
 
             var dowel = new Cylinder(
-              new Circle(dowelPlane, DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+              new Circle(dowelPlane, DowelDiameter * 0.5), DowelLength);
 
-            FirstHalf.Geometry.Add(dowel);
-            SecondHalf.Geometry.Add(dowel);
+            dowel.Height1 = -DowelLengthExtra;
+            dowel.Height2 = DowelLength;
+
+            var dowelTenonPlane = dowelPlane;
+            dowelTenonPlane.Origin = dowelTenonPlane.Origin - EndPlane.ZAxis * DowelSideTolerance;
+
+            var dowelTenon = new Cylinder(
+              new Circle(dowelTenonPlane, DowelDiameter * 0.5), DowelLength);
+
+            dowelTenon.Height1 = -DowelLengthExtra;
+            dowelTenon.Height2 = DowelLength;
+
+            FirstHalf.Geometry.Add(dowel.ToBrep(true, true));
+            SecondHalf.Geometry.Add(dowelTenon.ToBrep(true, true));
+
+            FirstHalf.Element.UserDictionary.Set(string.Format("Dowel_{0}", SecondHalf.Element.Name), 
+                    new Line(dowel.BasePlane.Origin + dowel.BasePlane.ZAxis * dowel.Height1, dowel.BasePlane.Origin +
+                    dowel.BasePlane.ZAxis * dowel.Height2));
+
+            SecondHalf.Element.UserDictionary.Set(string.Format("Dowel_{0}", FirstHalf.Element.Name),
+                new Line(dowelTenon.BasePlane.Origin + dowelTenon.BasePlane.ZAxis * dowelTenon.Height1, dowelTenon.BasePlane.Origin +
+                dowelTenon.BasePlane.ZAxis * dowelTenon.Height2));
 
             return true;
         }

@@ -12,6 +12,7 @@ namespace GluLamb
     {
         public string Name;
         public List<Connection> Connections;
+        public List<Joint> Joints;
         public List<Plane> Handles;
 
         protected Plane m_plane;
@@ -34,6 +35,7 @@ namespace GluLamb
             Name = name;
             m_plane = handle;
             UserDictionary = new ArchivableDictionary();
+            Joints = new List<Joint>();
 
         }
 
