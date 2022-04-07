@@ -22,6 +22,7 @@ namespace GluLamb.Joints
         public double DowelLength { get; set; }
         public double DowelLengthExtra { get; set; }
         public double DowelSideTolerance { get; set; }
+        public List<double> DowelLengths { get; set; }
 
 
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
@@ -31,6 +32,7 @@ namespace GluLamb.Joints
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
+            DowelLengths = new List<double>();
         }
 
         public ButtJoint1(List<Element> elements, Factory.JointConditionPart tenon, Factory.JointConditionPart mortise) : base(elements, tenon, mortise)
@@ -40,6 +42,8 @@ namespace GluLamb.Joints
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
+            DowelLengths = new List<double>();
+
         }
 
         public override string ToString()
@@ -121,6 +125,8 @@ namespace GluLamb.Joints
 
                 Tenon.Geometry.Add(cylTenon.ToBrep(true, true));
                 Mortise.Geometry.Add(cylMortise.ToBrep(true, true));
+
+                DowelLengths.Add(DowelLength);
 
                 counter++;
             }

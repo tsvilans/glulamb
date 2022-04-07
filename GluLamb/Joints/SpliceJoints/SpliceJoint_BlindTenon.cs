@@ -35,6 +35,7 @@ namespace GluLamb.Joints
         public double DowelDiameter { get; set; }
         public double DowelLengthExtra { get; set; }
         public double DowelSideTolerance { get; set; }
+        public List<double> DowelLengths { get; set; }
 
         public double SideTolerance = 0.5;
         public double EndTolerance = 1.5;
@@ -57,6 +58,7 @@ namespace GluLamb.Joints
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
             DowelSideTolerance = DefaultDowelSideTolerance;
+            DowelLengths = new List<double>();
         }
 
         public SpliceJoint_BlindTenon(SpliceJoint sj) : base(sj)
@@ -69,6 +71,10 @@ namespace GluLamb.Joints
 
             DowelLength = DefaultDowelLength;
             DowelDiameter = DefaultDowelDiameter;
+            DowelLengthExtra = DefaultDowelLengthExtra;
+            DowelSideTolerance = DefaultDowelSideTolerance;
+            DowelLengths = new List<double>();
+
         }
 
         public override string ToString()

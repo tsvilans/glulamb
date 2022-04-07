@@ -12,5 +12,6 @@ namespace GluLamb.Joints
         double DowelDiameter { get; set; }
         double DowelLengthExtra { get; set; }
         double DowelSideTolerance { get; set; }
+        List<double> DowelLengths { get; set; }
     }
 }
