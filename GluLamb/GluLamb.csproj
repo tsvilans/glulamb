@@ -123,6 +123,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Features\" />
     <Folder Include="Joints\CornerJoints\" />
     <Folder Include="Joints\EndJoints\" />
   </ItemGroup>

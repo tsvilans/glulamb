@@ -12,8 +12,6 @@ namespace GluLamb.Joints
 {
     public class KJoint_Plate : VBeamJoint
     {
-        public List<object> debug;
-
         public static double DefaultPlateDepth = 60.0;
         public static double DefaultPlateThickness = 20.0;
 
@@ -396,8 +394,6 @@ namespace GluLamb.Joints
 
     public class KJoint_Plate4 : VBeamJoint
     {
-        public List<object> debug;
-
         public static double DefaultPlateDepth = 60.0;
         public static double DefaultPlateWidth = 60.0;
         public static double DefaultPlateThickness = 20.0;

@@ -23,7 +23,7 @@ namespace GluLamb.Joints
         public static double DefaultDowelSideTolerance = 1;
 
 
-        public List<object> debug;
+        //public List<object> debug;
 
         public double TenonLength;
         public double TenonWidth;
