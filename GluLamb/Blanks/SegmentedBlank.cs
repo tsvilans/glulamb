@@ -558,6 +558,23 @@ namespace GluLamb.Blanks
             m_curves = new Curve[2];
         }
 
+        public BlankSegment Duplicate()
+        {
+            var bs = new BlankSegment();
+            bs.Geometry = Geometry.DuplicateBrep();
+            bs.Width = Width;
+            bs.Thickness = Thickness;
+            bs.Handle = Handle;
+
+            bs.PlaneAtStart = PlaneAtStart;
+            bs.PlaneAtEnd = PlaneAtEnd;
+
+            bs.InsideEdge = InsideEdge.DuplicateCurve();
+            bs.OutsideEdge = OutsideEdge.DuplicateCurve();
+
+            return bs;
+        }
+
         public void Transform(Transform xform)
         {
             Handle.Transform(xform);
@@ -608,6 +625,50 @@ namespace GluLamb.Blanks
         public List<Plane> Planes;
         public List<object> debug;
 
+        public SegmentedBlankX(SegmentedBlankX sb)
+        {
+            Name = sb.Name;
+            Centreline = sb.Centreline;
+            Plane = sb.Plane;
+            Bounds = sb.Bounds;
+
+            m_offsets = new Curve[2];
+
+            InnerOffset = sb.InnerOffset.DuplicateCurve();
+            OuterOffset = sb.OuterOffset.DuplicateCurve();
+            Height = sb.Height;
+            SimpleDivision = sb.SimpleDivision;
+            LayerThickness = sb.LayerThickness;
+
+
+
+            if (sb.EdgeCurves != null)
+            {
+                EdgeCurves = new Curve[sb.EdgeCurves.Length];
+                for (int i = 0; i < EdgeCurves.Length; i++)
+                    EdgeCurves[i] = sb.EdgeCurves[i].DuplicateCurve();
+            }
+
+            if (sb.Segments != null)
+            {
+                Segments = new List<BlankSegment>();
+                for (int i = 0; i < sb.Segments.Count; i++)
+                    Segments.Add(sb.Segments[i].Duplicate());
+            }
+
+            if (sb.DivisionPlanes != null)
+            {
+                DivisionPlanes = new List<Plane>(sb.DivisionPlanes);
+            }
+
+            if (sb.Planes != null)
+            {
+                Planes = new List<Plane>(sb.Planes);
+            }
+
+
+        }
+
         public SegmentedBlankX(Curve centreline, Curve[] edge_curves, Plane plane, double width0, double width1, double height, double layer_thickness)
         {
             if (plane == Plane.Unset)
@@ -644,7 +705,7 @@ namespace GluLamb.Blanks
             Bounds = BoundingBox.Union(bb_inner, bb_outer);
             var origin = Bounds.Max;
             origin = Plane.PointAt(origin.X, origin.Y, origin.Z);
-            Bounds.Transform(Transform.Translation(new Vector3d(-Bounds.Max)));
+            Bounds.Transform(Rhino.Geometry.Transform.Translation(new Vector3d(-Bounds.Max)));
 
             this.Plane.Origin = origin;
 
@@ -1116,13 +1177,53 @@ namespace GluLamb.Blanks
 
                     bseg.Handle = new Plane((po0 + po1) * 0.5, xaxis, yaxis);
 
-                    bseg.Transform(Transform.Translation(Plane.ZAxis * zheight));
+                    bseg.Transform(Rhino.Geometry.Transform.Translation(Plane.ZAxis * zheight));
 
                     output[i].Add(bseg);
                 }
             }
 
             return output;
+        }
+
+        public void Transform(Transform xform)
+        {
+            Plane.Transform(xform);
+            Centreline.Transform(xform);
+
+            InnerOffset.Transform(xform);
+            OuterOffset.Transform(xform);
+
+            if (DivisionPlanes != null)
+                for (int i = 0; i < DivisionPlanes.Count; ++i)
+                {
+                    var temp = DivisionPlanes[i];
+                    temp.Transform(xform);
+
+                    DivisionPlanes[i] = temp;
+                }
+
+            if (Planes != null)
+                for (int i = 0; i < Planes.Count; ++i)
+                {
+                    var temp = Planes[i];
+                    temp.Transform(xform);
+
+                    Planes[i] = temp;
+                }
+
+            if (Segments != null)
+                for (int i = 0; i < Segments.Count; ++i)
+                    Segments[i].Transform(xform);
+
+            if (EdgeCurves != null)
+                for (int i = 0; i < EdgeCurves.Length; ++i)
+                    EdgeCurves[i].Transform(xform);
+        }
+
+        public SegmentedBlankX Duplicate()
+        {
+            return new SegmentedBlankX(this);
         }
     }
 
