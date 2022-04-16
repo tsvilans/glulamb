@@ -730,6 +730,57 @@ namespace GluLamb
             return new Interval(Math.Max(t0, c0.Domain.Min), Math.Min(t1, c0.Domain.Max));
         }
 
+        /// <summary>
+        /// Given 3 points, calculate the maximum fillet radius possible between them.
+        /// </summary>
+        /// <param name="p0">Point 1</param>
+        /// <param name="p1">Point 2 (vertex)</param>
+        /// <param name="p2">Point 3</param>
+        /// <param name="radius">Output radius</param>
+        /// <param name="offset">Length offset to factor into calculation.</param>
+        /// <returns></returns>
+        public static bool MaxFilletRadius(Point3d p0, Point3d p1, Point3d p2, out double radius, double offset = 0)
+        {
+            var angle = Vector3d.VectorAngle(p0 - p1, p2 - p1);
+
+            var l0 = p0.DistanceTo(p1);
+            var l1 = p2.DistanceTo(p1);
+            var length = Math.Min(l0, l1);
+            if (length < offset)
+            {
+                radius = 0;
+                return false; // Length is too small for offset
+            }
+
+            length = length - offset;
+            radius = Math.Tan(angle / 2) * length;
+            return true;
+        }
+
+        /// <summary>
+        /// Given 3 points and a radius, calculate the minimum distance that the 3rd point needs to be away from the 2nd
+        /// point (the vertex) in order to successfully create a fillet of that radius.
+        /// </summary>
+        /// <param name="p0">Point 1</param>
+        /// <param name="p1">Point 2 (vertex)</param>
+        /// <param name="p2">Point 3</param>
+        /// <param name="radius">Radius of fillet</param>
+        /// <param name="length">Output minimum length</param>
+        /// <param name="offset">Additional offset to add to length</param>
+        /// <returns></returns>
+        public static bool ArmLengthFromRadius(Point3d p0, Point3d p1, Point3d p2, double radius, out double length, double offset = 0)
+        {
+            var angle = Vector3d.VectorAngle(p0 - p1, p2 - p1);
+            length = radius / Math.Tan(angle / 2) + offset;
+
+            //length = Math.Max(length, p1.DistanceTo(p2));
+
+            //var vec = p2 - p1; vec.Unitize();
+
+            //p3 = p1 + vec * length;
+            return true;
+        }
+
     }
 
 }

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Rhino.Geometry;
+using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
@@ -44,6 +45,23 @@ namespace GluLamb.Joints
             Parts[0] = temp;
         }
 
+        public void OrganizePlanes(ref Plane p0, ref Plane p1)
+        {
+            if (p0.YAxis * p1.YAxis < 0)
+            {
+                p1.YAxis = -p1.YAxis;
+                p1.XAxis = -p1.XAxis;
+            }
+
+            double dotZ = p1.ZAxis * p0.ZAxis;
+            double dotX = p1.XAxis * p0.ZAxis;
+
+            if (dotX > 0)
+            {
+                p1.XAxis = -p1.XAxis;
+            }
+        }
+
         public override bool Construct(bool append = false)
         {
             if (!append)
@@ -61,11 +79,25 @@ namespace GluLamb.Joints
             var oPlane = obeam.GetPlane(Over.Parameter);
             var uPlane = ubeam.GetPlane(Under.Parameter);
 
+            OrganizePlanes(ref oPlane, ref uPlane);
+
             Transform xform = Transform.PlaneToPlane(Plane.WorldXY, oPlane);
             double added = 10.0;
             double height = 0.0;
 
-            var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, Vector3d.CrossProduct(oPlane.ZAxis, uPlane.ZAxis));
+
+            Line normalLine;
+            Rhino.Geometry.Intersect.Intersection.PlanePlane(
+              new Plane(oPlane.Origin, oPlane.ZAxis, oPlane.YAxis),
+              new Plane(uPlane.Origin, uPlane.ZAxis, uPlane.YAxis),
+              out normalLine);
+
+            var normal = normalLine.Direction;
+            normal.Unitize();
+
+            //var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, Vector3d.CrossProduct(oPlane.XAxis, uPlane.XAxis));
+            //var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, oPlane.XAxis, uPlane.XAxis);
+            var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, normal);
 
             // Create beam side planes
             var planes = new Plane[4];
@@ -83,24 +115,53 @@ namespace GluLamb.Joints
             var points = new Point3d[4];
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[0], planes[2], out points[0]);
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[0], planes[3], out points[1]);
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[1], planes[2], out points[2]);
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[1], planes[3], out points[3]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[1], planes[3], out points[2]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, planes[1], planes[2], out points[3]);
+
+            // **************************
+            // Create data for CIX files
+            // **************************
+
+            var poly = new Polyline(points);
+            poly.Add(poly[0]);
+
+            var overDic = new ArchivableDictionary();
+            overDic.Set("Plane", new Plane(plane.Origin, -plane.XAxis, plane.YAxis));
+            for (int i = 0; i < points.Length; ++i)
+                overDic.Set(string.Format("P{0}", i), points[i]);
+
+            overDic.Set("Outline", poly.ToNurbsCurve());
+            overDic.Set("SidePlane0", planes[2]);
+            overDic.Set("SidePlane1", planes[3]);
+
+            var underDic = new ArchivableDictionary();
+            underDic.Set("Plane", plane);
+            for (int i = 0; i < points.Length; ++i)
+                underDic.Set(string.Format("P{0}", i), points[i]);
+
+            underDic.Set("Outline", poly.ToNurbsCurve());
+            underDic.Set("SidePlane0", planes[0]);
+            underDic.Set("SidePlane1", planes[1]);
+
+            Over.Element.UserDictionary.Set(string.Format("D2_{0}", Under.Element.Name), overDic);
+            Under.Element.UserDictionary.Set(string.Format("D2_{0}", Over.Element.Name), underDic);
 
             // Create over cutter
             var oSrf = new Brep[3];
             height = obeam.Height * 0.5 + added;
 
-            var oPoints = new Point3d[]{
-                points[0] - oPlane.ZAxis * added,
-                points[1] + oPlane.ZAxis * added,
-                points[2] - oPlane.ZAxis * added,
-                points[3] + oPlane.ZAxis * added
-                };
+            var oZAxis = plane.Project(oPlane.ZAxis); oZAxis.Unitize();
 
-            oSrf[0] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[2], oPoints[3],
-              0.01);
-            oSrf[1] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[1] + plane.ZAxis * height, oPoints[0] + plane.ZAxis * height, 0.01);
-            oSrf[2] = Brep.CreateFromCornerPoints(oPoints[2], oPoints[3], oPoints[3] + plane.ZAxis * height, oPoints[2] + plane.ZAxis * height, 0.01);
+            var oPoints = new Point3d[]{
+        points[0] - oZAxis * added,
+        points[1] + oZAxis * added,
+        points[2] + oZAxis * added,
+        points[3] - oZAxis * added
+        };
+
+            oSrf[0] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[2], oPoints[3], 0.01);
+            oSrf[1] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[1] + normal * height, oPoints[0] + normal * height, 0.01);
+            oSrf[2] = Brep.CreateFromCornerPoints(oPoints[2], oPoints[3], oPoints[3] + normal * height, oPoints[2] + normal * height, 0.01);
 
             var oJoined = Brep.JoinBreps(oSrf, 0.1);
             if (oJoined == null) oJoined = oSrf;
@@ -112,16 +173,19 @@ namespace GluLamb.Joints
 
             height = ubeam.Height * 0.5 + added;
 
+            var uZAxis = plane.Project(uPlane.ZAxis); uZAxis.Unitize();
+
+            //added = 0;
             var uPoints = new Point3d[]{
-              points[0] + uPlane.ZAxis * added,
-              points[1] + uPlane.ZAxis * added,
-              points[2] - uPlane.ZAxis * added,
-              points[3] - uPlane.ZAxis * added
-              };
+        points[0] + uZAxis * added,
+        points[1] + uZAxis * added,
+        points[2] - uZAxis * added,
+        points[3] - uZAxis * added
+        };
 
             uSrf[0] = Brep.CreateFromCornerPoints(uPoints[0], uPoints[1], uPoints[2], uPoints[3], 0.01);
-            uSrf[1] = Brep.CreateFromCornerPoints(uPoints[0], uPoints[2], uPoints[2] - plane.ZAxis * height, uPoints[0] - plane.ZAxis * height, 0.01);
-            uSrf[2] = Brep.CreateFromCornerPoints(uPoints[1], uPoints[3], uPoints[3] - plane.ZAxis * height, uPoints[1] - plane.ZAxis * height, 0.01);
+            uSrf[1] = Brep.CreateFromCornerPoints(uPoints[1], uPoints[2], uPoints[2] - normal * height, uPoints[1] - normal * height, 0.01);
+            uSrf[2] = Brep.CreateFromCornerPoints(uPoints[0], uPoints[3], uPoints[3] - normal * height, uPoints[0] - normal * height, 0.01);
 
             var uJoined = Brep.JoinBreps(uSrf, 0.1);
             if (uJoined == null) uJoined = uSrf;

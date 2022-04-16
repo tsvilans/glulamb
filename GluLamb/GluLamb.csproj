@@ -77,6 +77,7 @@
     <Compile Include="Joints\Defaults\TenonJoint.cs" />
     <Compile Include="Joints\Defaults\VBeamJoint.cs" />
     <Compile Include="Joints\IDowelJoint.cs" />
+    <Compile Include="Joints\IPlateJoint.cs" />
     <Compile Include="Joints\ITenonJoint.cs" />
     <Compile Include="Joints\SpliceJoints\SpliceJoint_BirdsMouth.cs" />
     <Compile Include="Joints\SpliceJoints\SpliceJoint_BlindTenon.cs" />
