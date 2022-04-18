@@ -1227,4 +1227,194 @@ namespace GluLamb.Blanks
         }
     }
 
+    public class CixHelper
+    {
+        Dictionary<string, double> Variables;
+        public CixHelper()
+        {
+        }
+
+        public void Load(string path)
+        {
+            Variables = new Dictionary<string, double>();
+
+            var lines = System.IO.File.ReadAllLines(path);
+
+
+            for (int i = 0; i < lines.Length; ++i)
+            {
+                var line = lines[i].Trim();
+                var tok = line.Split('=');
+                if (tok.Length < 2) continue;
+
+                Variables[tok[0]] = double.Parse(tok[1]);
+            }
+        }
+
+        public Line[] GetSegmentLines()
+        {
+            int N = 17;
+            var lines = new Line[N];
+
+            double x0, x1, y0, y1;
+
+            x0 = Variables["BL_E_1_IN_X"];
+            y0 = Variables["BL_E_1_IN_Y"];
+
+            x1 = Variables["BL_E_1_OUT_X"];
+            y1 = Variables["BL_E_1_OUT_Y"];
+
+            lines[0] = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
+
+            for (int i = 1; i < N - 1; ++i)
+            {
+                x0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_X", i, i + 1)];
+                y0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_Y", i, i + 1)];
+
+                x1 = Variables[string.Format("BL_SEC_{0}_{1}_OUT_X", i, i + 1)];
+                y1 = Variables[string.Format("BL_SEC_{0}_{1}_OUT_Y", i, i + 1)];
+
+                var line = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
+                if (line.IsValid)
+                    lines[i] = line;
+            }
+
+            x0 = Variables["BL_E_2_IN_X"];
+            y0 = Variables["BL_E_2_IN_Y"];
+
+            x1 = Variables["BL_E_2_OUT_X"];
+            y1 = Variables["BL_E_2_OUT_Y"];
+
+            lines[N - 1] = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
+
+            return lines;
+        }
+
+        public Line[] GetEndLines()
+        {
+            var e1 = new Line(
+                new Point3d(Variables["BL_SEC_E_1_SEC_1_IN_X"], Variables["BL_SEC_E_1_SEC_1_IN_Y"], 0),
+                new Point3d(Variables["BL_SEC_E_1_SEC_1_OUT_X"], Variables["BL_SEC_E_1_SEC_1_OUT_Y"], 0));
+
+            var e2 = new Line(
+                 new Point3d(Variables["BL_SEC_E_2_SEC_N_IN_X"], Variables["BL_SEC_E_2_SEC_N_IN_Y"], 0),
+                 new Point3d(Variables["BL_SEC_E_2_SEC_N_OUT_X"], Variables["BL_SEC_E_2_SEC_N_OUT_Y"], 0));
+
+            return new Line[] { e1, e2 };
+        }
+
+        public Curve[] GetBlankOffsets()
+        {
+            int N = 45;
+
+            var inList = new Point3d[N];
+            var outList = new Point3d[N];
+
+            for (int i = 0; i < N; ++i)
+            {
+                double ix, iy, ox, oy;
+                ix = Variables[string.Format("BL_IN_CURVE_P_{0}_X", i + 1)];
+                iy = Variables[string.Format("BL_IN_CURVE_P_{0}_Y", i + 1)];
+                inList[i] = new Point3d(ix, iy, 0);
+
+                ox = Variables[string.Format("BL_OUT_CURVE_P_{0}_X", i + 1)];
+                oy = Variables[string.Format("BL_OUT_CURVE_P_{0}_Y", i + 1)];
+                outList[i] = new Point3d(ox, oy, 0);
+            }
+
+            var blank_offsets = new Curve[2];
+            blank_offsets[0] = Curve.CreateControlPointCurve(inList, 3);
+            blank_offsets[1] = Curve.CreateControlPointCurve(outList, 3);
+
+            return blank_offsets;
+        }
+
+        public Point3d GetOrigin()
+        {
+            return new Point3d(
+                Variables["ORIGO_X"], Variables["ORIGO_Y"], 0);
+        }
+
+        public Curve[] GetEdgeCurves(IList<string> lines)
+        {
+            var prefixes = new string[] { "TOP_OUT_SPL_P_", "BOTTOM_OUT_SPL_P_", "TOP_IN_SPL_P_", "BOTTOM_IN_SPL_P_" };
+            int N = 25;
+
+            double[] X = new double[N];
+            double[] Y = new double[N];
+            double[] Z = new double[N];
+
+            var points = new Point3d[N];
+            var curves = new Curve[prefixes.Length];
+
+            for (int i = 0; i < prefixes.Length; ++i)
+            {
+                for (int j = 0; j < N; ++j)
+                {
+                    points[j] = new Point3d(
+                        Variables[string.Format("{0}{1}_X", prefixes[i], j + 1)], 
+                        Variables[string.Format("{0}{1}_Y", prefixes[i], j + 1)], 
+                        0);
+                }
+
+                curves[i] = Curve.CreateControlPointCurve(points, 3);
+            }
+
+            return curves;
+
+        }
+
+        public Point3d GetBounds()
+        {
+            return new Point3d(
+                Variables["BL_L"], Variables["BL_W"], 0);
+        }
+
+        public bool GetCleanCuts(out List<Line> lines)
+        {
+            double x0, x1, y0, y1;
+
+            lines = new List<Line>(2);
+            if (Variables.ContainsKey("E_1_RENSKAER_PKT_1_X"))
+            {
+                x0 = Variables["E_1_RENSKAER_PKT_1_X"];
+                y0 = Variables["E_1_RENSKAER_PKT_1_Y"];
+                x1 = Variables["E_1_RENSKAER_PKT_2_X"];
+                y1 = Variables["E_1_RENSKAER_PKT_2_Y"];
+
+                lines[0] = new Line(
+                    new Point3d(x0, y0, 0), 
+                    new Point3d(x1, y1, 0));
+            }
+            else
+                return false;
+
+            if (Variables.ContainsKey("E_2_RENSKAER_PKT_1_X"))
+            {
+                x0 = Variables["E_2_RENSKAER_PKT_1_X"];
+                y0 = Variables["E_2_RENSKAER_PKT_1_Y"];
+                x1 = Variables["E_2_RENSKAER_PKT_2_X"];
+                y1 = Variables["E_2_RENSKAER_PKT_2_Y"];
+
+                lines[1] = new Line(
+                    new Point3d(x0, y0, 0),
+                    new Point3d(x1, y1, 0));
+            }
+            else return false;
+            return true;
+        }
+
+        public bool GetCrossCuts(out List<Plane> crosscuts)
+        {
+            double x0, x1, y0, y1;
+
+            crosscuts = new List<Plane>();
+
+            // Do some fucking shit.
+
+            return true;
+        }
+
+    }
+
 }
