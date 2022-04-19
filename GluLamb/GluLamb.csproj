@@ -104,6 +104,7 @@
     <Compile Include="Joints\Defaults\DefaultJointFunctions.cs" />
     <Compile Include="Joints\JointConstructor.cs" />
     <Compile Include="Joints\JointUtil.cs" />
+    <Compile Include="Projects\2022_HH_DAC.cs" />
     <Compile Include="RawLam\Board.cs" />
     <Compile Include="RawLam\LamellaPerformance.cs" />
     <Compile Include="RawLam\Functions.cs" />

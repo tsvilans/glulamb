@@ -669,6 +669,51 @@ namespace GluLamb.Blanks
 
         }
 
+        public SegmentedBlankX(Curve centreline, Curve[] edge_curves, Curve[] offset_curves, Plane plane, double height, double layer_thickness)
+        {
+            if (plane == Plane.Unset)
+                if (!Centreline.TryGetPlane(out plane))
+                    plane = Plane.WorldXY;
+
+            this.Plane = plane;
+            debug = new List<object>();
+
+            // Orient centreline
+            int sign = 1;
+
+            if (centreline.TangentAtStart * plane.XAxis > 0)
+            {
+                centreline.Reverse();
+                sign = -1;
+            }
+
+            Centreline = centreline;
+
+            Offset0 = 0;
+            Offset1 = 0;
+
+            // Inject blank side offsets
+            if (offset_curves.Length < 2) throw new Exception("SegmentBlankX requires 2 offset curves!");
+            m_offsets = new Curve[2];
+            m_offsets[0] = offset_curves[0];
+            m_offsets[1] = offset_curves[1];
+
+            var bb_inner = InnerOffset.GetBoundingBox(Plane);
+            var bb_outer = OuterOffset.GetBoundingBox(Plane);
+
+            Bounds = BoundingBox.Union(bb_inner, bb_outer);
+            var origin = Bounds.Max;
+            origin = Plane.PointAt(origin.X, origin.Y, origin.Z);
+
+            Bounds.Transform(Rhino.Geometry.Transform.Translation(new Vector3d(-Bounds.Max)));
+
+            this.Plane.Origin = origin;
+
+            EdgeCurves = edge_curves;
+            DivisionPlanes = new List<Plane>();
+            Height = height;
+            LayerThickness = layer_thickness;
+        }
         public SegmentedBlankX(Curve centreline, Curve[] edge_curves, Plane plane, double width0, double width1, double height, double layer_thickness)
         {
             if (plane == Plane.Unset)
@@ -703,8 +748,8 @@ namespace GluLamb.Blanks
             var bb_outer = OuterOffset.GetBoundingBox(Plane);
 
             Bounds = BoundingBox.Union(bb_inner, bb_outer);
-            var origin = Bounds.Max;
-            origin = Plane.PointAt(origin.X, origin.Y, origin.Z);
+            var origin = Plane.PointAt(Bounds.Max.X, Bounds.Max.Y, Bounds.Max.Z);
+
             Bounds.Transform(Rhino.Geometry.Transform.Translation(new Vector3d(-Bounds.Max)));
 
             this.Plane.Origin = origin;
@@ -713,7 +758,6 @@ namespace GluLamb.Blanks
             DivisionPlanes = new List<Plane>();
             Height = height;
             LayerThickness = layer_thickness;
-
         }
 
         public void CreateDivisionPlanes(IList<double> tt)
@@ -743,6 +787,16 @@ namespace GluLamb.Blanks
             {
                 OuterOffset = OuterOffset.Trim(res0[0].ParameterA, res1[0].ParameterA);
             }
+
+            var bb_inner = InnerOffset.GetBoundingBox(Plane);
+            var bb_outer = OuterOffset.GetBoundingBox(Plane);
+
+            Bounds = BoundingBox.Union(bb_inner, bb_outer);
+            var origin = Plane.PointAt(Bounds.Max.X, Bounds.Max.Y, Bounds.Max.Z);
+
+            Bounds.Transform(Rhino.Geometry.Transform.Translation(new Vector3d(-Bounds.Max)));
+
+            this.Plane.Origin = origin;
         }
 
         public List<double> SegmentCurve(double min, double max, double angle)
@@ -1229,7 +1283,7 @@ namespace GluLamb.Blanks
 
     public class CixHelper
     {
-        Dictionary<string, double> Variables;
+        public Dictionary<string, double> Variables;
         public CixHelper()
         {
         }
@@ -1251,9 +1305,9 @@ namespace GluLamb.Blanks
             }
         }
 
-        public Line[] GetSegmentLines()
+        public Line[] GetSegmentLines(int num_lines=17)
         {
-            int N = 17;
+            int N = num_lines;
             var lines = new Line[N];
 
             double x0, x1, y0, y1;
@@ -1303,9 +1357,9 @@ namespace GluLamb.Blanks
             return new Line[] { e1, e2 };
         }
 
-        public Curve[] GetBlankOffsets()
+        public Curve[] GetBlankOffsets(int num_divs=45)
         {
-            int N = 45;
+            int N = num_divs;
 
             var inList = new Point3d[N];
             var outList = new Point3d[N];
@@ -1323,9 +1377,11 @@ namespace GluLamb.Blanks
             }
 
             var blank_offsets = new Curve[2];
-            blank_offsets[0] = Curve.CreateControlPointCurve(inList, 3);
-            blank_offsets[1] = Curve.CreateControlPointCurve(outList, 3);
-
+            //blank_offsets[0] = Curve.CreateControlPointCurve(inList, 3);
+            //blank_offsets[1] = Curve.CreateControlPointCurve(outList, 3); 
+            
+            blank_offsets[0] = Curve.CreateInterpolatedCurve(inList, 3);
+            blank_offsets[1] = Curve.CreateInterpolatedCurve(outList, 3);
             return blank_offsets;
         }
 
@@ -1335,33 +1391,32 @@ namespace GluLamb.Blanks
                 Variables["ORIGO_X"], Variables["ORIGO_Y"], 0);
         }
 
-        public Curve[] GetEdgeCurves(IList<string> lines)
+        public Curve[] GetEdgeCurves(int num_divs=25)
         {
-            var prefixes = new string[] { "TOP_OUT_SPL_P_", "BOTTOM_OUT_SPL_P_", "TOP_IN_SPL_P_", "BOTTOM_IN_SPL_P_" };
-            int N = 25;
-
-            double[] X = new double[N];
-            double[] Y = new double[N];
-            double[] Z = new double[N];
+            var prefixes = new string[] { "TOP_OUT_SPL_P_", "BOTTOM_OUT_SPL_P_", "BOTTOM_IN_SPL_P_", "TOP_IN_SPL_P_" };
+            int N = num_divs;
 
             var points = new Point3d[N];
             var curves = new Curve[prefixes.Length];
+
+            double x, y, z;
 
             for (int i = 0; i < prefixes.Length; ++i)
             {
                 for (int j = 0; j < N; ++j)
                 {
-                    points[j] = new Point3d(
-                        Variables[string.Format("{0}{1}_X", prefixes[i], j + 1)], 
-                        Variables[string.Format("{0}{1}_Y", prefixes[i], j + 1)], 
-                        0);
+                    Variables.TryGetValue(string.Format("{0}{1}_X", prefixes[i], j + 1), out x);
+                    Variables.TryGetValue(string.Format("{0}{1}_Y", prefixes[i], j + 1), out y);
+                    Variables.TryGetValue(string.Format("{0}{1}_Z", prefixes[i], j + 1), out z);
+
+                    points[j] = new Point3d(x, y, -z);
                 }
 
-                curves[i] = Curve.CreateControlPointCurve(points, 3);
+                //curves[i] = Curve.CreateControlPointCurve(points, 3);
+                curves[i] = Curve.CreateInterpolatedCurve(points, 3);
             }
 
             return curves;
-
         }
 
         public Point3d GetBounds()
@@ -1374,7 +1429,7 @@ namespace GluLamb.Blanks
         {
             double x0, x1, y0, y1;
 
-            lines = new List<Line>(2);
+            lines = new List<Line> { Line.Unset, Line.Unset };
             if (Variables.ContainsKey("E_1_RENSKAER_PKT_1_X"))
             {
                 x0 = Variables["E_1_RENSKAER_PKT_1_X"];
@@ -1386,8 +1441,7 @@ namespace GluLamb.Blanks
                     new Point3d(x0, y0, 0), 
                     new Point3d(x1, y1, 0));
             }
-            else
-                return false;
+
 
             if (Variables.ContainsKey("E_2_RENSKAER_PKT_1_X"))
             {
@@ -1400,17 +1454,221 @@ namespace GluLamb.Blanks
                     new Point3d(x0, y0, 0),
                     new Point3d(x1, y1, 0));
             }
-            else return false;
             return true;
         }
 
         public bool GetCrossCuts(out List<Plane> crosscuts)
         {
-            double x0, x1, y0, y1;
+            double x0, x1, y0, y1, z0, z1, alpha;
 
             crosscuts = new List<Plane>();
 
-            // Do some fucking shit.
+            for (int e = 1; e <= 2; ++e)
+            {
+                for (int i = 1; i <= 2; ++i)
+                {
+                    if (Variables.ContainsKey(string.Format("E_{0}_CUT_{1}", e, i)))
+                    {
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_X", e, i), out x0);
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_Y", e, i), out y0);
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_Z", e, i), out z0);
+
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_2_X", e, i), out x1);
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_2_Y", e, i), out y1);
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_2_Z", e, i), out z1);
+
+                        Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_ALFA", e, i), out alpha);
+                        alpha = RhinoMath.ToRadians(alpha);
+
+                        var pt0 = new Point3d(x0, y0, -z0);
+                        var pt1 = new Point3d(x1, y1, -z1);
+
+                        var xaxis = new Vector3d(pt1 - pt0);
+                        var yaxis = Vector3d.ZAxis;
+
+                        yaxis.Transform(Transform.Rotation(-alpha, xaxis, pt0));
+
+                        crosscuts.Add(new Plane(pt0, xaxis, yaxis));
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public bool GetEndDrillings(out List<Plane> planes, out List<Line> axes, out List<Circle> outlines)
+        {
+            double x0, x1, y0, y1, z0, z1, alpha;
+
+            axes = new List<Line>();
+            planes = new List<Plane>();
+            outlines = new List<Circle>();
+
+            for (int e = 1; e <= 2; ++e)
+            {
+                for (int i = 1; i <= 2; ++i)
+                {
+                    if (Variables.ContainsKey(string.Format("E_{0}_HUL_{1}", e, i)))
+                    {
+                        double active;
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}", e, i), out active);
+                        if ((int)active == 0) continue;
+
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_1_X", e, i), out x0);
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_1_Y", e, i), out y0);
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_1_Z", e, i), out z0);
+
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_2_X", e, i), out x1);
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_2_Y", e, i), out y1);
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_PKT_2_Z", e, i), out z1);
+
+
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_PL_ALFA", e, i), out alpha);
+                        alpha = RhinoMath.ToRadians(alpha);
+
+                        var pt0 = new Point3d(x0, y0, z0);
+                        var pt1 = new Point3d(x1, y1, z1);
+
+                        var xaxis = new Vector3d(pt1 - pt0);
+                        var yaxis = -Vector3d.ZAxis;
+
+                        yaxis.Transform(Transform.Rotation(-alpha, xaxis, pt0));
+                        var plane = new Plane(pt0, xaxis, yaxis);
+
+                        planes.Add(plane);
+
+
+                        double num_holes;
+                        Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_N", e, i), out num_holes);
+                        int N = (int)num_holes;
+
+                        for (int j = 1; j <= N; ++j)
+                        {
+                            bool success = true;
+
+                            double hx, hy, hdia, hdepth;
+                            success &= Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_{2}_X", e, i, j), out hx);
+                            success &= Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_{2}_Y", e, i, j), out hy);
+                            success &= Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_{2}_DIA", e, i, j), out hdia);
+                            success &= Variables.TryGetValue(string.Format("E_{0}_HUL_{1}_{2}_DYBDE", e, i, j), out hdepth);
+
+                            if (!success) throw new Exception(string.Format("Shit is fucked: hx {0:0.##} hy {1:0.##} hdia {2:0.##} hdepth {3:0.##}", hx, hy, hdia, hdepth));
+
+                            //var hpt = new Point3d(hx, hy, 0);
+                            var hpt = plane.PointAt(hx, hy);
+
+                            var axis = new Line(hpt, plane.ZAxis * hdepth);
+                            var circle = new Circle(new Plane(hpt, plane.XAxis, plane.YAxis), hdia * 0.5);
+
+                            axes.Add(axis);
+                            outlines.Add(circle);
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public bool GetTopDrillings(out List<Plane> planes, out List<Line> axes, out List<Circle> outlines)
+        {
+            double x0, x1, y0, y1, z0, z1, alpha;
+
+            axes = new List<Line>();
+            planes = new List<Plane>();
+            outlines = new List<Circle>();
+
+            for (int i = 1; i <= 2; ++i)
+            {
+                if (Variables.ContainsKey(string.Format("TOP_HUL_{0}", i)))
+                {
+                    double active;
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}", i), out active);
+                    if ((int)active == 0) continue;
+
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_1_X", i), out x0);
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_1_Y", i), out y0);
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_1_Z", i), out z0);
+
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_2_X", i), out x1);
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_2_Y", i), out y1);
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_PKT_2_Z", i), out z1);
+
+
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_PL_ALFA", i), out alpha);
+                    alpha = RhinoMath.ToRadians(alpha);
+
+                    var pt0 = new Point3d(x0, y0, z0);
+                    var pt1 = new Point3d(x1, y1, z1);
+
+                    var xaxis = new Vector3d(pt1 - pt0);
+                    var yaxis = -Vector3d.ZAxis;
+
+                    yaxis.Transform(Transform.Rotation(-alpha, xaxis, pt0));
+                    var plane = new Plane(pt0, xaxis, yaxis);
+
+                    planes.Add(plane);
+
+
+                    double num_holes;
+                    Variables.TryGetValue(string.Format("TOP_HUL_{0}_N", i), out num_holes);
+                    int N = (int)num_holes;
+                    for (int j = 1; j <= N; ++j)
+                    {
+                        double hx, hy, hdia, hdepth;
+                        Variables.TryGetValue(string.Format("TOP_HUL_{0}_{1}_X", i, j), out hx);
+                        Variables.TryGetValue(string.Format("TOP_HUL_{0}_{1}_Y", i, j), out hy);
+                        Variables.TryGetValue(string.Format("TOP_HUL_{0}_{1}_DIA", i, j), out hdia);
+                        Variables.TryGetValue(string.Format("TOP_HUL_{0}_{1}_DYBDE", i, j), out hdepth);
+
+                        //var hpt = new Point3d(hx, hy, 0);
+                        var hpt = plane.PointAt(hx, hy);
+
+                        var axis = new Line(hpt, plane.ZAxis * hdepth);
+                        var circle = new Circle(new Plane(hpt, plane.XAxis, plane.YAxis), hdia * 0.5);
+
+                        axes.Add(axis);
+                        outlines.Add(circle);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public bool GetTopDowelHoles(out List<Line> axes, out List<Circle> outlines)
+        {
+            double x0, y0;
+            double diameter = 0;
+            double depth = 0;
+
+            axes = new List<Line>();
+            outlines = new List<Circle>();
+
+            if (Variables.ContainsKey("TOP_DYVELHUL_DIA"))
+                diameter = Variables["TOP_DYVELHUL_DIA"];
+
+            if (Variables.ContainsKey("TOP_DYVELHUL_DYBDE"))
+                depth = Variables["TOP_DYVELHUL_DYBDE"];
+
+            for (int e = 1; e <= 2; ++e)
+            {
+
+                if (Variables.ContainsKey(string.Format("TOP_DYVELHUL_E_{0}", e)))
+                {
+                    int active = (int)Variables[string.Format("TOP_DYVELHUL_E_{0}", e)];
+                    int num_holes = (int)Variables[string.Format("TOP_DYVELHUL_E_{0}_N", e)];
+
+                    for (int i = 1; i <= num_holes; ++i)
+                    {
+                        x0 = Variables[string.Format("TOP_DYVELHUL_E_{0}_HUL_{1}_X", e, i)];
+                        y0 = Variables[string.Format("TOP_DYVELHUL_E_{0}_HUL_{1}_Y", e, i)];
+
+                        axes.Add(new Line(new Point3d(x0, y0, 0), Vector3d.ZAxis * -depth));
+                        outlines.Add(new Circle(new Point3d(x0, y0, 0), diameter * 0.5));
+                    }
+                }
+            }
 
             return true;
         }
