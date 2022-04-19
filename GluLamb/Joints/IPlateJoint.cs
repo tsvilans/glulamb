@@ -9,6 +9,10 @@ namespace GluLamb.Joints
 {
     public interface IPlateJoint
     {
+
+        //Plane PlatePlane { get; set; }
+
         Brep CreatePlate();
+        Plane GetPlatePlane();
     }
 }

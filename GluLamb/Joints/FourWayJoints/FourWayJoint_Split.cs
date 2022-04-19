@@ -88,16 +88,14 @@ namespace GluLamb.Joints
 
         public double ToolDiameter = 16.0;
 
-        private Plane[] EndPlanes;
-        private Plane[] SeamPlanes;
-        private Plane[] LeftPlanes;
-        private Plane[] RightPlanes;
-        private Line[] Seams;
+        protected Plane[] EndPlanes;
+        protected Plane[] SeamPlanes;
+        protected Plane[] LeftPlanes;
+        protected Plane[] RightPlanes;
+        protected Line[] Seams;
 
-        private Plane PlatePlane;
-        private double SlotLength = 100;
-
-        public List<object> debug;
+        protected Plane PlatePlane { get; set; }
+        protected double SlotLength = 100;
 
         public FourWayJoint_Split(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
@@ -517,6 +515,9 @@ namespace GluLamb.Joints
                 dir = PlatePlane.Project(dir);
                 dir.Unitize();
                 var cpt = PlatePlane.ClosestPoint(this.Plane.Origin);
+
+                // Check for neighbouring planes and extend plate length to
+                // accommodate tool radius in plate fillet
 
                 EndPlanes[i] = new Plane(cpt + dir * PlateLength, dir);
 

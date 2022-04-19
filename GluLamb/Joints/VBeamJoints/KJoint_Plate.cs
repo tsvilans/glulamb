@@ -953,6 +953,7 @@ namespace GluLamb.Joints
     public class KJoint_Plate5 : GluLamb.Joints.VBeamJoint, IPlateJoint
     {
         public static double DefaultPlateDepth = 50.0;
+        public static double DefaultPlateSlotDepth = 50.0;
         public static double DefaultPlateThickness = 20.0;
 
         public static double DefaultDowelPosition = 50;
@@ -972,6 +973,7 @@ namespace GluLamb.Joints
         public static double DefaultCutterSize = 300;
 
         public double PlateDepth = 50.0;
+        public double PlateSlotDepth = 50.0;
         public double PlateWidth = 80.0;
         public double PlateThickness = 20.0;
         public double PlateOffset = 0.0;
@@ -1042,12 +1044,15 @@ namespace GluLamb.Joints
         /// </summary>
         protected Plane[] DowelOffsetPlanes;
 
+        protected Vector3d InsertionVector;
+
 
 
         public KJoint_Plate5(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
             PlateDepth = DefaultPlateDepth;
             PlateThickness = DefaultPlateThickness;
+            PlateSlotDepth = DefaultPlateSlotDepth;
 
             DowelPosition = DefaultDowelPosition;
             DowelLength = DefaultDowelLength;
@@ -1068,11 +1073,31 @@ namespace GluLamb.Joints
         {
             // Calculate slot corners
             var pts = new Point3d[4];
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[0], SillPlane, out pts[0]);
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[1], SillPlane, out pts[1]);
 
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[0], SillPlane, out pts[2]);
-            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[1], SillPlane, out pts[3]);
+            switch (Mode)
+            {
+                case (1):
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[0], SillPlane, out pts[0]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[1], SillPlane, out pts[1]);
+
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SeamOffsetPlanes[0], PlateFacePlanes[0], SillPlane, out pts[2]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SeamOffsetPlanes[0], PlateFacePlanes[1], SillPlane, out pts[3]);
+                    break;
+                case (-1):
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SeamOffsetPlanes[1], PlateFacePlanes[0], SillPlane, out pts[0]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SeamOffsetPlanes[1], PlateFacePlanes[1], SillPlane, out pts[1]);
+
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[0], SillPlane, out pts[2]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[1], SillPlane, out pts[3]);
+                    break;
+                default:
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[0], SillPlane, out pts[0]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[0], PlateFacePlanes[1], SillPlane, out pts[1]);
+
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[0], SillPlane, out pts[2]);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(OutsidePlanes[1], PlateFacePlanes[1], SillPlane, out pts[3]);
+                    break;
+            }
 
             var dot00 = Math.Abs((pts[0] - SillPlane.Origin) * SillPlane.XAxis);
             var dot01 = Math.Abs((pts[1] - SillPlane.Origin) * SillPlane.XAxis);
@@ -1122,11 +1147,11 @@ namespace GluLamb.Joints
 
         public Brep CreatePlate()
         {
-            var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
-            insertionVector.Unitize();
+            //var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
+            //insertionVector.Unitize();
             //insertionVector = -PlatePlane.XAxis;
 
-            var TenonEndPlane = new Plane(SillPlane.Origin + insertionVector * PlateDepth, insertionVector);
+            var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * PlateDepth, InsertionVector);
 
             var objs = new List<object>();
 
@@ -1253,7 +1278,11 @@ namespace GluLamb.Joints
 
             var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
                                                                                                                //Extrusion extrusion = Extrusion.CreateExtrusion(profile, SillPlane.ZAxis * -PlateDepth);
-            var extrusion = Extrusion.Create(profile, PlateDepth + Added, true);
+            profile.TryGetPlane(out Plane profilePlane);
+            if (profilePlane.ZAxis * InsertionVector < 0)
+                profile.Reverse();
+
+            var extrusion = Extrusion.Create(profile, PlateSlotDepth + Added, true);
             return extrusion.ToBrep(true);
         }
 
@@ -1324,6 +1353,8 @@ namespace GluLamb.Joints
             PlatePlane = new Plane(origin, xaxis, yaxis);
             PlatePlane.Origin = PlatePlane.Origin - PlatePlane.ZAxis * PlateThickness * 0.5 + PlatePlane.ZAxis * PlateOffset;
 
+            //PlatePlane = platePlane;
+
             PlateFacePlanes = new Plane[2];
             PlateFacePlanes[0] = new Plane(
               PlatePlane.Origin + PlatePlane.ZAxis * PlateThickness * 0.5,
@@ -1365,16 +1396,22 @@ namespace GluLamb.Joints
             }
 
             // **********************************************
-            // dsum is actually the plate insertion direction
+            // -dsum is actually the plate insertion direction
             // **********************************************
+
+            var normal = Vector3d.CrossProduct(dirs[0], dirs[1]);
+            var normalPlane = new Plane(kplane.Origin, normal);
 
             var dsum = dirs[0] + dirs[1];
             dsum.Unitize();
 
+            var binormal = kplane.XAxis * dsum > 0? -kplane.XAxis : kplane.XAxis;
+            InsertionVector = normalPlane.Project(binormal);
+
             // ***************
             // PlatePlanes
             // ***************
-            CreatePlatePlanes(kplane.Origin, dsum, dirs[0]);
+            CreatePlatePlanes(kplane.Origin, InsertionVector, dirs[0]);
 
             // *******************************************************
             // Check the order of the V-beams and flip if necessary.
@@ -1621,7 +1658,7 @@ namespace GluLamb.Joints
             if (SingleInsertionDirection)
             {
                 pts[1] = pts[0];
-                pts[1].Transform(SeamOffsetPlanes[0].ProjectAlongVector(dsum));
+                pts[1].Transform(SeamOffsetPlanes[0].ProjectAlongVector(InsertionVector));
             }
 
             SlotDirections[0] = pts[0] - pts[1];
@@ -1636,7 +1673,7 @@ namespace GluLamb.Joints
             if (SingleInsertionDirection)
             {
                 pts[4] = pts[3];
-                pts[4].Transform(SeamOffsetPlanes[1].ProjectAlongVector(dsum));
+                pts[4].Transform(SeamOffsetPlanes[1].ProjectAlongVector(InsertionVector));
             }
 
             SlotDirections[1] = pts[3] - pts[4];
@@ -1782,6 +1819,11 @@ namespace GluLamb.Joints
             this.Beam.Geometry.Add(portalDowelCyl);
 
             return true;
+        }
+
+        public Plane GetPlatePlane()
+        {
+            return PlatePlane;
         }
     }
 
@@ -1960,7 +2002,7 @@ namespace GluLamb.Joints
                 //cutter.Faces.Reverse();
                 return cutter;
             }
-            return null; // If the filleting fails, return null
+            return joined; // If the filleting fails, return null
         }
 
         public override bool Construct(bool append = false)
