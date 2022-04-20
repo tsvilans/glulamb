@@ -11,7 +11,7 @@ namespace GluLamb.Joints
     {
 
         //Plane PlatePlane { get; set; }
-
+        double MaxFilletRadius { get; set; }
         Brep CreatePlate();
         Plane GetPlatePlane();
     }

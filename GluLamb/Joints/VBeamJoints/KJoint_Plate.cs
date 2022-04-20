@@ -979,6 +979,8 @@ namespace GluLamb.Joints
         public double PlateOffset = 0.0;
         public double ToolDiameter = 16.0;
 
+        public double MaxFilletRadius { get; set; }
+
         public double DowelPosition = 60;
         public double DowelLength = 220.0;
         public double DowelDiameter = 12.0;
@@ -1053,6 +1055,7 @@ namespace GluLamb.Joints
             PlateDepth = DefaultPlateDepth;
             PlateThickness = DefaultPlateThickness;
             PlateSlotDepth = DefaultPlateSlotDepth;
+            MaxFilletRadius = ToolDiameter;
 
             DowelPosition = DefaultDowelPosition;
             DowelLength = DefaultDowelLength;
@@ -1183,13 +1186,13 @@ namespace GluLamb.Joints
                 Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], TenonSidePlanes[1], TenonEndPlane, out pts[9]);
                 Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], TenonSidePlanes[0], TenonEndPlane, out pts[10]);
 
-                GluLamb.Utility.MaxFilletRadius(pts[0], pts[1], pts[2], out FilletRadii[i, 0], radius);
-                GluLamb.Utility.MaxFilletRadius(pts[3], pts[4], pts[5], out FilletRadii[i, 2], radius);
-                GluLamb.Utility.MaxFilletRadius(pts[6], pts[7], pts[8], out FilletRadii[i, 4], radius);
+                Utility.MaxFilletRadius(pts[0], pts[1], pts[2], out FilletRadii[i, 0], radius);
+                Utility.MaxFilletRadius(pts[3], pts[4], pts[5], out FilletRadii[i, 2], radius);
+                Utility.MaxFilletRadius(pts[6], pts[7], pts[8], out FilletRadii[i, 4], radius);
 
-                FilletRadii[i, 0] = Math.Min(FilletRadii[i, 0], radius * 2);
-                FilletRadii[i, 2] = Math.Min(FilletRadii[i, 2], radius * 2);
-                FilletRadii[i, 4] = Math.Min(FilletRadii[i, 4], radius * 2);
+                FilletRadii[i, 0] = Math.Min(FilletRadii[i, 0], MaxFilletRadius);
+                FilletRadii[i, 2] = Math.Min(FilletRadii[i, 2], MaxFilletRadius);
+                FilletRadii[i, 4] = Math.Min(FilletRadii[i, 4], MaxFilletRadius);
 
 
                 var poly = new Polyline(pts);

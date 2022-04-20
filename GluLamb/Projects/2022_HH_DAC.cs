@@ -94,7 +94,7 @@ namespace GluLamb.Projects.HHDAC22
 
             var sign = Vector3d.ZAxis * Plane.ZAxis > 0 ? 1 : -1;
             //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
-            var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, yaxis) * sign;
+            var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
 
             var plane = new Plane(origin, xaxis, yaxis);
 
@@ -159,7 +159,7 @@ namespace GluLamb.Projects.HHDAC22
             //var xpoint = origin + xaxis * 100;
 
             var sign = Vector3d.ZAxis * Plane.ZAxis > 0 ? 1 : -1;
-            var angle = Vector3d.VectorAngle(Vector3d.ZAxis, Plane.YAxis) * sign;
+            var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
 
             //var plane = new Plane(origin, xaxis, yaxis);
 
