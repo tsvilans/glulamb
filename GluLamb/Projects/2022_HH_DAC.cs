@@ -84,19 +84,16 @@ namespace GluLamb.Projects.HHDAC22
         public override void ToCix(List<string> cix, string prefix = "")
         {
             cix.Add(string.Format("{0}HUL_{1}=1", prefix, Id));
-
             // Sort out plane transformation here
-            var normal = Plane.ZAxis;
-            var xaxis = Vector3d.CrossProduct(normal, Vector3d.ZAxis);
-            var yaxis = Vector3d.CrossProduct(normal, xaxis);
+
+            var xaxis = Plane.XAxis;
             var origin = Plane.Origin;
             var xpoint = origin + xaxis * 100;
 
-            var sign = Vector3d.ZAxis * Plane.ZAxis > 0 ? 1 : -1;
-            //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
-            var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
+            Plane plane;
+            double angle;
+            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
 
-            var plane = new Plane(origin, xaxis, yaxis);
 
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
@@ -159,7 +156,10 @@ namespace GluLamb.Projects.HHDAC22
             //var xpoint = origin + xaxis * 100;
 
             var sign = Vector3d.ZAxis * Plane.ZAxis > 0 ? 1 : -1;
-            var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
+            double angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
+
+            Plane plane;
+            Utility.AlignedPlane(Plane.Origin, Plane.ZAxis, out plane, out angle);
 
             //var plane = new Plane(origin, xaxis, yaxis);
 

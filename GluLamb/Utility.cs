@@ -781,6 +781,35 @@ namespace GluLamb
             return true;
         }
 
+        /// <summary>
+        /// Align a plane such that its X-axis lies on the XY plane. Useful for 5-axis machining.
+        /// </summary>
+        /// <param name="origin"></param>
+        /// <param name="v"></param>
+        /// <param name="plane"></param>
+        /// <param name="angle"></param>
+        /// <returns></returns>
+        public static bool AlignedPlane(Point3d origin, Vector3d v, out Plane plane, out double angle)
+        {
+            Vector3d xaxis, yaxis;
+            // Handle case where the vector is pointing straight up or down
+            double dot = Vector3d.ZAxis * v;
+            if (dot == 1)
+                xaxis = Vector3d.XAxis;
+            else if (dot == -1)
+                xaxis = -Vector3d.XAxis;
+            else
+                xaxis = Vector3d.CrossProduct(Vector3d.ZAxis, v);
+
+            yaxis = Vector3d.CrossProduct(xaxis, v);
+
+            plane = new Plane(origin, xaxis, yaxis);
+
+            var sign = v * Vector3d.ZAxis > 0 ? 1 : -1;
+            angle = Vector3d.VectorAngle(yaxis, -Vector3d.ZAxis) * sign;
+
+            return true;
+        }
     }
 
 }
