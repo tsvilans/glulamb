@@ -1828,6 +1828,11 @@ namespace GluLamb.Joints
         {
             return PlatePlane;
         }
+
+        public Polyline[] GetPlateOutlines()
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -1835,11 +1840,11 @@ namespace GluLamb.Joints
     /// Variation of the KJoint_Plate joint, with an added joist member. Developed
     /// during the HH DAC project (2022). 
     /// </summary>
-    public class KJoint_Plate5Joist : KJoint_Plate5
+    public class KJoint_Plate6Joist : KJoint_Plate6
     {
         public JointPart Joist { get; set; }
 
-        public KJoint_Plate5Joist(List<Element> elements, JointCondition jc) : base(elements, jc)
+        public KJoint_Plate6Joist(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
 
         }
@@ -2083,6 +2088,916 @@ namespace GluLamb.Joints
           }
         }
       */
+    }
+
+    public class KJoint_Plate6 : GluLamb.Joints.VBeamJoint, IPlateJoint
+    {
+        public static double DefaultPlateDepth = 50.0;
+        public static double DefaultPlateThickness = 20.0;
+        public static double DefaultPlateSlotDepth = 50.0;
+        public static double DefaultPlateOffset = 0;
+        public static double DefaultPlateEndOffset = 0;
+
+        public static double DefaultDowelPosition = 40;
+        public static double DefaultDowelLength = 250.0;
+        public static double DefaultDowelDiameter = 16.0;
+
+        public static bool DefaultSingleInsertionDirection = true;
+
+        /// <summary>
+        /// Joint mode for arm beams.
+        ///0 = beams are split down the seam
+        ///-1 = beam0 goes into beam1
+        ///1 = beam1 goes into beam0
+        /// </summary>
+        public static int DefaultMode = 0;
+
+        public static double DefaultCutterSize = 300;
+
+        public double PlateDepth = 50.0;
+        public double PlateSlotDepth = 50.0;
+        public double PlateWidth = 80.0;
+        public double PlateThickness = 20.0;
+        public double PlateOffset = 0.0;
+        public double PlateEndOffset = 0;
+
+        public double ToolDiameter = 16.0;
+
+        public double DowelPosition = 20;
+        public double DowelLength = 220.0;
+        public double DowelDiameter = 16.0;
+        public double Added = 5.0;
+        public double AddedSlot = 100;
+
+        public bool SingleInsertionDirection = true;
+
+        /// <summary>
+        /// Joint mode for arm beams.
+        ///0 = beams are split down the seam
+        ///-1 = beam0 goes into beam1
+        ///1 = beam1 goes into beam0
+        /// </summary>
+        public int Mode = 0;
+
+        public double CutterSize = 300;
+
+        // *******************
+        // Protected variables
+        // *******************
+
+        /// <summary>
+        /// Planes on the inside of the arms, in the seam.
+        /// </summary>
+        protected Plane[] SeamPlanes;
+        protected Plane[] SeamOffsetPlanes;
+
+        /// <summary>
+        /// Planes on the ouside of the arms, away from the seam.
+        /// </summary>
+        protected Plane[] OutsidePlanes;
+        protected Plane[] OutsideOffsetPlanes;
+
+        /// <summary>
+        /// Planes at the end of the arm slots
+        /// </summary>
+        protected Plane[] EndPlanes;
+
+        /// <summary>
+        /// Plane on the beam side.
+        /// </summary>
+        protected Plane SillPlane;
+        protected Plane SillOffsetPlane;
+        /// <summary>
+        /// Planes for tenon sides.
+        /// </summary>
+        protected Plane[] TenonSidePlanes;
+
+
+        /// <summary>
+        /// Plane that the connector plate lies on
+        /// </summary>
+        protected Plane PlatePlane;
+        /// <summary>
+        /// Planes for top and bottom of plate.
+        /// </summary>
+        protected Plane[] PlateFacePlanes;
+
+        protected Polyline[] PlateOutlines;
+
+        protected Plane SillPlatePlane;
+
+        /// <summary>
+        /// Plane that is perpendicular to the Beam element, at the
+        /// point of intersection.
+        /// </summary>
+        protected Plane KPlane;
+
+        /// <summary>
+        /// Average vector of V0 and V1 elements.
+        /// </summary>
+        protected Vector3d VSum;
+
+        /// <summary>
+        /// Vector for inserting the plate.
+        /// </summary>
+        protected Vector3d InsertionVector;
+
+        /// <summary>
+        /// Array of all three beams, just for brevity.
+        /// </summary>
+        protected Beam[] Beams;
+
+        protected Vector3d[] BeamDirections;
+        protected Plane[] BeamPlanes;
+
+
+        /// <summary>
+        /// Plane that all dowel holes lie on, at least their origins
+        /// </summary>
+        protected Plane[] DowelOffsetPlanes;
+
+        public double MaxFilletRadius { get; set; }
+
+        public KJoint_Plate6(List<Element> elements, JointCondition jc) : base(elements, jc)
+        {
+            PlateDepth = DefaultPlateDepth;
+            PlateThickness = DefaultPlateThickness;
+            PlateOffset = DefaultPlateOffset;
+            PlateEndOffset = DefaultPlateEndOffset;
+            PlateSlotDepth = DefaultPlateSlotDepth;
+            MaxFilletRadius = ToolDiameter;
+
+            DowelPosition = DefaultDowelPosition;
+            DowelLength = DefaultDowelLength;
+            DowelDiameter = DefaultDowelDiameter;
+
+            SingleInsertionDirection = DefaultSingleInsertionDirection;
+            Mode = DefaultMode;
+
+            CutterSize = DefaultCutterSize;
+        }
+
+        public override string ToString()
+        {
+            return "KJoint_Plate6";
+        }
+
+        public void CheckSides()
+        {
+            // Cases to check the maximum distance for:
+            // - top of plate, left
+            // - top of plate, right
+            // - bottom of plate, left
+            // - bottom of plate, right
+            // Find min and max of intersections on SillPlatePlane
+            double min = double.MaxValue, max = double.MinValue;
+            double minT = 0, maxT = 0;
+            Vector3d minNormal = Vector3d.Unset, maxNormal = Vector3d.Unset;
+            Vector3d sillNormal = PlatePlane.Project(SillPlane.ZAxis); sillNormal.Unitize();
+
+            Plane[] xPlanes;
+            double ToolRadius = ToolDiameter * 0.5;
+
+            switch (Mode)
+            {
+                case (1):
+                    xPlanes = new Plane[] { OutsidePlanes[0], SeamPlanes[0], OutsidePlanes[1] };
+                    break;
+                case (-1):
+                    xPlanes = new Plane[] { OutsidePlanes[1], SeamPlanes[1], OutsidePlanes[0] };
+                    break;
+                default:
+                    xPlanes = new Plane[] { OutsidePlanes[0], OutsidePlanes[1] };
+                    break;
+            }
+
+            Point3d pt, local_pt;
+            for (int i = 0; i < 2; ++i)
+            {
+                for (int j = 0; j < xPlanes.Length; ++j)
+                {
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], SillPlane, xPlanes[j], out pt);
+
+                    debug.Add(pt);
+                    SillPlatePlane.RemapToPlaneSpace(pt, out local_pt);
+
+                    if (local_pt.Y < min)
+                    {
+                        min = local_pt.Y;
+                        minNormal = xPlanes[j].ZAxis;
+                    }
+                    if (local_pt.Y > max)
+                    {
+                        max = local_pt.Y;
+                        maxNormal = xPlanes[j].ZAxis;
+                    }
+                }
+            }
+
+            minNormal = PlatePlane.Project(minNormal); minNormal.Unitize();
+            maxNormal = PlatePlane.Project(maxNormal); maxNormal.Unitize();
+
+            if (minNormal * sillNormal < 0) minNormal.Reverse();
+            if (maxNormal * sillNormal < 0) maxNormal.Reverse();
+
+            double minAngle = Math.Acos(sillNormal * minNormal);
+            double maxAngle = Math.Acos(sillNormal * maxNormal);
+
+            //debug.Add(new Line(SillPlatePlane.PointAt(0, max), sillNormal * 50));
+            //debug.Add(new Line(SillPlatePlane.PointAt(0, max), maxNormal * 50));
+
+            min -= ToolRadius / Math.Tan(minAngle * 0.5) + ToolRadius;
+            max += ToolRadius / Math.Tan(maxAngle * 0.5) + ToolRadius;
+
+            //debug.Add(SillPlatePlane.PointAt(0, min));
+            //debug.Add(SillPlatePlane.PointAt(0, max));
+
+            TenonSidePlanes = new Plane[2];
+
+            TenonSidePlanes[0] = new Plane(SillPlatePlane.PointAt(0, min),
+              -SillPlatePlane.YAxis);
+            TenonSidePlanes[1] = new Plane(SillPlatePlane.PointAt(0, max),
+              SillPlatePlane.YAxis);
+        }
+
+        public Brep CreatePlate()
+        {
+            var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
+            insertionVector.Unitize();
+
+            var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * PlateDepth, InsertionVector);
+
+            Plane[] xPlanes;
+
+            switch (Mode)
+            {
+                case (1):
+                    xPlanes = new Plane[] { OutsidePlanes[0], SeamPlanes[0], OutsidePlanes[1] };
+                    break;
+                case (-1):
+                    xPlanes = new Plane[] { OutsidePlanes[1], SeamPlanes[1], OutsidePlanes[0] };
+                    break;
+                default:
+                    xPlanes = new Plane[] { OutsidePlanes[0], OutsidePlanes[1] };
+                    break;
+            }
+
+            var pts = new Point3d[11];
+
+            Curve[] FaceLoops = new Curve[2];
+
+            Curve[,] Segments = new Curve[2, 6];
+            double[,] FilletRadii = new double[2, 6];
+            double radius = ToolDiameter * 0.5;
+            double maxRadius = radius;
+
+            bool corner2 = false; // Flag if the innner corner is chamfered (Mode 1 or -1)
+
+            PlateOutlines = new Polyline[2];
+
+            for (int i = 0; i < 2; ++i)
+            {
+                // Determine if we have a chamfered corner or a sharp one
+                Point3d pp, ps; // PlanePlane, PlaneSill
+                if (Mode != 0)
+                {
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], SillPlane, xPlanes[2], out ps);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], xPlanes[1], xPlanes[2], out pp);
+
+                    if ((pp - SillPlane.Origin) * SillPlane.ZAxis > 0)
+                        corner2 = true;
+                }
+
+                Plane[] xxPlanes = new Plane[0];
+
+                if (corner2)
+                {
+                    switch (Mode)
+                    {
+                        case (1):
+                            xxPlanes = new Plane[]{SillPlane, OutsidePlanes[0],
+                                EndPlanes[0], SeamPlanes[0], SeamPlanes[1], EndPlanes[1],
+                                OutsidePlanes[1], SeamPlanes[0], SillPlane, TenonSidePlanes[1], TenonEndPlane,
+                                TenonSidePlanes[0]};
+                            break;
+                        case (-1):
+                            xxPlanes = new Plane[]{SillPlane, SeamPlanes[1], OutsidePlanes[0],
+                                EndPlanes[0], SeamPlanes[0], SeamPlanes[1], EndPlanes[1],
+                                OutsidePlanes[1], SillPlane, TenonSidePlanes[1], TenonEndPlane,
+                                TenonSidePlanes[0]};
+                            break;
+                    }
+                }
+                else
+                {
+                    xxPlanes = new Plane[]{TenonSidePlanes[0], SillPlane, OutsidePlanes[0],
+                        EndPlanes[0], SeamPlanes[0], SeamPlanes[1], EndPlanes[1],
+                        OutsidePlanes[1], SillPlane, TenonSidePlanes[1], TenonEndPlane};
+                }
+
+                pts = new Point3d[xxPlanes.Length];
+
+                for (int j = 0; j < pts.Length; ++j)
+                {
+                    int jj = (j - 1).Modulus(pts.Length);
+                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], xxPlanes[j], xxPlanes[jj], out pts[j]);
+                }
+
+                PlateOutlines[i] = new Polyline(pts);
+                PlateOutlines[i].Add(PlateOutlines[i][0]);
+
+                if (corner2)
+                {
+                    double angle = Vector3d.VectorAngle(pts[0] - pts[1], pts[3] - pts[2]);
+                    var length = radius / Math.Tan(angle / 2);
+
+                    if (pts[1].DistanceTo(pts[2]) < radius)
+                    {
+                        corner2 = false;
+                        var ptsList = new List<Point3d>(pts);
+                        ptsList.RemoveAt(1);
+                        pts = ptsList.ToArray();
+
+                        Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], xxPlanes[0], xxPlanes[2], out pts[1]);
+
+                    }
+                }
+
+                int[] segIndices = new int[] { 3, 2, 3, 2, 3, 4 };
+                if (corner2)
+                    segIndices[0] = 4;
+
+                int counter = 0;
+                for (int j = 0; j < 6; ++j)
+                {
+                    var segPoly = new Polyline();
+                    for (int k = 0; k < segIndices[j]; ++k)
+                    {
+                        counter = counter.Modulus(pts.Length);
+                        segPoly.Add(pts[counter]);
+                        counter++;
+                    }
+                    counter--;
+
+                    Segments[i, j] = segPoly.ToNurbsCurve();
+                }
+
+                //GluLamb.Utility.MaxFilletRadius(pts[0], pts[1], pts[2], out FilletRadii[i, 0], 0);
+                //GluLamb.Utility.MaxFilletRadius(pts[3], pts[4], pts[5], out FilletRadii[i, 2], 0);
+                //GluLamb.Utility.MaxFilletRadius(pts[6], pts[7], pts[8], out FilletRadii[i, 4], 0);
+
+                //FilletRadii[i, 0] = Math.Min(FilletRadii[i, 0], maxRadius);
+                //FilletRadii[i, 2] = Math.Min(FilletRadii[i, 2], maxRadius);
+                //FilletRadii[i, 4] = Math.Min(FilletRadii[i, 4], maxRadius);
+
+                FilletRadii[i, 0] = radius;
+                FilletRadii[i, 2] = radius;
+                FilletRadii[i, 4] = radius;
+            }
+
+            var faceSegs = new List<Curve>[2];
+
+            for (int i = 0; i < 2; ++i)
+            {
+                faceSegs[i] = new List<Curve>();
+
+                var fillets = Curve.CreateFilletCornersCurve(Segments[i, 0], FilletRadii[i, 0], 0.01, 0.01);
+                if (fillets != null)
+                    Segments[i, 0] = fillets;
+
+                fillets = Curve.CreateFilletCornersCurve(Segments[i, 2], FilletRadii[i, 2], 0.01, 0.01);
+                if (fillets != null)
+                    Segments[i, 2] = fillets;
+
+                fillets = Curve.CreateFilletCornersCurve(Segments[i, 4], FilletRadii[i, 4], 0.01, 0.01);
+                if (fillets != null)
+                    Segments[i, 4] = fillets;
+
+                for (int j = 0; j < 6; ++j)
+                    faceSegs[i].Add(Segments[i, j]);
+            }
+
+            FaceLoops[0] = Curve.JoinCurves(faceSegs[0], 0.01)[0];
+            FaceLoops[1] = Curve.JoinCurves(faceSegs[1], 0.01)[0];
+
+            Brep[] Fragments = new Brep[6];
+            for (int i = 0; i < 6; ++i)
+            {
+                var res = Brep.CreateFromLoft(new Curve[] { Segments[0, i], Segments[1, i] }, Point3d.Unset, Point3d.Unset, LoftType.Straight, false);
+                if (res != null && res.Length > 0)
+                    Fragments[i] = res[0];
+            }
+
+            var breps = new List<Brep>();
+            var topFace = Brep.CreatePlanarBreps(FaceLoops[0], 0.1);
+            var btmFace = Brep.CreatePlanarBreps(FaceLoops[1], 0.1);
+
+            breps.AddRange(topFace);
+            breps.AddRange(btmFace);
+            breps.AddRange(Fragments);
+
+            var joined = Brep.JoinBreps(breps, 0.01);
+            if (joined == null || joined.Length < 1)
+                return null;
+
+            joined[0].Faces.SplitKinkyFaces(0.1);
+            return joined[0];
+        }
+
+        protected Brep CreateSillCutter()
+        {
+            //var xaxis = PlatePlane.Project(SillPlane.XAxis);
+            //xaxis = InsertionVector;
+            //xaxis = SillPlatePlane.YAxis;
+            var xaxis = Vector3d.CrossProduct(PlatePlane.ZAxis, InsertionVector);
+            debug.Add(SillPlane);
+            Point3d origin;
+
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SillPlane, new Plane(SillPlane.Origin, SillPlane.ZAxis, SillPlane.YAxis), PlatePlane, out origin);
+
+            var plane = new Plane(origin, xaxis, PlatePlane.ZAxis);
+            debug.Add(plane);
+            plane.Origin = plane.Origin - InsertionVector * Added;
+
+            var pts = new Point3d[4];
+
+            var tsp0 = TenonSidePlanes[0];
+            var tsp1 = TenonSidePlanes[1];
+            double TENON_TOLERANCE = 0.5;
+
+            var tsp = new Plane[] { TenonSidePlanes[0], TenonSidePlanes[1] };
+
+            int sign = tsp[0].ZAxis * (tsp[1].Origin - tsp[0].Origin) > 0 ? 1 : -1;
+            tsp[0].Origin = tsp[0].Origin - tsp[0].ZAxis * TENON_TOLERANCE * sign;
+            tsp[1].Origin = tsp[1].Origin - tsp[1].ZAxis * TENON_TOLERANCE * sign;
+
+            if (sign < 0)
+                tsp = new Plane[] { tsp[1], tsp[0] };
+
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[0], tsp[1], out pts[0]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[1], tsp[1], out pts[1]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[1], tsp[0], out pts[2]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[0], tsp[0], out pts[3]);
+
+            var poly = new Polyline(pts);
+            poly.Add(poly[0]);
+
+            if (Vector3d.CrossProduct(pts[1] - pts[0], pts[2] - pts[1]) * InsertionVector < 0)
+                poly.Reverse();
+
+            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
+                                                                                                               //Extrusion extrusion = Extrusion.CreateExtrusion(profile, SillPlane.ZAxis * -PlateDepth);
+            var extrusion = Extrusion.Create(profile, PlateSlotDepth + Added, true);
+            return extrusion.ToBrep(true);
+        }
+
+        protected Brep CreatePlateSlot(int index)
+        {
+            double PLATE_END_TOLERANCE = 1.0;
+            var endPlane = EndPlanes[index];
+            endPlane.Origin = endPlane.Origin - endPlane.ZAxis * PLATE_END_TOLERANCE;
+            var sidePlane = SeamPlanes[index];
+            var outsidePlane = OutsidePlanes[index];
+
+            var sillPlane = SillPlane;
+            sillPlane.Origin = sillPlane.Origin - sillPlane.ZAxis * Added;
+
+            int sign = sidePlane.ZAxis * (sidePlane.Origin - outsidePlane.Origin) > 0 ? 1 : -1;
+
+            sidePlane.Origin = sidePlane.Origin + sidePlane.ZAxis * Added * sign;
+            outsidePlane.Origin = outsidePlane.Origin - outsidePlane.ZAxis * Added * sign;
+
+            // *************************
+            // Plane intersection method
+            // *************************
+
+            var pts = new Point3d[4];
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(endPlane, sidePlane, PlateFacePlanes[0], out pts[0]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(endPlane, sidePlane, PlateFacePlanes[1], out pts[1]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(sillPlane, sidePlane, PlateFacePlanes[1], out pts[2]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(sillPlane, sidePlane, PlateFacePlanes[0], out pts[3]);
+
+            var topLoop = new Polyline(pts);
+            topLoop.Add(topLoop[0]);
+
+            var topFace = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[2], pts[3], 0.01);
+
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(endPlane, outsidePlane, PlateFacePlanes[0], out pts[0]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(endPlane, outsidePlane, PlateFacePlanes[1], out pts[1]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(sillPlane, outsidePlane, PlateFacePlanes[1], out pts[2]);
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(sillPlane, outsidePlane, PlateFacePlanes[0], out pts[3]);
+
+            var btmLoop = new Polyline(pts);
+            btmLoop.Add(btmLoop[0]);
+
+            var btmFace = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[2], pts[3], 0.01);
+
+            var sideFaces = Brep.CreateFromLoft(new Curve[] { topLoop.ToNurbsCurve(), btmLoop.ToNurbsCurve() },
+              Point3d.Unset, Point3d.Unset, LoftType.Straight, false);
+
+            var breps = new List<Brep>();
+            breps.Add(topFace);
+            breps.Add(btmFace);
+            breps.AddRange(sideFaces);
+
+            var joined = Brep.JoinBreps(breps, 0.01)[0];
+            joined.Faces.SplitKinkyFaces(0.1);
+
+            //return joined;
+
+            double r = 8;
+            var filleted = Brep.CreateFilletEdges(joined, new int[] { 8, 9 }, new double[] { r, r }, new double[] { r, r },
+              BlendType.Fillet, RailType.RollingBall, 0.01);
+
+            return filleted[0];
+        }
+
+        protected void CreatePlatePlanes(Point3d origin, Vector3d xaxis, Vector3d yaxis)
+        {
+            // Find PlatePlane and figure out geometry
+            PlatePlane = new Plane(origin, xaxis, yaxis);
+            PlatePlane.Origin = PlatePlane.Origin + PlatePlane.ZAxis * PlateOffset;
+
+            PlateFacePlanes = new Plane[2];
+            PlateFacePlanes[0] = new Plane(
+              PlatePlane.Origin + PlatePlane.ZAxis * PlateThickness * 0.5,
+              PlatePlane.XAxis,
+              PlatePlane.YAxis);
+
+            PlateFacePlanes[1] = new Plane(
+              PlatePlane.Origin - PlatePlane.ZAxis * PlateThickness * 0.5,
+              PlatePlane.XAxis,
+              PlatePlane.YAxis);
+        }
+
+        /// <summary>
+        /// Check the order of the V-beams and flip if necessary.
+        /// This is important for getting correct Seam and Outside planes, among other things.
+        /// </summary>
+        /// <returns></returns>
+        protected void OrderVBeams()
+        {
+            var xside = VSum * KPlane.XAxis < 0 ? -1 : 1;
+
+            if (((BeamDirections[0] * KPlane.ZAxis) < (BeamDirections[1] * KPlane.ZAxis) && xside > 0) ||
+              ((BeamDirections[0] * KPlane.ZAxis) > (BeamDirections[1] * KPlane.ZAxis) && xside < 0))
+            {
+                var dirTemp = BeamDirections[0];
+                BeamDirections[0] = BeamDirections[1];
+                BeamDirections[1] = dirTemp;
+
+                var planeTemp = BeamPlanes[0];
+                BeamPlanes[0] = BeamPlanes[1];
+                BeamPlanes[1] = planeTemp;
+
+                var beamTemp = Beams[0];
+                Beams[0] = Beams[1];
+                Beams[1] = beamTemp;
+
+                var partTemp = Parts[0];
+                Parts[0] = Parts[1];
+                Parts[1] = partTemp;
+            }
+        }
+
+        public override bool Construct(bool append = false)
+        {
+            debug = new List<object>();
+            var cutterInterval = new Interval(-CutterSize, CutterSize);
+
+            // ************************************************
+            // Initialize basic variables and set some initial
+            // base directions.
+            // ************************************************
+
+            Beams = Parts.Select(x => (x.Element as BeamElement).Beam).ToArray();
+            KPlane = Beams[2].GetPlane(Parts[2].Parameter);
+            BeamDirections = new Vector3d[2];
+            BeamPlanes = new Plane[2];
+
+            for (int i = 0; i < 2; ++i)
+            {
+                var d0 = Beams[i].Centreline.PointAt(Beams[i].Centreline.Domain.Mid) - KPlane.Origin;
+                BeamPlanes[i] = Beams[i].GetPlane(Parts[i].Parameter);
+                int signX = 1, signY = 1, signZ = 1;
+
+                if (BeamPlanes[i].ZAxis * d0 < 0) signZ = -1;
+                if (BeamPlanes[i].YAxis * KPlane.YAxis < 0) signY = -1;
+
+                BeamPlanes[i] = new Plane(BeamPlanes[i].Origin, BeamPlanes[i].XAxis * signX * signZ, BeamPlanes[i].YAxis * signY);
+                BeamDirections[i] = BeamPlanes[i].ZAxis;
+            }
+
+            // **********************************************
+            // Finde VSum and InsertionVector
+            // **********************************************
+
+            VSum = BeamDirections[0] + BeamDirections[1];
+            VSum.Unitize();
+
+            InsertionVector = -KPlane.Project(VSum);
+            InsertionVector.Unitize();
+
+            // ***************
+            // PlatePlanes
+            // ***************
+            CreatePlatePlanes(KPlane.Origin, InsertionVector, BeamDirections[0]);
+
+            // *******************************************************
+            // Check the order of the V-beams and flip if necessary.
+            // This is important for getting correct Seam and Outside planes, among other things.
+            // *******************************************************
+
+            OrderVBeams();
+
+            // *************************
+            // Find correct plane axis
+            // *************************
+
+
+            Vector3d xaxis;
+            double dotx = KPlane.XAxis * VSum;
+            double doty = KPlane.YAxis * VSum;
+            double width;
+
+            if (Math.Abs(dotx) > Math.Abs(doty))
+            {
+                width = Beams[2].Width;
+                if (dotx < 0)
+                    xaxis = -KPlane.XAxis;
+                else
+                    xaxis = KPlane.XAxis;
+            }
+            else
+            {
+                width = Beams[2].Height;
+                if (doty < 0)
+                    xaxis = -KPlane.YAxis;
+                else
+                    xaxis = KPlane.YAxis;
+            }
+
+            this.Plane = new Plane(KPlane.Origin, xaxis, KPlane.ZAxis);
+
+
+            // ***************
+            // SillPlane
+            // ***************
+
+            // SillPlane is the plane on top of the sill beam, where the two V-Beams meet
+            SillPlane = new Plane(KPlane.Origin + xaxis * width * 0.5, KPlane.ZAxis, KPlane.YAxis);
+            if (SillPlane.ZAxis * VSum < 0)
+                SillPlane = new Plane(SillPlane.Origin, -SillPlane.XAxis, SillPlane.YAxis);
+
+            // SillOffsetPlane is the safety plane for making cutters with a slight overlap
+            var SillOffsetPlane = new Plane(SillPlane.Origin - SillPlane.ZAxis * 3.0, SillPlane.XAxis, SillPlane.YAxis);
+
+            // SillPlatePlane is the plane projected onto SillPlane that is aligned with the PlatePlane normal vector
+            SillPlatePlane = new Plane(SillPlane.Origin, SillPlane.Project(PlatePlane.ZAxis), SillPlane.XAxis);
+
+            //debug.Add(this.Plane);
+
+            // ***************
+            // DowelOffsetPlanes
+            // ***************
+
+            DowelOffsetPlanes = new Plane[2];
+
+            double Ratio = 0.0;
+            var Ratios = new double[2] { Ratio, Ratio };
+            var DowelPlaneOffsets = new double[2];
+
+            switch (Mode)
+            {
+                case (-1):
+                    Ratios = new double[2] { 1.0, 0.0 };
+                    DowelPlaneOffsets = new double[2] { DowelPosition + DowelDiameter * 1.5, DowelPosition };
+                    break;
+                case (1):
+                    Ratios = new double[2] { 0.0, 1.0 };
+                    DowelPlaneOffsets = new double[2] { DowelPosition, DowelPosition + DowelDiameter * 1.5 };
+                    break;
+                default:
+                    Ratios = new double[2] { 0.0, 0.0 };
+                    DowelPlaneOffsets = new double[2] { DowelPosition, DowelPosition };
+                    break;
+            }
+
+            // DowelOffsetPlanes are the planes on which all the dowel points lie
+            for (int i = 0; i < 2; ++i)
+                DowelOffsetPlanes[i] = new Plane(SillPlane.Origin + xaxis * DowelPlaneOffsets[i], SillPlane.XAxis, SillPlane.YAxis);
+            var dowelPlane = new Plane(SillPlane.Origin + xaxis * DowelPosition, SillPlane.XAxis, SillPlane.YAxis);
+
+
+            // **********************
+            // Sill cutter (end cuts)
+            // **********************
+            for (int i = 0; i < 2; ++i)
+            {
+                Point3d xpt;
+                var res = Rhino.Geometry.Intersect.Intersection.CurvePlane(Beams[i].Centreline, SillPlane, 0.01);
+                if (res != null && res.Count > 0)
+                    xpt = res[0].PointA;
+                else
+                    xpt = SillPlane.ClosestPoint(BeamPlanes[i].Origin);
+
+                var cutterPlane = new Plane(xpt, SillPlane.XAxis, SillPlane.YAxis);
+                var cutterRec = new Rectangle3d(cutterPlane, cutterInterval, cutterInterval);
+                var cutterBrep = Brep.CreatePlanarBreps(new Curve[] { cutterRec.ToNurbsCurve() }, 0.01)[0];
+
+                Parts[i].Element.UserDictionary.Set(string.Format("EndCut_{0}", Parts[2].Element.Name), cutterPlane);
+                Parts[i].Geometry.Add(cutterBrep);
+            }
+
+
+            // *****************************************************
+            // Find all seam and outside planes, including offsets
+            // *****************************************************
+
+            double PlaneOffset = 5.0;
+            SeamPlanes = new Plane[2];
+            SeamOffsetPlanes = new Plane[2];
+
+            SeamPlanes[0] = new Plane(BeamPlanes[0].Origin + BeamPlanes[0].XAxis * Beams[0].Width * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis);
+            SeamPlanes[1] = new Plane(BeamPlanes[1].Origin - BeamPlanes[1].XAxis * Beams[1].Width * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis);
+
+            OutsidePlanes = new Plane[2];
+            OutsideOffsetPlanes = new Plane[2];
+            OutsidePlanes[0] = new Plane(BeamPlanes[0].Origin - BeamPlanes[0].XAxis * Beams[0].Width * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis);
+            OutsidePlanes[1] = new Plane(BeamPlanes[1].Origin + BeamPlanes[1].XAxis * Beams[1].Width * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis);
+
+            CheckSides();
+
+            // **********
+            // EndPlanes
+            // **********
+
+            EndPlanes = new Plane[2];
+            var endPts = new Point3d[2];
+            int sign = -1;
+            double[] endOffset;
+            switch (Mode)
+            {
+                case (-1):
+                    endOffset = SingleInsertionDirection ? new double[] { DowelDiameter * 1, DowelDiameter * 1 } : new double[] { DowelDiameter * 2, DowelDiameter * 3 };
+                    break;
+                case (1):
+                    endOffset = SingleInsertionDirection ? new double[] { DowelDiameter * 2, DowelDiameter * 1 } : new double[] { DowelDiameter * 3, DowelDiameter * 2 };
+                    break;
+                default:
+                    endOffset = SingleInsertionDirection ? new double[] { DowelDiameter * 2, DowelDiameter * 2 } : new double[] { DowelDiameter * 2, DowelDiameter * 2 };
+                    break;
+            }
+
+            for (int i = 0; i < 2; ++i)
+            {
+                sign += i * 2;
+
+                endPts[i] = BeamPlanes[i].Origin;
+                endPts[i].Transform(DowelOffsetPlanes[i].ProjectAlongVector(BeamPlanes[i].ZAxis));  //debug.Add(endPts[i]);
+                endPts[i] = endPts[i] + BeamPlanes[i].ZAxis * (endOffset[i] + PlateEndOffset);        //debug.Add(endPts[i]);
+                endPts[i].Transform(OutsidePlanes[i].ProjectAlongVector(OutsidePlanes[i].ZAxis));
+
+                if (SingleInsertionDirection)
+                    EndPlanes[i] = new Plane(endPts[i], PlatePlane.XAxis * -sign, PlatePlane.ZAxis);
+                else
+                    EndPlanes[i] = new Plane(endPts[i], BeamPlanes[i].XAxis, PlatePlane.ZAxis);
+            }
+
+            sign = -1;
+            for (int i = 0; i < 2; ++i)
+            {
+                sign += i * 2;
+                SeamOffsetPlanes[i] = new Plane(SeamPlanes[i].Origin + SeamPlanes[i].ZAxis * sign * PlaneOffset, SeamPlanes[i].XAxis, SeamPlanes[i].YAxis);
+                OutsideOffsetPlanes[i] = new Plane(OutsidePlanes[i].Origin - OutsidePlanes[i].ZAxis * sign * PlaneOffset, OutsidePlanes[i].XAxis, OutsidePlanes[i].YAxis);
+            }
+
+            Plane seamPlane;
+            Rectangle3d seamRec;
+            Brep seamBrep;
+
+            // ************************************************
+            // Pick method of intersecting the 2 arms beams
+            // ************************************************
+
+            switch (Mode)
+            {
+                case (-1): // beam0 into the side of beam1
+                    seamRec = new Rectangle3d(SeamPlanes[1], cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
+                    Parts[0].Geometry.Add(seamBrep);
+                    Parts[0].Element.UserDictionary.Set(string.Format("EndCut_{0}", Parts[1].Element.Name), SeamPlanes[1]);
+
+                    break;
+                case (1): // beam1 into the side of beam0
+                    seamRec = new Rectangle3d(SeamPlanes[0], cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
+                    Parts[1].Geometry.Add(seamBrep);
+                    Parts[1].Element.UserDictionary.Set(string.Format("EndCut_{0}", Parts[0].Element.Name), SeamPlanes[0]);
+
+                    break;
+                default: // centre split
+                    Line seam;
+                    Rhino.Geometry.Intersect.Intersection.PlanePlane(SeamPlanes[0], SeamPlanes[1], out seam);
+
+                    seamPlane = new Plane(seam.From, seam.Direction, VSum);
+
+                    seamRec = new Rectangle3d(seamPlane, cutterInterval, cutterInterval);
+                    seamBrep = Brep.CreatePlanarBreps(new Curve[] { seamRec.ToNurbsCurve() }, 0.01)[0];
+
+                    Parts[0].Geometry.Add(seamBrep);
+                    Parts[1].Geometry.Add(seamBrep);
+                    Parts[0].Element.UserDictionary.Set(string.Format("EndCut_{0}", Parts[1].Element.Name), seamPlane);
+                    Parts[1].Element.UserDictionary.Set(string.Format("EndCut_{0}", Parts[0].Element.Name), seamPlane);
+
+                    break;
+            }
+
+            // *****************
+            // END seam
+            // *****************
+
+
+            for (int i = 0; i < 2; ++i)
+            {
+                var slot = CreatePlateSlot(i);
+                if (slot != null)
+                    Parts[i].Geometry.Add(slot);
+            }
+
+            var tenon = CreateSillCutter();
+            if (tenon != null)
+                this.Beam.Geometry.Add(tenon);
+
+
+            // ***********************
+            // Create dowels
+            // ***********************
+            var dowelPlanes = new Plane[3];
+
+            // 2022-03-15 align dowel vectors parallel to dowel plane
+
+            var dowelVectors = new Vector3d[2];
+
+            for (int i = 0; i < 2; ++i)
+            {
+                //var dproj = dowelPlane.ProjectAlongVector(BeamPlanes[i].ZAxis);
+                var dx = Rhino.Geometry.Intersect.Intersection.CurvePlane(Beams[i].Centreline, DowelOffsetPlanes[i], 0.01);
+
+                dowelPlanes[i] = Beams[i].GetPlane(dx[0].PointA);
+                //debug.Add(dowelPlanes[i]);
+                //dowelPoints[i] = dowelPlanes[i].Origin;
+
+                var dRotPlane = new Plane(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis, dowelPlanes[i].YAxis);
+
+                var dot = Math.Abs(dowelPlanes[i].YAxis * KPlane.YAxis);
+                //Ratios[i] = 1 - dot;
+
+                Line xPP;
+                //Rhino.Geometry.Intersect.Intersection.PlanePlane(dRotPlane, dowelPlane, out xPP);
+                Rhino.Geometry.Intersect.Intersection.PlanePlane(dRotPlane, DowelOffsetPlanes[i], out xPP);
+
+                dowelVectors[i] = xPP.Direction;
+                dowelVectors[i].Unitize();
+
+                if (dowelVectors[i] * dowelPlanes[i].YAxis < 0) dowelVectors[i].Reverse();
+
+                // Simple lerp between dowel vector and plane Y-axis
+                dowelVectors[i] = dowelVectors[i] + Ratios[i] * (dowelPlanes[i].YAxis - dowelVectors[i]);
+
+                dowelPlanes[i] = new Plane(dowelPlanes[i].Origin - dowelVectors[i] * DowelLength * 0.5, dowelVectors[i]);
+                //dowelPlanes[i] = new Plane(dowelPlanes[i].Origin - BeamPlanes[i].YAxis * DowelLength * 0.5, BeamPlanes[i].YAxis);
+
+                //debug.Add(dowelPlanes[i]);
+
+                //var dowelPlane01 = new Plane(dowelPoints[i] - BeamPlanes[i].YAxis * DowelLength * 0.5, BeamPlanes[i].YAxis);
+                var dowelCyl = new Cylinder(
+                  new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+
+                Parts[i].Geometry.Add(dowelCyl);
+            }
+
+            var portalDowelPoint = (TenonSidePlanes[0].Origin + TenonSidePlanes[1].Origin) * 0.5;
+            portalDowelPoint = Beams[2].GetPlane(portalDowelPoint).Origin;
+
+            var portalDowelPlane = new Plane(portalDowelPoint - KPlane.YAxis * DowelLength * 0.5, KPlane.YAxis);
+            var portalDowelCyl = new Cylinder(
+              new Circle(portalDowelPlane, DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+
+            this.Beam.Geometry.Add(portalDowelCyl);
+
+            return true;
+        }
+
+        public Plane GetPlatePlane()
+        {
+            return PlatePlane;
+        }
+
+        public Polyline[] GetPlateOutlines()
+        {
+            return PlateOutlines;
+        }
     }
 
 }

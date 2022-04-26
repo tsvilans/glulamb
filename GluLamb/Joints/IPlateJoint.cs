@@ -14,5 +14,7 @@ namespace GluLamb.Joints
         double MaxFilletRadius { get; set; }
         Brep CreatePlate();
         Plane GetPlatePlane();
+
+        Polyline[] GetPlateOutlines();
     }
 }

@@ -1305,10 +1305,11 @@ namespace GluLamb.Blanks
             }
         }
 
-        public Line[] GetSegmentLines(int num_lines=17)
+        public List<Line> GetSegmentLines()
         {
-            int N = num_lines;
-            var lines = new Line[N];
+            var lines = new List<Line>();
+
+            int N = (int)Variables["SEC_N"];
 
             double x0, x1, y0, y1;
 
@@ -1318,9 +1319,9 @@ namespace GluLamb.Blanks
             x1 = Variables["BL_E_1_OUT_X"];
             y1 = Variables["BL_E_1_OUT_Y"];
 
-            lines[0] = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
+            lines.Add(new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0)));
 
-            for (int i = 1; i < N - 1; ++i)
+            for (int i = 1; i < N + 1; ++i)
             {
                 x0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_X", i, i + 1)];
                 y0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_Y", i, i + 1)];
@@ -1330,7 +1331,7 @@ namespace GluLamb.Blanks
 
                 var line = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
                 if (line.IsValid)
-                    lines[i] = line;
+                    lines.Add(line);
             }
 
             x0 = Variables["BL_E_2_IN_X"];
@@ -1339,7 +1340,7 @@ namespace GluLamb.Blanks
             x1 = Variables["BL_E_2_OUT_X"];
             y1 = Variables["BL_E_2_OUT_Y"];
 
-            lines[N - 1] = new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0));
+            lines.Add(new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0)));
 
             return lines;
         }

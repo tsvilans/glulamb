@@ -17,6 +17,7 @@ namespace GluLamb.Joints
         public static double DefaultLapLength = 250;
         public static double DefaultLapAngle = RhinoMath.ToRadians(25.0);
         public static double DefaultAdded = 10.0;
+        public static double DefaultRotation = 0.0;
 
         public static bool DefaultBackCut = true;
         public static bool DefaultAngleDowels = false;
@@ -27,6 +28,7 @@ namespace GluLamb.Joints
         public double DowelDiameter;
         public double LapLength;
         public double LapAngle;
+        public double Rotation;
         public double Added;
 
         public bool BackCut;
@@ -42,6 +44,7 @@ namespace GluLamb.Joints
 
             BackCut = DefaultBackCut;
             AngleDowels = DefaultAngleDowels;
+            Rotation = DefaultRotation;
         }
 
         public override bool Construct(bool append = false)
@@ -75,6 +78,8 @@ namespace GluLamb.Joints
             var commonY = (y0 + y1) / 2;
 
             var jplane = new Plane((planes[0].Origin + planes[1].Origin) / 2, commonX, commonY);
+            if (Rotation > 0)
+                jplane.Transform(Transform.Rotation(Rotation, jplane.ZAxis, jplane.Origin));
             debug.Add(jplane);
 
             var width0 = beams[0].Width;
