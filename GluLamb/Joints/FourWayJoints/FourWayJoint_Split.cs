@@ -9,7 +9,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
-    public class FourWayJoint_Split : FourWayJoint
+    public class FourWayJoint_Split : FourWayJoint, IDowelJoint
     {
 
         public static double DefaultPlateThickness = 20.0;
@@ -33,6 +33,7 @@ namespace GluLamb.Joints
         /// Thickness of connector plate.
         /// </summary>
         public double PlateThickness = 21.0;
+        public double ToleranceSlotEnd = 1.5;
 
         /// <summary>
         /// Depth (or width) of plate
@@ -49,17 +50,20 @@ namespace GluLamb.Joints
         /// <summary>
         /// Dowel position radially from the joint origin.
         /// </summary>
-        public double DowelPosition = 70.0;
+        public double DowelPosition { get; set; }
 
         /// <summary>
         /// Dowel diameter.
         /// </summary>
-        public double DowelDiameter = 12.0;
+        public double DowelDiameter { get; set; }
 
         /// <summary>
         /// Dowel length.
         /// </summary>
-        public double DowelLength = 140.0;
+        public double DowelLength { get; set; }
+        public double DowelLengthExtra { get; set; }
+
+        public List<Dowel> Dowels { get; set; }
 
         /// <summary>
         /// Amount to extend the intersection cutter beyond the joint.
@@ -109,14 +113,16 @@ namespace GluLamb.Joints
             CutterExtension = DefaultCutterExtension;
             CutterToleranceExtension = DefaultCutterToleranceExtension;
             CutterLipWidth = DefaultCutterLipWidth;
-    }
+
+            Dowels = new List<Dowel>();
+        }
 
         public override string ToString()
         {
             return "FourWayJoint_Split";
         }
 
-        private List<Vector3d> SortPartsClockwise()
+        protected List<Vector3d> SortPartsClockwise()
         {
             var outerPt = OuterSurface.ClosestPoint(this.Plane.Origin);
             var innerPt = InnerSurface.ClosestPoint(this.Plane.Origin);
@@ -160,9 +166,10 @@ namespace GluLamb.Joints
         }
 
 
-        private Brep CreatePlateSlot(int index, Vector3d vec)
+        protected Brep CreatePlateSlot(int index, Vector3d vec)
         {
             var endPlane = EndPlanes[index];
+            endPlane.Origin = endPlane.Origin + endPlane.ZAxis * ToleranceSlotEnd;
             var sidePlane = LeftPlanes[index];
 
             //vec = PlatePlane.Project(vec);
@@ -235,7 +242,7 @@ namespace GluLamb.Joints
             return extBrep;
         }
 
-        private Brep CreateCrossCutter(int index)
+        protected Brep CreateCrossCutter(int index)
         {
             int i = index;
             int ii = (index + 3).Modulus(4);
@@ -511,6 +518,15 @@ namespace GluLamb.Joints
 
             for (int i = 0; i < 4; ++i)
             {
+                int iplus = (i + 1).Modulus(4);
+                int iminus = (i - 1).Modulus(4);
+
+                double dotPlus = EndPlanes[i].ZAxis * EndPlanes[iplus].ZAxis;
+                double dotMinus = EndPlanes[i].ZAxis * EndPlanes[iminus].ZAxis;
+
+                double dot = Math.Max(dotPlus, dotMinus);
+                double endOffset = Interpolation.Lerp(PlateLength, PlateLength * 2, dot);
+
                 var dir = dirs[i];
                 dir = PlatePlane.Project(dir);
                 dir.Unitize();
@@ -519,7 +535,7 @@ namespace GluLamb.Joints
                 // Check for neighbouring planes and extend plate length to
                 // accommodate tool radius in plate fillet
 
-                EndPlanes[i] = new Plane(cpt + dir * PlateLength, dir);
+                EndPlanes[i] = new Plane(cpt + dir * endOffset, dir);
 
                 var dowelPt = this.Plane.Origin + dir * DowelPosition;
 

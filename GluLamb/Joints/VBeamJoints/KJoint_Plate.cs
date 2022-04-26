@@ -972,6 +972,8 @@ namespace GluLamb.Joints
 
         public static double DefaultCutterSize = 300;
 
+        ConnectorPlate Plate;
+
         public double PlateDepth = 50.0;
         public double PlateSlotDepth = 50.0;
         public double PlateWidth = 80.0;
@@ -1155,6 +1157,9 @@ namespace GluLamb.Joints
             //insertionVector = -PlatePlane.XAxis;
 
             var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * PlateDepth, InsertionVector);
+            Plate = new ConnectorPlate();
+            Plate.Thickness = PlateThickness;
+            Plate.Plane = PlatePlane;
 
             var objs = new List<object>();
 
@@ -1197,6 +1202,8 @@ namespace GluLamb.Joints
 
                 var poly = new Polyline(pts);
                 poly.Add(poly[0]);
+
+                Plate.Outlines[i] = poly;
 
                 Segments[i, 0] = new Polyline(new Point3d[] { pts[0], pts[1], pts[2] }).ToNurbsCurve();
                 Segments[i, 1] = new Polyline(new Point3d[] { pts[2], pts[3] }).ToNurbsCurve();
@@ -1251,7 +1258,14 @@ namespace GluLamb.Joints
             var joined = Brep.JoinBreps(breps, 0.01);
             joined[0].Faces.SplitKinkyFaces(0.1);
 
+            Plate.Geometry = joined[0];
+
             return joined[0];
+        }
+
+        public ConnectorPlate GetConnectorPlate()
+        {
+            return Plate;
         }
 
         protected Brep CreateSillCutter()
@@ -1809,6 +1823,8 @@ namespace GluLamb.Joints
                 var dowelCyl = new Cylinder(
                   new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
 
+                Dowels.Add(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter);
+
                 Parts[i].Geometry.Add(dowelCyl);
             }
 
@@ -2090,7 +2106,7 @@ namespace GluLamb.Joints
       */
     }
 
-    public class KJoint_Plate6 : GluLamb.Joints.VBeamJoint, IPlateJoint
+    public class KJoint_Plate6 : GluLamb.Joints.VBeamJoint, IPlateJoint, IDowelJoint
     {
         public static double DefaultPlateDepth = 50.0;
         public static double DefaultPlateThickness = 20.0;
@@ -2124,10 +2140,20 @@ namespace GluLamb.Joints
         public double ToolDiameter = 16.0;
 
         public double DowelPosition = 20;
-        public double DowelLength = 220.0;
-        public double DowelDiameter = 16.0;
+        public double DowelLengthExtra { get; set; }
+        public double DowelLength { get; set; }
+        public double DowelDiameter { get; set; }
+        public List<Dowel> Dowels { get; set; }
+
+
+
         public double Added = 5.0;
         public double AddedSlot = 100;
+
+        public double ToleranceTenonSide = 0.5;
+        public double ToleranceTenonEnd = 1.5;
+        public double ToleranceSlotEnd = 1.5;
+        public double TolerancePlateDowels = 1.5;
 
         public bool SingleInsertionDirection = true;
 
@@ -2172,6 +2198,7 @@ namespace GluLamb.Joints
         /// </summary>
         protected Plane[] TenonSidePlanes;
 
+        protected ConnectorPlate Plate;
 
         /// <summary>
         /// Plane that the connector plate lies on
@@ -2235,6 +2262,8 @@ namespace GluLamb.Joints
             Mode = DefaultMode;
 
             CutterSize = DefaultCutterSize;
+
+            Dowels = new List<Dowel>();
         }
 
         public override string ToString()
@@ -2322,10 +2351,14 @@ namespace GluLamb.Joints
 
         public Brep CreatePlate()
         {
-            var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
-            insertionVector.Unitize();
+            //var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
+            //insertionVector.Unitize();
 
-            var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * PlateDepth, InsertionVector);
+            var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * (PlateDepth - ToleranceTenonEnd), InsertionVector);
+
+            Plate = new ConnectorPlate();
+            Plate.Plane = PlatePlane;
+            Plate.Thickness = PlateThickness;
 
             Plane[] xPlanes;
 
@@ -2390,9 +2423,9 @@ namespace GluLamb.Joints
                 }
                 else
                 {
-                    xxPlanes = new Plane[]{TenonSidePlanes[0], SillPlane, OutsidePlanes[0],
+                    xxPlanes = new Plane[]{SillPlane, OutsidePlanes[0],
                         EndPlanes[0], SeamPlanes[0], SeamPlanes[1], EndPlanes[1],
-                        OutsidePlanes[1], SillPlane, TenonSidePlanes[1], TenonEndPlane};
+                        OutsidePlanes[1], SillPlane, TenonSidePlanes[1], TenonEndPlane, TenonSidePlanes[0]};
                 }
 
                 pts = new Point3d[xxPlanes.Length];
@@ -2403,8 +2436,8 @@ namespace GluLamb.Joints
                     Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], xxPlanes[j], xxPlanes[jj], out pts[j]);
                 }
 
-                PlateOutlines[i] = new Polyline(pts);
-                PlateOutlines[i].Add(PlateOutlines[i][0]);
+                Plate.Outlines[i] = new Polyline(pts);
+                Plate.Outlines[i].Add(PlateOutlines[i][0]);
 
                 if (corner2)
                 {
@@ -2501,7 +2534,9 @@ namespace GluLamb.Joints
                 return null;
 
             joined[0].Faces.SplitKinkyFaces(0.1);
-            return joined[0];
+            Plate.Geometry = joined[0];
+
+            return Plate.Geometry;
         }
 
         protected Brep CreateSillCutter()
@@ -2523,13 +2558,13 @@ namespace GluLamb.Joints
 
             var tsp0 = TenonSidePlanes[0];
             var tsp1 = TenonSidePlanes[1];
-            double TENON_TOLERANCE = 0.5;
+            //double ToleranceTenonSide = 0.5;
 
             var tsp = new Plane[] { TenonSidePlanes[0], TenonSidePlanes[1] };
 
             int sign = tsp[0].ZAxis * (tsp[1].Origin - tsp[0].Origin) > 0 ? 1 : -1;
-            tsp[0].Origin = tsp[0].Origin - tsp[0].ZAxis * TENON_TOLERANCE * sign;
-            tsp[1].Origin = tsp[1].Origin - tsp[1].ZAxis * TENON_TOLERANCE * sign;
+            tsp[0].Origin = tsp[0].Origin - tsp[0].ZAxis * ToleranceTenonSide * sign;
+            tsp[1].Origin = tsp[1].Origin - tsp[1].ZAxis * ToleranceTenonSide * sign;
 
             if (sign < 0)
                 tsp = new Plane[] { tsp[1], tsp[0] };
@@ -2553,9 +2588,9 @@ namespace GluLamb.Joints
 
         protected Brep CreatePlateSlot(int index)
         {
-            double PLATE_END_TOLERANCE = 1.0;
+            //double ToleranceSlotEnd = 1.5;
             var endPlane = EndPlanes[index];
-            endPlane.Origin = endPlane.Origin - endPlane.ZAxis * PLATE_END_TOLERANCE;
+            endPlane.Origin = endPlane.Origin - endPlane.ZAxis * ToleranceSlotEnd;
             var sidePlane = SeamPlanes[index];
             var outsidePlane = OutsidePlanes[index];
 
@@ -2861,7 +2896,7 @@ namespace GluLamb.Joints
                 if (SingleInsertionDirection)
                     EndPlanes[i] = new Plane(endPts[i], PlatePlane.XAxis * -sign, PlatePlane.ZAxis);
                 else
-                    EndPlanes[i] = new Plane(endPts[i], BeamPlanes[i].XAxis, PlatePlane.ZAxis);
+                    EndPlanes[i] = new Plane(endPts[i], -BeamPlanes[i].XAxis, PlatePlane.ZAxis);
             }
 
             sign = -1;
@@ -2974,6 +3009,8 @@ namespace GluLamb.Joints
                 var dowelCyl = new Cylinder(
                   new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
 
+                Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter));
+
                 Parts[i].Geometry.Add(dowelCyl);
             }
 
@@ -2984,19 +3021,16 @@ namespace GluLamb.Joints
             var portalDowelCyl = new Cylinder(
               new Circle(portalDowelPlane, DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
 
+            Dowels.Add(new Dowel(new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength), DowelDiameter));
+
             this.Beam.Geometry.Add(portalDowelCyl);
 
             return true;
         }
 
-        public Plane GetPlatePlane()
+        public ConnectorPlate GetConnectorPlate()
         {
-            return PlatePlane;
-        }
-
-        public Polyline[] GetPlateOutlines()
-        {
-            return PlateOutlines;
+            return Plate;
         }
     }
 

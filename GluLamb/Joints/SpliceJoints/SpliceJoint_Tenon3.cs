@@ -17,8 +17,6 @@ namespace GluLamb.Joints
         public static double DefaultDowelInclination = 0.0;
         public static double DefaultAdded = 10.0;
 
-        public List<object> debug;
-
         public double TenonLength;
         public double DowelLength;
         public double DowelDiameter;

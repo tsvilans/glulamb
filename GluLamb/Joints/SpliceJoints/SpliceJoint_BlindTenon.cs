@@ -35,10 +35,10 @@ namespace GluLamb.Joints
         public double DowelDiameter { get; set; }
         public double DowelLengthExtra { get; set; }
         public double DowelSideTolerance { get; set; }
-        public List<double> DowelLengths { get; set; }
+        public List<Dowel> Dowels { get; set; }
 
-        public double SideTolerance = 0.5;
-        public double EndTolerance = 1.5;
+        public double ToleranceSide = 0.5;
+        public double ToleranceEnd = 1.5;
 
         private Plane EndPlane;
         private Plane EndPlaneT;
@@ -58,7 +58,7 @@ namespace GluLamb.Joints
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
             DowelSideTolerance = DefaultDowelSideTolerance;
-            DowelLengths = new List<double>();
+            Dowels = new List<Dowel>();
         }
 
         public SpliceJoint_BlindTenon(SpliceJoint sj) : base(sj)
@@ -73,7 +73,7 @@ namespace GluLamb.Joints
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
             DowelSideTolerance = DefaultDowelSideTolerance;
-            DowelLengths = new List<double>();
+            Dowels = new List<Dowel>();
 
         }
 
@@ -163,8 +163,8 @@ namespace GluLamb.Joints
             TenonWidth = Math.Min(Width, TenonWidth);
             TenonHeight = Math.Min(Height, TenonHeight);
 
-            var cutter = CreateTenon(0, EndTolerance);
-            var cutterHole = CreateTenon(SideTolerance, 0);
+            var cutter = CreateTenon(0, ToleranceEnd);
+            var cutterHole = CreateTenon(ToleranceSide, 0);
 
             FirstHalf.Geometry.Add(cutter);
             SecondHalf.Geometry.Add(cutterHole);
@@ -175,6 +175,8 @@ namespace GluLamb.Joints
             // Create dowels
             var dowelPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength * 0.5, planes[0].YAxis);
             dowelPlane.Transform(Transform.Translation(dowelPlane.ZAxis * Width * 0.5));
+
+            Dowels.Add(new Dowel(new Line(dowelPlane.Origin, dowelPlane.ZAxis * DowelLength), DowelDiameter));
 
             var dowel = new Cylinder(
               new Circle(dowelPlane, DowelDiameter * 0.5), DowelLength);

@@ -24,6 +24,7 @@ namespace GluLamb.Joints
         public double DowelSideTolerance { get; set; }
         public List<double> DowelLengths { get; set; }
 
+        public List<Dowel> Dowels { get; set; }
 
         public ButtJoint1(List<Element> elements, Factory.JointCondition jc) : base(elements, jc)
         {
@@ -32,7 +33,8 @@ namespace GluLamb.Joints
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
-            DowelLengths = new List<double>();
+
+            Dowels = new List<Dowel>();
         }
 
         public ButtJoint1(List<Element> elements, Factory.JointConditionPart tenon, Factory.JointConditionPart mortise) : base(elements, tenon, mortise)
@@ -42,7 +44,8 @@ namespace GluLamb.Joints
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
-            DowelLengths = new List<double>();
+
+            Dowels = new List<Dowel>();
 
         }
 
@@ -109,10 +112,14 @@ namespace GluLamb.Joints
                 cylTenon.Height1 = -DowelLengthExtra;
                 cylTenon.Height2 = DowelLength;
 
+                var adTenonAxis = new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +
+                    cylTenon.BasePlane.ZAxis * cylTenon.Height2);
+
                 adTenon.Set(string.Format("Plane{0}", counter), dowelPlaneTenon);
-                adTenon.Set(string.Format("Dowel{0}_{1}", counter, Mortise.Element.Name), 
-                    new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +
-                    cylTenon.BasePlane.ZAxis * cylTenon.Height2));
+                adTenon.Set(string.Format("Dowel{0}_{1}", counter, Mortise.Element.Name), adTenonAxis
+                    );
+
+                Dowels.Add(new Dowel(adTenonAxis, DowelDiameter));
 
                 //Tenon.Element.UserDictionary.Set(String.Format("Dowel{0}T_{1}", counter, Mortise.Element.Name),
                 //    new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +
@@ -128,18 +135,18 @@ namespace GluLamb.Joints
                 //    new Line(cylMortise.BasePlane.Origin + cylMortise.BasePlane.ZAxis * cylMortise.Height1, cylMortise.BasePlane.Origin +
                 //    cylMortise.BasePlane.ZAxis * cylMortise.Height2));
 
+                var adMortiseAxis = new Line(cylMortise.BasePlane.Origin + cylMortise.BasePlane.ZAxis * cylMortise.Height1, cylMortise.BasePlane.Origin +
+                    cylMortise.BasePlane.ZAxis * cylMortise.Height2);
+
                 adMortise.Set(string.Format("Plane{0}", counter), dowelPlaneMortise);
-                adMortise.Set(String.Format("Dowel{0}_{1}", counter, Tenon.Element.Name),
-                    new Line(cylMortise.BasePlane.Origin + cylMortise.BasePlane.ZAxis * cylMortise.Height1, cylMortise.BasePlane.Origin +
-                    cylMortise.BasePlane.ZAxis * cylMortise.Height2));
+                adMortise.Set(String.Format("Dowel{0}_{1}", counter, Tenon.Element.Name), adMortiseAxis
+                    );
 
                 //throw new Exception(string.Format("{0}: height1 {1}; height2 {2}; baseplane {3}; total height: {4}; radius {5}", 
                 //    DowelDiameter, cylTenon.Height1, cylTenon.Height2, cylTenon.BasePlane, cylTenon.TotalHeight, cylTenon.Radius));
 
                 Tenon.Geometry.Add(cylTenon.ToBrep(true, true));
                 Mortise.Geometry.Add(cylMortise.ToBrep(true, true));
-
-                DowelLengths.Add(DowelLength);
 
                 counter++;
             }
