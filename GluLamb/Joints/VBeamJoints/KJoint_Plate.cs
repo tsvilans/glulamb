@@ -984,8 +984,10 @@ namespace GluLamb.Joints
         public double MaxFilletRadius { get; set; }
 
         public double DowelPosition = 60;
-        public double DowelLength = 220.0;
-        public double DowelDiameter = 12.0;
+        public double DowelLength { get; set; }
+        public double DowelLengthExtra { get; set; }
+        public double DowelDiameter { get; set; }
+        public List<Dowel> Dowels { get; set; }
         public double Added = 5.0;
         public double AddedSlot = 100;
 
@@ -1823,7 +1825,7 @@ namespace GluLamb.Joints
                 var dowelCyl = new Cylinder(
                   new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
 
-                Dowels.Add(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter);
+                Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter));
 
                 Parts[i].Geometry.Add(dowelCyl);
             }
@@ -1839,16 +1841,6 @@ namespace GluLamb.Joints
 
             return true;
         }
-
-        public Plane GetPlatePlane()
-        {
-            return PlatePlane;
-        }
-
-        public Polyline[] GetPlateOutlines()
-        {
-            throw new NotImplementedException();
-        }
     }
 
 
@@ -1862,7 +1854,6 @@ namespace GluLamb.Joints
 
         public KJoint_Plate6Joist(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
-
         }
 
         /*
@@ -2115,7 +2106,9 @@ namespace GluLamb.Joints
         public static double DefaultPlateEndOffset = 0;
 
         public static double DefaultDowelPosition = 40;
-        public static double DefaultDowelLength = 250.0;
+        public static double DefaultDowelLength = 130;
+        public static double DefaultDowelDrillDepth = 270;
+
         public static double DefaultDowelDiameter = 16.0;
 
         public static bool DefaultSingleInsertionDirection = true;
@@ -2142,6 +2135,7 @@ namespace GluLamb.Joints
         public double DowelPosition = 20;
         public double DowelLengthExtra { get; set; }
         public double DowelLength { get; set; }
+        public double DowelDrillDepth { get; set; }
         public double DowelDiameter { get; set; }
         public List<Dowel> Dowels { get; set; }
 
@@ -2209,8 +2203,6 @@ namespace GluLamb.Joints
         /// </summary>
         protected Plane[] PlateFacePlanes;
 
-        protected Polyline[] PlateOutlines;
-
         protected Plane SillPlatePlane;
 
         /// <summary>
@@ -2256,6 +2248,7 @@ namespace GluLamb.Joints
 
             DowelPosition = DefaultDowelPosition;
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
             DowelDiameter = DefaultDowelDiameter;
 
             SingleInsertionDirection = DefaultSingleInsertionDirection;
@@ -2303,9 +2296,10 @@ namespace GluLamb.Joints
             Point3d pt, local_pt;
             for (int i = 0; i < 2; ++i)
             {
-                for (int j = 0; j < xPlanes.Length; ++j)
+                //for (int j = 0; j < xPlanes.Length; ++j)
+                for (int j = 0; j < 2; ++j)
                 {
-                    Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], SillPlane, xPlanes[j], out pt);
+                        Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(PlateFacePlanes[i], SillPlane, xPlanes[j], out pt);
 
                     debug.Add(pt);
                     SillPlatePlane.RemapToPlaneSpace(pt, out local_pt);
@@ -2354,7 +2348,10 @@ namespace GluLamb.Joints
             //var insertionVector = PlatePlane.Project(-SillPlane.ZAxis);
             //insertionVector.Unitize();
 
-            var TenonEndPlane = new Plane(SillPlane.Origin + InsertionVector * (PlateDepth - ToleranceTenonEnd), InsertionVector);
+            var TenonEndPlane = new Plane(SillPlatePlane.Origin + InsertionVector * (PlateDepth - ToleranceTenonEnd), InsertionVector);
+
+            debug.Add(TenonEndPlane);
+            debug.Add(SillPlatePlane);
 
             Plate = new ConnectorPlate();
             Plate.Plane = PlatePlane;
@@ -2385,8 +2382,6 @@ namespace GluLamb.Joints
             double maxRadius = radius;
 
             bool corner2 = false; // Flag if the innner corner is chamfered (Mode 1 or -1)
-
-            PlateOutlines = new Polyline[2];
 
             for (int i = 0; i < 2; ++i)
             {
@@ -2437,7 +2432,7 @@ namespace GluLamb.Joints
                 }
 
                 Plate.Outlines[i] = new Polyline(pts);
-                Plate.Outlines[i].Add(PlateOutlines[i][0]);
+                Plate.Outlines[i].Add(pts[0]);
 
                 if (corner2)
                 {
@@ -2789,6 +2784,12 @@ namespace GluLamb.Joints
 
             // SillPlatePlane is the plane projected onto SillPlane that is aligned with the PlatePlane normal vector
             SillPlatePlane = new Plane(SillPlane.Origin, SillPlane.Project(PlatePlane.ZAxis), SillPlane.XAxis);
+            if (SillPlatePlane.ZAxis * VSum < 0)
+                SillPlatePlane = new Plane(SillPlatePlane.Origin, -SillPlatePlane.XAxis, SillPlatePlane.YAxis);
+
+            Point3d SillPlateOrigin;
+            Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SillPlane, PlatePlane, KPlane, out SillPlateOrigin);
+            SillPlatePlane.Origin = SillPlateOrigin;
 
             //debug.Add(this.Plane);
 

@@ -27,11 +27,13 @@ namespace GluLamb.Joints
     {
         public double Diameter = 16;
         public Line Axis;
+        public double DrillDepth;
 
-        public Dowel(Line axis, double diameter=16)
+        public Dowel(Line axis, double diameter=16, double depth=0)
         {
             Axis = axis;
             Diameter = diameter;
+            DrillDepth = depth > 0? depth : axis.Length;
         }
     }
 }

@@ -12,6 +12,7 @@ namespace GluLamb.Joints
     {
         public static double DefaultTrimPlaneSize = 300.0;
         public static double DefaultDowelLength = 100.0;
+        public static double DefaultDowelDrillDepth = 110;
         public static double DefaultDowelOffset = 30.0;
         public static double DefaultDowelDiameter = 12;
         public static double DefaultDowelLengthExtra = 20.0;
@@ -20,6 +21,8 @@ namespace GluLamb.Joints
         public double DowelOffset = 30.0;
         public double DowelDiameter {get;set;}
         public double DowelLength { get; set; }
+        public double DowelDrillDepth { get; set; }
+
         public double DowelLengthExtra { get; set; }
         public double DowelSideTolerance { get; set; }
         public List<double> DowelLengths { get; set; }
@@ -30,6 +33,8 @@ namespace GluLamb.Joints
         {
             TrimPlaneSize = DefaultTrimPlaneSize;
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
+
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
@@ -41,6 +46,7 @@ namespace GluLamb.Joints
         {
             TrimPlaneSize = DefaultTrimPlaneSize;
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
             DowelOffset = DefaultDowelOffset;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
@@ -94,6 +100,8 @@ namespace GluLamb.Joints
             var adTenon = new ArchivableDictionary();
             var adMortise = new ArchivableDictionary();
 
+            double drillDepth = DowelDrillDepth;
+
             int counter = 0;
             for (int i = -1; i < 2; i += 2)
             {
@@ -107,10 +115,12 @@ namespace GluLamb.Joints
                 var dowelPlaneMortise = new Plane(dp, tz);
 
                 var cylTenon = new Cylinder(
-                  new Circle(dowelPlaneTenon, DowelDiameter * 0.5), DowelLength);//.ToBrep(true, true);
+                  new Circle(dowelPlaneTenon, DowelDiameter * 0.5), drillDepth);//.ToBrep(true, true);
+
+                var dowelAxis = new Line(dowelPlaneTenon.Origin, dowelPlaneTenon.ZAxis * DowelLength);
 
                 cylTenon.Height1 = -DowelLengthExtra;
-                cylTenon.Height2 = DowelLength;
+                cylTenon.Height2 = drillDepth;
 
                 var adTenonAxis = new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +
                     cylTenon.BasePlane.ZAxis * cylTenon.Height2);
@@ -119,7 +129,7 @@ namespace GluLamb.Joints
                 adTenon.Set(string.Format("Dowel{0}_{1}", counter, Mortise.Element.Name), adTenonAxis
                     );
 
-                Dowels.Add(new Dowel(adTenonAxis, DowelDiameter));
+                Dowels.Add(new Dowel(dowelAxis, DowelDiameter, drillDepth));
 
                 //Tenon.Element.UserDictionary.Set(String.Format("Dowel{0}T_{1}", counter, Mortise.Element.Name),
                 //    new Line(cylTenon.BasePlane.Origin + cylTenon.BasePlane.ZAxis * cylTenon.Height1, cylTenon.BasePlane.Origin +

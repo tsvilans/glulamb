@@ -20,6 +20,7 @@ namespace GluLamb.Joints
         public static double DefaultDowelPosition = 70.0;
         public static double DefaultDowelDiameter = 12.0;
         public static double DefaultDowelLength = 140.0;
+        public static double DefaultDowelDrillDepth = 140;
 
         public static double DefaultCutterExtension = 150;
         public static double DefaultCutterToleranceExtension = 10;
@@ -61,6 +62,7 @@ namespace GluLamb.Joints
         /// Dowel length.
         /// </summary>
         public double DowelLength { get; set; }
+        public double DowelDrillDepth { get; set; }
         public double DowelLengthExtra { get; set; }
 
         public List<Dowel> Dowels { get; set; }
@@ -109,6 +111,7 @@ namespace GluLamb.Joints
             DowelPosition = DefaultDowelPosition;
             DowelDiameter = DefaultDowelDiameter;
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
 
             CutterExtension = DefaultCutterExtension;
             CutterToleranceExtension = DefaultCutterToleranceExtension;

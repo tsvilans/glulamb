@@ -18,6 +18,7 @@ namespace GluLamb.Joints
         public static double DefaultToolDiameter = 16;
 
         public static double DefaultDowelLength = 220;
+        public static double DefaultDowelDrillDepth = 220;
         public static double DefaultDowelDiameter = 12;
         public static double DefaultDowelLengthExtra = 15;
         public static double DefaultDowelSideTolerance = 1;
@@ -32,6 +33,7 @@ namespace GluLamb.Joints
         public double ToolDiameter;
 
         public double DowelLength { get; set; }
+        public double DowelDrillDepth { get; set; }
         public double DowelDiameter { get; set; }
         public double DowelLengthExtra { get; set; }
         public double DowelSideTolerance { get; set; }
@@ -55,6 +57,7 @@ namespace GluLamb.Joints
             ToolDiameter = DefaultToolDiameter;
 
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
             DowelSideTolerance = DefaultDowelSideTolerance;
@@ -70,6 +73,8 @@ namespace GluLamb.Joints
             ToolDiameter = DefaultToolDiameter;
 
             DowelLength = DefaultDowelLength;
+            DowelDrillDepth = DefaultDowelDrillDepth;
+
             DowelDiameter = DefaultDowelDiameter;
             DowelLengthExtra = DefaultDowelLengthExtra;
             DowelSideTolerance = DefaultDowelSideTolerance;

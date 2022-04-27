@@ -9,6 +9,7 @@ namespace GluLamb.Joints
     public interface IDowelJoint
     {
         double DowelLength { get; set; }
+        double DowelDrillDepth { get; set; }
         double DowelDiameter { get; set; }
         double DowelLengthExtra { get; set; }
         //double DowelSideTolerance { get; set; }
