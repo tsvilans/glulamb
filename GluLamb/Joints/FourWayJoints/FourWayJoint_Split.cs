@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using GluLamb.Factory;
+using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
@@ -228,13 +229,26 @@ namespace GluLamb.Joints
             pts[2] = plane.PointAt(-hwidth, -slot_length);
             pts[3] = plane.PointAt(hwidth, -slot_length);
 
+            var topLoop = new Polyline(pts);
+            topLoop.Add(topLoop[0]);
 
-            var poly = new Polyline(pts);
-            poly.Add(poly[0]);
+            double width = (Parts[index].Element as BeamElement).Beam.Width;
+            pts[0] = plane.PointAt(hwidth, 0, -width);
+            pts[1] = plane.PointAt(-hwidth, 0, -width);
+            pts[2] = plane.PointAt(-hwidth, -slot_length, -width);
+            pts[3] = plane.PointAt(hwidth, -slot_length, -width);
+
+            var btmLoop = new Polyline(pts);
+            btmLoop.Add(btmLoop[0]);
+
+            var ad = new ArchivableDictionary();
+            ad.Set("TopLoop", topLoop.ToNurbsCurve());
+            ad.Set("BottomLoop", btmLoop.ToNurbsCurve());
+            Parts[index].Element.UserDictionary.Set("PlateSlot", ad);
 
             //debug.Add(poly);
 
-            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
+            var profile = Curve.CreateFilletCornersCurve(topLoop.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01); // Pocket profile
 
             var extrusion = Extrusion.CreateExtrusion(profile, vec * (depth + Added));
             Brep extBrep = extrusion.ToBrep();

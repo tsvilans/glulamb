@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Rhino.Geometry;
 using GluLamb.Factory;
 using Rhino;
+using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
@@ -2273,7 +2274,7 @@ namespace GluLamb.Joints
             // - bottom of plate, right
             // Find min and max of intersections on SillPlatePlane
             double min = double.MaxValue, max = double.MinValue;
-            double minT = 0, maxT = 0;
+
             Vector3d minNormal = Vector3d.Unset, maxNormal = Vector3d.Unset;
             Vector3d sillNormal = PlatePlane.Project(SillPlane.ZAxis); sillNormal.Unitize();
 
@@ -2337,10 +2338,15 @@ namespace GluLamb.Joints
 
             TenonSidePlanes = new Plane[2];
 
-            TenonSidePlanes[0] = new Plane(SillPlatePlane.PointAt(0, min),
-              -SillPlatePlane.YAxis);
-            TenonSidePlanes[1] = new Plane(SillPlatePlane.PointAt(0, max),
-              SillPlatePlane.YAxis);
+            //TenonSidePlanes[0] = new Plane(SillPlatePlane.PointAt(0, min), InsertionVector,
+            //  -SillPlatePlane.YAxis);
+            //TenonSidePlanes[1] = new Plane(SillPlatePlane.PointAt(0, max), InsertionVector,
+            //  SillPlatePlane.YAxis);
+
+            TenonSidePlanes[0] = new Plane(SillPlatePlane.PointAt(0, min), InsertionVector,
+              -PlatePlane.ZAxis);
+            TenonSidePlanes[1] = new Plane(SillPlatePlane.PointAt(0, max), InsertionVector,
+              PlatePlane.ZAxis);
         }
 
         public Brep CreatePlate()
@@ -2620,6 +2626,11 @@ namespace GluLamb.Joints
             var btmLoop = new Polyline(pts);
             btmLoop.Add(btmLoop[0]);
 
+            var ad = new ArchivableDictionary();
+            ad.Set("TopLoop", topLoop.ToNurbsCurve());
+            ad.Set("BottomLoop", btmLoop.ToNurbsCurve());
+            Parts[index].Element.UserDictionary.Set("PlateSlot", ad);
+
             var btmFace = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[2], pts[3], 0.01);
 
             var sideFaces = Brep.CreateFromLoft(new Curve[] { topLoop.ToNurbsCurve(), btmLoop.ToNurbsCurve() },
@@ -2638,8 +2649,9 @@ namespace GluLamb.Joints
             double r = 8;
             var filleted = Brep.CreateFilletEdges(joined, new int[] { 8, 9 }, new double[] { r, r }, new double[] { r, r },
               BlendType.Fillet, RailType.RollingBall, 0.01);
-
-            return filleted[0];
+            if (filleted.Length > 0)
+                return filleted[0];
+            return joined;
         }
 
         protected void CreatePlatePlanes(Point3d origin, Vector3d xaxis, Vector3d yaxis)
@@ -2728,10 +2740,7 @@ namespace GluLamb.Joints
             InsertionVector = -KPlane.Project(VSum);
             InsertionVector.Unitize();
 
-            // ***************
-            // PlatePlanes
-            // ***************
-            CreatePlatePlanes(KPlane.Origin, InsertionVector, BeamDirections[0]);
+
 
             // *******************************************************
             // Check the order of the V-beams and flip if necessary.
@@ -2779,6 +2788,15 @@ namespace GluLamb.Joints
             if (SillPlane.ZAxis * VSum < 0)
                 SillPlane = new Plane(SillPlane.Origin, -SillPlane.XAxis, SillPlane.YAxis);
 
+            // ***************
+            // PlatePlanes
+            // ***************
+
+            CreatePlatePlanes(KPlane.Origin, InsertionVector, BeamDirections[0]);
+
+            // ************************************
+            // SillOffsetPlane and SillPlatePlane
+            // ************************************
             // SillOffsetPlane is the safety plane for making cutters with a slight overlap
             var SillOffsetPlane = new Plane(SillPlane.Origin - SillPlane.ZAxis * 3.0, SillPlane.XAxis, SillPlane.YAxis);
 
@@ -3008,11 +3026,13 @@ namespace GluLamb.Joints
 
                 //var dowelPlane01 = new Plane(dowelPoints[i] - BeamPlanes[i].YAxis * DowelLength * 0.5, BeamPlanes[i].YAxis);
                 var dowelCyl = new Cylinder(
-                  new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+                  new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelDrillDepth).ToBrep(true, true);
 
-                Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter));
+                Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter, DowelDrillDepth));
 
                 Parts[i].Geometry.Add(dowelCyl);
+                Parts[i].Element.UserDictionary.Set("PlateDowel", new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength));
+
             }
 
             var portalDowelPoint = (TenonSidePlanes[0].Origin + TenonSidePlanes[1].Origin) * 0.5;
@@ -3025,6 +3045,7 @@ namespace GluLamb.Joints
             Dowels.Add(new Dowel(new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength), DowelDiameter));
 
             this.Beam.Geometry.Add(portalDowelCyl);
+            this.Beam.Element.UserDictionary.Set("PlateDowel", new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength));
 
             return true;
         }

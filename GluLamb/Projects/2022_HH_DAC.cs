@@ -59,6 +59,158 @@ namespace GluLamb.Projects.HHDAC22
         public abstract List<object> GetObjects();
     }
 
+    /// <summary>
+    /// This is a little bit complicated.
+    /// </summary>
+    public class SlotMachining : Operation
+    {
+        public Plane Plane;
+        public Polyline Outline;
+        public Rectangle3d SlotRectangle;
+        public double Depth;
+        public double Depth0;
+
+        public SlotMachining(string name="SlotMachining")
+        {
+            Name = name;
+            SlotRectangle = Rectangle3d.Unset;
+        }
+
+        public override List<object> GetObjects()
+        {
+            return new List<object> { Plane, Outline };
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}=1", prefix, Id));
+            // Sort out plane transformation here
+
+            var xaxis = Plane.XAxis;
+            var origin = Plane.Origin;
+            var xpoint = origin + xaxis * 100;
+
+            Plane plane;
+            double angle;
+            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
+
+
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, origin.Z));
+
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+
+            if (Outline != null)
+            {
+                for (int i = 0; i < Outline.Count; ++i)
+                {
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PKT_{2}_X={3:0.###}", prefix, Id, i + 1, Outline[i].X));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PKT_{2}_Y={3:0.###}", prefix, Id, i + 1, Outline[i].Y));
+                }
+            }
+
+            if (SlotRectangle.IsValid)
+            {
+                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_B={2:0.###}", prefix, Id, SlotRectangle.Y.Length));
+                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_L={2:0.###}", prefix, Id, SlotRectangle.X.Length));
+            }
+
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_DYBDE={2:0.###}", prefix, Id, Depth));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_DYBDE_0={2:0.###}", prefix, Id, Depth0));
+
+
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Plane.Transform(xform);
+            Outline.Transform(xform);
+            SlotRectangle.Transform(xform);
+        }
+    }
+
+    /// <summary>
+    /// A simplified version of DrillGroup which is for machining the dowel holes
+    /// for the plate connectors. These should be aligned on the beam's YZ plane, so 
+    /// should be perpendicular to the beam sides. This means that the plane defining
+    /// the drillings is perpendicular to the blank sides, so we don't need the Z-value
+    /// or the alpha angle.
+    /// 
+    /// There should only be one drilling in the Drillings list.
+    /// </summary>
+    public class SideDrillGroup : Operation
+    {
+        public Plane Plane;
+        public List<Drill2d> Drillings;
+
+        public SideDrillGroup(string name = "SideDrillGroup")
+        {
+            Name = name;
+            Drillings = new List<Drill2d>();
+            Plane = Plane.Unset;
+        }
+
+        public override List<object> GetObjects()
+        {
+            var things = new List<object> { Plane };
+            for (int i = 0; i < Drillings.Count; ++i)
+            {
+                things.AddRange(Drillings[i].GetObjects());
+            }
+            return things;
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}HUL_{1}=1", prefix, Id));
+            // Sort out plane transformation here
+
+            var xaxis = Plane.XAxis;
+            var origin = Plane.Origin;
+            var xpoint = origin + xaxis * 100;
+
+            Plane plane;
+            double angle;
+            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
+
+
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
+            //cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, origin.Z));
+
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
+            //cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
+            cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+
+            cix.Add(string.Format("{0}HUL_{1}_N={2}", prefix, Id, Drillings.Count));
+
+            for (int i = 0; i < Drillings.Count; ++i)
+            {
+                var d = Drillings[i];
+                Point3d pp;
+                plane.RemapToPlaneSpace(d.Position, out pp);
+                cix.Add(string.Format("\t(PlateDowel_{0}_{1})", Id, i + 1));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_X={3:0.###}", prefix, Id, i + 1, pp.X));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_Y={3:0.###}", prefix, Id, i + 1, pp.Y));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_DIA={3:0.###}", prefix, Id, i + 1, d.Diameter));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_DYBDE={3:0.###}", prefix, Id, i + 1, d.Depth));
+            }
+
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Plane.Transform(xform);
+            for (int i = 0; i < Drillings.Count; ++i)
+                Drillings[i].Transform(xform);
+        }
+    }
+
     public class DrillGroup : Operation
     {
         public Plane Plane;
@@ -102,7 +254,7 @@ namespace GluLamb.Projects.HHDAC22
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
-            cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+            //cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
 
             cix.Add(string.Format("{0}HUL_{1}_N={2}", prefix, Id, Drillings.Count));
 
