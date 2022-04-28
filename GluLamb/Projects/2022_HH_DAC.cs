@@ -9,6 +9,13 @@ using Rhino.Geometry;
 
 namespace GluLamb.Projects.HHDAC22
 {
+    public static class HHDAC22_CONSTANTS
+    {
+        public static double PlateThickness = 20.85;
+        public static double DowelDiameter = 16;
+        public static double ToolDiameter = 16;
+        public static double ToolRadius = ToolDiameter / 2;
+    }
     public interface ITransformable
     {
         void Transform(Transform xform);
@@ -64,6 +71,9 @@ namespace GluLamb.Projects.HHDAC22
     /// </summary>
     public class SlotMachining : Operation
     {
+        public Line XLine;
+        public double Angle;
+        public bool OverridePlane = false;
         public Plane Plane;
         public Polyline Outline;
         public double Radius;
@@ -89,21 +99,28 @@ namespace GluLamb.Projects.HHDAC22
             cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}=1", prefix, Id, postfix));
             // Sort out plane transformation here
 
-            var xaxis = Plane.XAxis;
-            var origin = Plane.Origin;
-            var xpoint = origin + xaxis * 100;
+            Point3d Origin = XLine.From;
+            Point3d XPoint = XLine.To;
+            double angle = Angle;
 
-            Plane plane;
-            double angle;
-            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
+            if (!OverridePlane)
+            {
+                var xaxis = Plane.XAxis;
+                Origin = Plane.Origin;
+                XPoint = Origin + xaxis * 100;
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_X={3:0.###}", prefix, Id, postfix, origin.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Y={3:0.###}", prefix, Id, postfix, origin.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Z={3:0.###}", prefix, Id, postfix, -origin.Z));
+                Plane plane;
+                GluLamb.Utility.AlignedPlane(Origin, Plane.ZAxis, out plane, out angle);
+            }
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_X={3:0.###}", prefix, Id, postfix, xpoint.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Y={3:0.###}", prefix, Id, postfix, xpoint.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Z={3:0.###}", prefix, Id, postfix, -xpoint.Z));
+
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_X={3:0.###}", prefix, Id, postfix, Origin.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Y={3:0.###}", prefix, Id, postfix, Origin.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Z={3:0.###}", prefix, Id, postfix, -Origin.Z));
+
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_X={3:0.###}", prefix, Id, postfix, XPoint.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Y={3:0.###}", prefix, Id, postfix, XPoint.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Z={3:0.###}", prefix, Id, postfix, -XPoint.Z));
             cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_ALFA={3:0.###}", prefix, Id, postfix, RhinoMath.ToDegrees(angle)));
 
             int N = Rough ? 5 : 9;
@@ -123,9 +140,16 @@ namespace GluLamb.Projects.HHDAC22
                     cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PKT_{3}_Y={4:0.###}", prefix, Id, postfix, i + 1, temp.Y));
                 }
 
-                var bb = Outline.ToNurbsCurve().GetBoundingBox(Plane);
-                cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, bb.Max.Y - bb.Min.Y));
-                cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, bb.Max.X - bb.Min.X));
+                if (Rough)
+                {
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[1].DistanceTo(Outline[2])));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[2].DistanceTo(Outline[3])));
+                }
+                else
+                {
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[3].DistanceTo(Outline[6])));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[5].DistanceTo(Outline[8])));
+                }
             }
 
             if (!Rough)
