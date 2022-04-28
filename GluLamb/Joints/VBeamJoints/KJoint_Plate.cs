@@ -2627,9 +2627,14 @@ namespace GluLamb.Joints
             btmLoop.Add(btmLoop[0]);
 
             var ad = new ArchivableDictionary();
+            ad.Set("SidePlane", sidePlane);
+            ad.Set("PlatePlane", PlatePlane);
+            ad.Set("EndPlane", endPlane);
+            ad.Set("OutsidePlane", outsidePlane);
+            ad.Set("PlateThickness", PlateThickness);
             ad.Set("TopLoop", topLoop.ToNurbsCurve());
             ad.Set("BottomLoop", btmLoop.ToNurbsCurve());
-            Parts[index].Element.UserDictionary.Set("PlateSlot", ad);
+            Parts[index].Element.UserDictionary.Set(String.Format("PlateSlot_{0}", Guid.NewGuid().ToString().Substring(0, 8)), ad);
 
             var btmFace = Brep.CreateFromCornerPoints(pts[0], pts[1], pts[2], pts[3], 0.01);
 
@@ -2915,7 +2920,9 @@ namespace GluLamb.Joints
                 if (SingleInsertionDirection)
                     EndPlanes[i] = new Plane(endPts[i], PlatePlane.XAxis * -sign, PlatePlane.ZAxis);
                 else
-                    EndPlanes[i] = new Plane(endPts[i], -BeamPlanes[i].XAxis, PlatePlane.ZAxis);
+                {
+                    EndPlanes[i] = new Plane(endPts[i], PlatePlane.Project(-BeamPlanes[i].XAxis), PlatePlane.ZAxis);
+                }
             }
 
             sign = -1;
@@ -3031,7 +3038,7 @@ namespace GluLamb.Joints
                 Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter, DowelDrillDepth));
 
                 Parts[i].Geometry.Add(dowelCyl);
-                Parts[i].Element.UserDictionary.Set("PlateDowel", new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength));
+                Parts[i].Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength));
 
             }
 
@@ -3045,7 +3052,7 @@ namespace GluLamb.Joints
             Dowels.Add(new Dowel(new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength), DowelDiameter));
 
             this.Beam.Geometry.Add(portalDowelCyl);
-            this.Beam.Element.UserDictionary.Set("PlateDowel", new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength));
+            this.Beam.Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength));
 
             return true;
         }

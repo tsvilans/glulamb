@@ -241,10 +241,20 @@ namespace GluLamb.Joints
             var btmLoop = new Polyline(pts);
             btmLoop.Add(btmLoop[0]);
 
+            //var ad = new ArchivableDictionary();
+            //ad.Set("TopLoop", topLoop.ToNurbsCurve());
+            //ad.Set("BottomLoop", btmLoop.ToNurbsCurve());
+            //Parts[index].Element.UserDictionary.Set("PlateSlot", ad);
+
             var ad = new ArchivableDictionary();
+            ad.Set("SidePlane", sidePlane);
+            ad.Set("OutsidePlane", RightPlanes[index]);
+            ad.Set("EndPlane", endPlane);
+            ad.Set("PlatePlane", PlatePlane);
+            ad.Set("PlateThickness", PlateThickness);
             ad.Set("TopLoop", topLoop.ToNurbsCurve());
             ad.Set("BottomLoop", btmLoop.ToNurbsCurve());
-            Parts[index].Element.UserDictionary.Set("PlateSlot", ad);
+            Parts[index].Element.UserDictionary.Set(String.Format("PlateSlot_{0}", Guid.NewGuid().ToString().Substring(0, 8)), ad);
 
             //debug.Add(poly);
 
@@ -559,14 +569,18 @@ namespace GluLamb.Joints
                 var dp = beams[i].GetPlane(dowelPt);
                 dp = new Plane(dp.Origin, dp.XAxis, Seams[i].Direction);
 
+                var dowelPlane = new Plane(dp.Origin - dp.YAxis * DowelLength * 0.5, dp.YAxis);
+
                 dowelCutters[i] = new Cylinder(
-                  new Circle(new Plane(dp.Origin - dp.YAxis * DowelLength * 0.5, dp.YAxis),
+                  new Circle(dowelPlane,
                   DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
 
                 dowelPlanes[i] = dp;
 
                 Parts[i].Geometry.Add(CreatePlateSlot(i, planes[i].XAxis));
                 Parts[i].Geometry.Add(dowelCutters[i]);
+                Parts[i].Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), new Line(dowelPlane.Origin, dowelPlane.ZAxis * DowelLength));
+
             }
 
             return true;

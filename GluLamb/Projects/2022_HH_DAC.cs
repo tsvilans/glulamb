@@ -66,14 +66,16 @@ namespace GluLamb.Projects.HHDAC22
     {
         public Plane Plane;
         public Polyline Outline;
-        public Rectangle3d SlotRectangle;
+        public double Radius;
         public double Depth;
         public double Depth0;
 
-        public SlotMachining(string name="SlotMachining")
+        public bool Rough = false;
+
+        public SlotMachining(string name = "SlotMachining", bool rough= false)
         {
             Name = name;
-            SlotRectangle = Rectangle3d.Unset;
+            Rough = rough;
         }
 
         public override List<object> GetObjects()
@@ -83,7 +85,8 @@ namespace GluLamb.Projects.HHDAC22
 
         public override void ToCix(List<string> cix, string prefix = "")
         {
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}=1", prefix, Id));
+            string postfix = Rough ? "_GROV" : "";
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}=1", prefix, Id, postfix));
             // Sort out plane transformation here
 
             var xaxis = Plane.XAxis;
@@ -94,42 +97,48 @@ namespace GluLamb.Projects.HHDAC22
             double angle;
             GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
 
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_X={3:0.###}", prefix, Id, postfix, origin.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Y={3:0.###}", prefix, Id, postfix, origin.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Z={3:0.###}", prefix, Id, postfix, -origin.Z));
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, origin.Z));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_X={3:0.###}", prefix, Id, postfix, xpoint.X));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Y={3:0.###}", prefix, Id, postfix, xpoint.Y));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Z={3:0.###}", prefix, Id, postfix, -xpoint.Z));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_ALFA={3:0.###}", prefix, Id, postfix, RhinoMath.ToDegrees(angle)));
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+            int N = Rough ? 5 : 9;
+
+            if (Outline.Count != N)
+            {
+                throw new Exception(string.Format("Incorrect number of points for slot machining. Rough={0}, requires {1} points.", Rough, N));
+            }
 
             if (Outline != null)
             {
+                Point3d temp;
                 for (int i = 0; i < Outline.Count; ++i)
                 {
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PKT_{2}_X={3:0.###}", prefix, Id, i + 1, Outline[i].X));
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}_PKT_{2}_Y={3:0.###}", prefix, Id, i + 1, Outline[i].Y));
+                    Plane.RemapToPlaneSpace(Outline[i], out temp);
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PKT_{3}_X={4:0.###}", prefix, Id, postfix, i + 1, temp.X));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PKT_{3}_Y={4:0.###}", prefix, Id, postfix, i + 1, temp.Y));
                 }
+
+                var bb = Outline.ToNurbsCurve().GetBoundingBox(Plane);
+                cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, bb.Max.Y - bb.Min.Y));
+                cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, bb.Max.X - bb.Min.X));
             }
 
-            if (SlotRectangle.IsValid)
-            {
-                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_B={2:0.###}", prefix, Id, SlotRectangle.Y.Length));
-                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_L={2:0.###}", prefix, Id, SlotRectangle.X.Length));
-            }
+            if (!Rough)
+                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_R={2:0.###}", prefix, Id, Radius));
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_DYBDE={2:0.###}", prefix, Id, Depth));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}_DYBDE_0={2:0.###}", prefix, Id, Depth0));
-
-
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_DYBDE={3:0.###}", prefix, Id, postfix, Depth));
+            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_DYBDE_0={3:0.###}", prefix, Id, postfix, Depth0));
         }
 
         public override void Transform(Transform xform)
         {
             Plane.Transform(xform);
             Outline.Transform(xform);
-            SlotRectangle.Transform(xform);
         }
     }
 
@@ -185,7 +194,7 @@ namespace GluLamb.Projects.HHDAC22
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
             //cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
-            cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+            //cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
 
             cix.Add(string.Format("{0}HUL_{1}_N={2}", prefix, Id, Drillings.Count));
 
