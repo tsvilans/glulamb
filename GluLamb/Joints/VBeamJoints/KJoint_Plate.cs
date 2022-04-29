@@ -2547,7 +2547,9 @@ namespace GluLamb.Joints
             //xaxis = SillPlatePlane.YAxis;
             var xaxis = Vector3d.CrossProduct(PlatePlane.ZAxis, InsertionVector);
             debug.Add(SillPlane);
+            
             Point3d origin;
+            var TenonEndPlane = new Plane(SillPlatePlane.Origin + InsertionVector * PlateSlotDepth, InsertionVector);
 
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(SillPlane, new Plane(SillPlane.Origin, SillPlane.ZAxis, SillPlane.YAxis), PlatePlane, out origin);
 
@@ -2574,6 +2576,17 @@ namespace GluLamb.Joints
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[1], tsp[1], out pts[1]);
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[1], tsp[0], out pts[2]);
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(plane, PlateFacePlanes[0], tsp[0], out pts[3]);
+
+            var ad = new ArchivableDictionary();
+            ad.Set("TenonSide0", tsp[0]);
+            ad.Set("TenonSide1", tsp[1]);
+            ad.Set("PlateFace0", PlateFacePlanes[0]);
+            ad.Set("PlateFace1", PlateFacePlanes[1]);
+            ad.Set("EndPlane", TenonEndPlane);
+            ad.Set("SlotPlane", plane);
+            ad.Set("Depth", PlateSlotDepth);
+
+            Beam.Element.UserDictionary.Set(String.Format("TenonSlot_{0}_{1}",V0.Element.Name, V1.Element.Name), ad);
 
             var poly = new Polyline(pts);
             poly.Add(poly[0]);

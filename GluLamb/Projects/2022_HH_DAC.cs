@@ -73,17 +73,18 @@ namespace GluLamb.Projects.HHDAC22
         public Line Path;
         public double Tilt;
         public double Depth;
+        public Plane CheckPlane;
 
         public string OperationName = "FINGER";
 
         public LineMachining(string name="LineMachining")
         {
-
+            Name = name;
         }
 
         public override List<object> GetObjects()
         {
-            return new List<object> { Path };
+            return new List<object> { Path, CheckPlane };
         }
 
         public override void ToCix(List<string> cix, string prefix = "")
