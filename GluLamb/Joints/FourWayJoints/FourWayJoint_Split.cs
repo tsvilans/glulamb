@@ -291,6 +291,15 @@ namespace GluLamb.Joints
             var outer1 = new Plane(Seams[ii].To, -Seams[ii].Direction, Seams[jj].To - Seams[ii].To);
             var normal1 = (inner1.YAxis + outer1.YAxis) * 0.5;
 
+            var ad = new ArchivableDictionary();
+            ad.Set("Inner0", inner0);
+            ad.Set("Outer0", outer0);
+            ad.Set("Inner1", inner1);
+            ad.Set("Outer1", outer1);
+            ad.Set("PlatePlane", PlatePlane);
+
+            Parts[index].Element.UserDictionary.Set("FourWayJoint_Split", ad);
+
             if (false)
             {
                 debug.Add(inner0);

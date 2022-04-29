@@ -31,6 +31,8 @@ namespace GluLamb.Projects.HHDAC22
         void ToCix(List<string> cix, string prefix = "");
     }
 
+  
+
     public class Drill2d : ITransformable, IHasGeometry
     {
         public Point3d Position;
@@ -65,6 +67,48 @@ namespace GluLamb.Projects.HHDAC22
 
         public abstract List<object> GetObjects();
     }
+
+    public class LineMachining : Operation
+    {
+        public Line Path;
+        public double Tilt;
+        public double Depth;
+
+        public string OperationName = "FINGER";
+
+        public LineMachining(string name="LineMachining")
+        {
+
+        }
+
+        public override List<object> GetObjects()
+        {
+            return new List<object> { Path };
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}{1}_{2}=1", prefix, OperationName, Id));
+
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_X={3:0.###}", prefix, OperationName, Id, Path.From.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Y={3:0.###}", prefix, OperationName, Id, Path.From.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Z={3:0.###}", prefix, OperationName, Id, Path.From.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_X={3:0.###}", prefix, OperationName, Id, Path.To.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Y={3:0.###}", prefix, OperationName, Id, Path.To.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Z={3:0.###}", prefix, OperationName, Id, Path.To.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_ALFA={3:0.###}", prefix, OperationName, Id, RhinoMath.ToDegrees(Tilt)));
+            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
+
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Path.Transform(xform);
+        }
+    }
+
 
     /// <summary>
     /// This is a little bit complicated.
