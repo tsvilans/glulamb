@@ -71,11 +71,12 @@ namespace GluLamb.Projects.HHDAC22
     public class LineMachining : Operation
     {
         public Line Path;
+        public Line PlaneX;
         public double Tilt;
         public double Depth;
         public Plane CheckPlane;
 
-        public string OperationName = "FINGER";
+        public string OperationName = "SKRAA";
 
         public LineMachining(string name="LineMachining")
         {
@@ -91,13 +92,22 @@ namespace GluLamb.Projects.HHDAC22
         {
             cix.Add(string.Format("{0}{1}_{2}=1", prefix, OperationName, Id));
 
-            cix.Add(string.Format("{0}{1}_{2}_PKT_1_X={3:0.###}", prefix, OperationName, Id, Path.From.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Y={3:0.###}", prefix, OperationName, Id, Path.From.Y));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Z={3:0.###}", prefix, OperationName, Id, Path.From.Z));
+            cix.Add(string.Format("{0}{1}_{2}_P_1_X={3:0.###}", prefix, OperationName, Id, PlaneX.From.X));
+            cix.Add(string.Format("{0}{1}_{2}_P_1_Y={3:0.###}", prefix, OperationName, Id, PlaneX.From.Y));
+            cix.Add(string.Format("{0}{1}_{2}_P_1_Z={3:0.###}", prefix, OperationName, Id, -PlaneX.From.Z));
 
-            cix.Add(string.Format("{0}{1}_{2}_PKT_2_X={3:0.###}", prefix, OperationName, Id, Path.To.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Y={3:0.###}", prefix, OperationName, Id, Path.To.Y));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Z={3:0.###}", prefix, OperationName, Id, Path.To.Z));
+            cix.Add(string.Format("{0}{1}_{2}_P_2_X={3:0.###}", prefix, OperationName, Id, PlaneX.To.X));
+            cix.Add(string.Format("{0}{1}_{2}_P_2_Y={3:0.###}", prefix, OperationName, Id, PlaneX.To.Y));
+            cix.Add(string.Format("{0}{1}_{2}_P_2_Z={3:0.###}", prefix, OperationName, Id, -PlaneX.To.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_1_X={3:0.###}", prefix, OperationName, Id, Path.From.X));
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_1_Y={3:0.###}", prefix, OperationName, Id, Path.From.Y));
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_1_Z={3:0.###}", prefix, OperationName, Id, -Path.From.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_2_X={3:0.###}", prefix, OperationName, Id, Path.To.X));
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_2_Y={3:0.###}", prefix, OperationName, Id, Path.To.Y));
+            cix.Add(string.Format("{0}{1}_{2}_LINE_1_PKT_2_Z={3:0.###}", prefix, OperationName, Id, -Path.To.Z));
+
 
             cix.Add(string.Format("{0}{1}_{2}_ALFA={3:0.###}", prefix, OperationName, Id, RhinoMath.ToDegrees(Tilt)));
             cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
@@ -192,8 +202,8 @@ namespace GluLamb.Projects.HHDAC22
                 }
                 else
                 {
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[3].DistanceTo(Outline[6])));
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[5].DistanceTo(Outline[8])));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[5].DistanceTo(Outline[8])));
+                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[3].DistanceTo(Outline[6])));
                 }
             }
 
