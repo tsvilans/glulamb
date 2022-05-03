@@ -1851,10 +1851,17 @@ namespace GluLamb.Joints
     /// </summary>
     public class KJoint_Plate6Joist : KJoint_Plate6
     {
-        public JointPart Joist { get; set; }
+        public JointPart Joist { 
+            get { return Parts[3]; } 
+            protected set { Parts[3] = value; } }
+
+        //public new JointPart[] Parts = new JointPart[4];
 
         public KJoint_Plate6Joist(List<Element> elements, JointCondition jc) : base(elements, jc)
         {
+            var new_parts = Parts;
+            Array.Resize(ref new_parts, 4);
+            Parts = new_parts;
         }
 
         /*
@@ -2585,6 +2592,7 @@ namespace GluLamb.Joints
             ad.Set("EndPlane", TenonEndPlane);
             ad.Set("SlotPlane", plane);
             ad.Set("Depth", PlateSlotDepth);
+            ad.Set("PlateThickness", PlateThickness);
 
             Beam.Element.UserDictionary.Set(String.Format("TenonSlot_{0}_{1}",V0.Element.Name, V1.Element.Name), ad);
 

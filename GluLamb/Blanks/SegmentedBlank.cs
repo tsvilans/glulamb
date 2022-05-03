@@ -1150,12 +1150,18 @@ namespace GluLamb.Blanks
                 for (int j = 1; j < DivisionPlanes.Count - 1; ++j)
                 {
                     var res = Rhino.Geometry.Intersect.Intersection.CurvePlane(m_offsets[0], DivisionPlanes[j], 0.1);
-                    tt0[j] = res[0].ParameterA;
-                    pt0[j] = res[0].PointA;
+                    if (res != null && res.Count > 0)
+                    {
+                        tt0[j] = res[0].ParameterA;
+                        pt0[j] = res[0].PointA;
+                    }
 
                     res = Rhino.Geometry.Intersect.Intersection.CurvePlane(m_offsets[1], DivisionPlanes[j], 0.1);
-                    tt1[j] = res[0].ParameterA;
-                    pt1[j] = res[0].PointA;
+                    if (res != null && res.Count > 0)
+                    {
+                        tt1[j] = res[0].ParameterA;
+                        pt1[j] = res[0].PointA;
+                    }
 
                 }
 
@@ -1321,7 +1327,7 @@ namespace GluLamb.Blanks
 
             lines.Add(new Line(new Point3d(x0, y0, 0), new Point3d(x1, y1, 0)));
 
-            for (int i = 1; i < N + 1; ++i)
+            for (int i = 1; i < N; ++i)
             {
                 x0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_X", i, i + 1)];
                 y0 = Variables[string.Format("BL_SEC_{0}_{1}_IN_Y", i, i + 1)];
