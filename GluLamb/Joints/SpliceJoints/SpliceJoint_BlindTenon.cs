@@ -178,8 +178,20 @@ namespace GluLamb.Joints
             FirstHalf.Element.UserDictionary.Set(string.Format("EndCut_{0}", SecondHalf.Element.Name), EndPlaneT);
             SecondHalf.Element.UserDictionary.Set(string.Format("EndCut_{0}", FirstHalf.Element.Name), FacePlane);
 
+            var tapHoleAd = new ArchivableDictionary();
+            tapHoleAd.Set("EndPlane", EndPlane);
+            //tapHoleAd.Set("EndPlane", new Plane(EndPlane.Origin + EndPlane.ZAxis * ToleranceEnd, EndPlane.XAxis, EndPlane.YAxis));
+            tapHoleAd.Set("SlotPlane", FacePlane);
+            tapHoleAd.Set("PlateFace0", new Plane(FacePlane.Origin + FacePlane.YAxis * (TenonHeight / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.XAxis));
+            tapHoleAd.Set("PlateFace1", new Plane(FacePlane.Origin - FacePlane.YAxis * (TenonHeight / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.XAxis));
+            tapHoleAd.Set("TenonSide0", new Plane(FacePlane.Origin + FacePlane.XAxis * (TenonWidth / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.YAxis));
+            tapHoleAd.Set("TenonSide1", new Plane(FacePlane.Origin - FacePlane.XAxis * (TenonWidth / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.YAxis));
+            tapHoleAd.Set("PlateThickness", TenonHeight);
+            tapHoleAd.Set("Depth", Math.Abs(EndPlane.DistanceTo(FacePlane.Origin)));
+
             var tapAd = new ArchivableDictionary();
-            tapAd.Set("EndPlane", EndPlane);
+            //tapAd.Set("EndPlane", EndPlane);
+            tapAd.Set("EndPlane", EndPlaneT);
             tapAd.Set("SlotPlane", FacePlane);
             tapAd.Set("PlateFace0", new Plane(FacePlane.Origin + FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
             tapAd.Set("PlateFace1", new Plane(FacePlane.Origin - FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
@@ -188,7 +200,8 @@ namespace GluLamb.Joints
             tapAd.Set("PlateThickness", TenonHeight);
             tapAd.Set("Depth", Math.Abs(EndPlane.DistanceTo(FacePlane.Origin)));
 
-            SecondHalf.Element.UserDictionary.Set(String.Format("TenonSlot_{0}", FirstHalf.Element.Name), tapAd);
+            SecondHalf.Element.UserDictionary.Set(String.Format("SillTenonSlot_{0}", FirstHalf.Element.Name), tapHoleAd);
+            FirstHalf.Element.UserDictionary.Set(String.Format("SillTenonTap_{0}", SecondHalf.Element.Name), tapAd);
 
             // Create dowels
             var dowelPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength * 0.5, planes[0].YAxis);

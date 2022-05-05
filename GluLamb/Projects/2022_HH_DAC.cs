@@ -134,6 +134,8 @@ namespace GluLamb.Projects.HHDAC22
         public double Radius;
         public double Depth;
         public double Depth0;
+        public string OperationName = "SLIDS_LODRET";
+        public bool LongSlot = false;
 
         public bool Rough = false;
 
@@ -141,6 +143,8 @@ namespace GluLamb.Projects.HHDAC22
         {
             Name = name;
             Rough = rough;
+            OperationName = "SLIDS_LODRET";
+            LongSlot = false;
         }
 
         public override List<object> GetObjects()
@@ -151,7 +155,7 @@ namespace GluLamb.Projects.HHDAC22
         public override void ToCix(List<string> cix, string prefix = "")
         {
             string postfix = Rough ? "_GROV" : "";
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}=1", prefix, Id, postfix));
+            cix.Add(string.Format("{0}{3}_{1}{2}=1", prefix, Id, postfix, OperationName));
             // Sort out plane transformation here
 
             Point3d Origin = XLine.From;
@@ -169,14 +173,14 @@ namespace GluLamb.Projects.HHDAC22
             }
 
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_X={3:0.###}", prefix, Id, postfix, Origin.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Y={3:0.###}", prefix, Id, postfix, Origin.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_1_Z={3:0.###}", prefix, Id, postfix, -Origin.Z));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_1_X={3:0.###}", prefix, Id, postfix, Origin.X, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_1_Y={3:0.###}", prefix, Id, postfix, Origin.Y, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_1_Z={3:0.###}", prefix, Id, postfix, -Origin.Z, OperationName));
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_X={3:0.###}", prefix, Id, postfix, XPoint.X));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Y={3:0.###}", prefix, Id, postfix, XPoint.Y));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_PKT_2_Z={3:0.###}", prefix, Id, postfix, -XPoint.Z));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PL_ALFA={3:0.###}", prefix, Id, postfix, RhinoMath.ToDegrees(angle)));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_2_X={3:0.###}", prefix, Id, postfix, XPoint.X, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_2_Y={3:0.###}", prefix, Id, postfix, XPoint.Y, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_PKT_2_Z={3:0.###}", prefix, Id, postfix, -XPoint.Z, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_PL_ALFA={3:0.###}", prefix, Id, postfix, RhinoMath.ToDegrees(angle), OperationName));
 
             int N = Rough ? 5 : 9;
 
@@ -191,27 +195,119 @@ namespace GluLamb.Projects.HHDAC22
                 for (int i = 0; i < Outline.Count; ++i)
                 {
                     Plane.RemapToPlaneSpace(Outline[i], out temp);
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PKT_{3}_X={4:0.###}", prefix, Id, postfix, i + 1, temp.X));
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_PKT_{3}_Y={4:0.###}", prefix, Id, postfix, i + 1, temp.Y));
+                    cix.Add(string.Format("{0}{5}_{1}{2}_PKT_{3}_X={4:0.###}", prefix, Id, postfix, i + 1, temp.X, OperationName));
+                    cix.Add(string.Format("{0}{5}_{1}{2}_PKT_{3}_Y={4:0.###}", prefix, Id, postfix, i + 1, temp.Y, OperationName));
                 }
+
+                var BorL = new string[] { "B", "L" };
+                if (LongSlot && false)
+                    BorL = new string[] { "L", "B" };
 
                 if (Rough)
                 {
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[1].DistanceTo(Outline[2])));
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[2].DistanceTo(Outline[3])));
+                    cix.Add(string.Format("{0}{4}_{1}{2}_{5}={3:0.###}", prefix, Id, postfix, Outline[1].DistanceTo(Outline[2]), OperationName, BorL[0]));
+                    cix.Add(string.Format("{0}{4}_{1}{2}_{5}={3:0.###}", prefix, Id, postfix, Outline[2].DistanceTo(Outline[3]), OperationName, BorL[1]));
                 }
                 else
                 {
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_B={3:0.###}", prefix, Id, postfix, Outline[5].DistanceTo(Outline[8])));
-                    cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_L={3:0.###}", prefix, Id, postfix, Outline[3].DistanceTo(Outline[6])));
+                    cix.Add(string.Format("{0}{4}_{1}{2}_{5}={3:0.###}", prefix, Id, postfix, Outline[5].DistanceTo(Outline[8]), OperationName, BorL[0]));
+                    cix.Add(string.Format("{0}{4}_{1}{2}_{5}={3:0.###}", prefix, Id, postfix, Outline[3].DistanceTo(Outline[6]), OperationName, BorL[1]));
                 }
             }
 
             if (!Rough)
-                cix.Add(string.Format("{0}SLIDS_LODRET_{1}_R={2:0.###}", prefix, Id, Radius));
+                cix.Add(string.Format("{0}{3}_{1}_R={2:0.###}", prefix, Id, Radius, OperationName));
 
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_DYBDE={3:0.###}", prefix, Id, postfix, Depth));
-            cix.Add(string.Format("{0}SLIDS_LODRET_{1}{2}_DYBDE_0={3:0.###}", prefix, Id, postfix, Depth0));
+            cix.Add(string.Format("{0}{4}_{1}{2}_DYBDE={3:0.###}", prefix, Id, postfix, Depth, OperationName));
+            cix.Add(string.Format("{0}{4}_{1}{2}_DYBDE_0={3:0.###}", prefix, Id, postfix, Depth0, OperationName));
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Plane.Transform(xform);
+            Outline.Transform(xform);
+        }
+    }
+
+    public class TenonMachining : Operation
+    {
+        public Line XLine;
+        public double Angle;
+        public bool OverridePlane = false;
+        public Plane Plane;
+        public Polyline Outline;
+        public double Radius;
+        public double Depth;
+        public double Depth0;
+        public string OperationName = "TAP";
+
+
+        public TenonMachining(string name = "TenonMachining")
+        {
+            Name = name;
+            OperationName = "TAP";
+        }
+
+        public override List<object> GetObjects()
+        {
+            return new List<object> { Plane, Outline };
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}{1}_{2}=1", prefix, OperationName, Id));
+            // Sort out plane transformation here
+
+            Point3d Origin = XLine.From;
+            Point3d XPoint = XLine.To;
+            double angle = Angle;
+
+            if (!OverridePlane)
+            {
+                var xaxis = Plane.XAxis;
+                Origin = Plane.Origin;
+                XPoint = Origin + xaxis * 100;
+
+                Plane plane;
+                GluLamb.Utility.AlignedPlane(Origin, Plane.ZAxis, out plane, out angle);
+            }
+
+
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_1_X={3:0.###}", prefix, OperationName, Id, Origin.X));
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_1_Y={3:0.###}", prefix, OperationName, Id, Origin.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_1_Z={3:0.###}", prefix, OperationName, Id, -Origin.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_2_X={3:0.###}", prefix, OperationName, Id, XPoint.X));
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_2_Y={3:0.###}", prefix, OperationName, Id, XPoint.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PL_PKT_2_Z={3:0.###}", prefix, OperationName, Id, -XPoint.Z));
+            cix.Add(string.Format("{0}{1}_{2}_PL_ALFA={3:0.###}", prefix, OperationName, Id, RhinoMath.ToDegrees(angle)));
+
+            int N = 9;
+            if (Outline.Count != N)
+            {
+                throw new Exception(string.Format("Incorrect number of points for slot machining. Requires {1} points.", N));
+            }
+
+            if (Outline != null)
+            {
+                Point3d temp;
+                for (int i = 0; i < Outline.Count; ++i)
+                {
+                    Plane.RemapToPlaneSpace(Outline[i], out temp);
+                    cix.Add(string.Format("{0}{1}_{2}_PKT_{3}_X={4:0.###}", prefix, OperationName, Id, i + 1, temp.X));
+                    cix.Add(string.Format("{0}{1}_{2}_PKT_{3}_Y={4:0.###}", prefix, OperationName, Id, i + 1, temp.Y));
+                }
+
+                var BorL = new string[] { "B", "L" };
+
+                cix.Add(string.Format("{0}{1}_{2}_{4}={3:0.###}", prefix, OperationName, Id, Outline[5].DistanceTo(Outline[8]), BorL[0]));
+                cix.Add(string.Format("{0}{1}_{2}_{4}={3:0.###}", prefix, OperationName, Id, Outline[3].DistanceTo(Outline[6]), BorL[1]));
+            }
+
+            cix.Add(string.Format("{0}{1}_R={2:0.###}", prefix, Id, Radius, OperationName));
+
+            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
+            cix.Add(string.Format("{0}{1}_{2}_DYBDE_0={3:0.###}", prefix, OperationName, Id, Depth0));
         }
 
         public override void Transform(Transform xform)
@@ -372,11 +468,13 @@ namespace GluLamb.Projects.HHDAC22
     {
         public Plane Plane;
         public Line CutLine;
+        public double ExtraDepth;
         public EndCut(string name = "EndCut")
         {
             Name = name;
             Plane = Plane.Unset;
             CutLine = Line.Unset;
+            ExtraDepth = 10;
         }
 
         public override List<object> GetObjects()
@@ -412,6 +510,8 @@ namespace GluLamb.Projects.HHDAC22
             cix.Add(string.Format("{0}CUT_{1}_LINE_PKT_2_Z={2:0.###}", prefix, Id, CutLine.To.Z));
 
             cix.Add(string.Format("{0}CUT_{1}_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+            cix.Add(string.Format("{0}CUT_{1}_DYBDE_EKSTRA={2:0.###}", prefix, Id, ExtraDepth));
+
         }
 
         public override void Transform(Transform xform)

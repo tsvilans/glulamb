@@ -1360,9 +1360,23 @@ namespace GluLamb.Joints
 
             //return joined;
 
+
             double r = 8;
             var filleted = Brep.CreateFilletEdges(joined, new int[] { 8, 9 }, new double[] { r, r }, new double[] { r, r },
               BlendType.Fillet, RailType.RollingBall, 0.01);
+
+            if (true)
+            {
+                var dowelBreps = new List<Brep>();
+                foreach (var dowel in Dowels)
+                {
+                    dowelBreps.Add(new Cylinder(
+                        new Circle(
+                            new Plane(dowel.Axis.From, dowel.Axis.Direction), dowel.Diameter * 0.5), dowel.Axis.Length).ToBrep(true, true));
+                }
+
+                return filleted[0].Cut(dowelBreps, 0.01);
+            }
 
             return filleted[0];
         }
@@ -2541,8 +2555,22 @@ namespace GluLamb.Joints
             if (joined == null || joined.Length < 1)
                 return null;
 
+            if (true)
+            {
+                var dowelBreps = new List<Brep>();
+                foreach (var dowel in Dowels)
+                {
+                    dowelBreps.Add(new Cylinder(
+                        new Circle(
+                            new Plane(dowel.Axis.From, dowel.Axis.Direction), dowel.Diameter * 0.5), dowel.Axis.Length).ToBrep(true, true));
+                }
+
+                joined[0] = joined[0].Cut(dowelBreps, 0.01);
+            }
+
             joined[0].Faces.SplitKinkyFaces(0.1);
             Plate.Geometry = joined[0];
+            Plate.Name = string.Format("{0}_{1}_{2}", Parts[0].Element.Name, Parts[1].Element.Name, Parts[2].Element.Name);
 
             return Plate.Geometry;
         }
@@ -3054,12 +3082,21 @@ namespace GluLamb.Joints
 
                 //var dowelPlane01 = new Plane(dowelPoints[i] - BeamPlanes[i].YAxis * DowelLength * 0.5, BeamPlanes[i].YAxis);
                 var dowelCyl = new Cylinder(
-                  new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelDrillDepth).ToBrep(true, true);
+                  new Circle(dowelPlanes[i], DowelDiameter * 0.5), DowelDrillDepth);
+                dowelCyl.Height1 = -10;
+                dowelCyl.Height2 = DowelDrillDepth + 10;
 
-                Dowels.Add(new Dowel(new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength), DowelDiameter, DowelDrillDepth));
+                var dowelAxis = new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength);
 
-                Parts[i].Geometry.Add(dowelCyl);
+                //Dowels.Add(new Dowel(dowelAxis, DowelDiameter, DowelDrillDepth));
+
+                Parts[i].Geometry.Add(dowelCyl.ToBrep(true, true));
                 Parts[i].Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), new Line(dowelPlanes[i].Origin, dowelPlanes[i].ZAxis * DowelLength));
+
+
+                var plateDowelAxis = dowelAxis;
+                plateDowelAxis.Transform(Transform.Translation(-BeamDirections[i] * 0.5));
+                Dowels.Add(new Dowel(plateDowelAxis, DowelDiameter));
 
             }
 
@@ -3068,12 +3105,20 @@ namespace GluLamb.Joints
 
             var portalDowelPlane = new Plane(portalDowelPoint - KPlane.YAxis * DowelLength * 0.5, KPlane.YAxis);
             var portalDowelCyl = new Cylinder(
-              new Circle(portalDowelPlane, DowelDiameter * 0.5), DowelLength).ToBrep(true, true);
+              new Circle(portalDowelPlane, DowelDiameter * 0.5), DowelLength);
+            portalDowelCyl.Height1 = -10;
+            portalDowelCyl.Height2 = DowelLength + 10;
 
-            Dowels.Add(new Dowel(new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength), DowelDiameter));
+            var portalDowelAxis = new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength);
 
-            this.Beam.Geometry.Add(portalDowelCyl);
-            this.Beam.Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), new Line(portalDowelPlane.Origin, portalDowelPlane.ZAxis * DowelLength));
+            this.Beam.Geometry.Add(portalDowelCyl.ToBrep(true, true));
+            this.Beam.Element.UserDictionary.Set(String.Format("PlateDowel_{0}", Guid.NewGuid().ToString().Substring(0, 8)), portalDowelAxis);
+
+            var portalPlateDowelAxis = portalDowelAxis;
+            portalPlateDowelAxis.Transform(Transform.Translation(SillPlane.ZAxis * 0.0)); // Offset of hole towards the joint centre, 0 for tenon hole
+
+            Dowels.Add(new Dowel(portalPlateDowelAxis, DowelDiameter));
+
 
             return true;
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,9 +18,15 @@ namespace GluLamb.Joints
         public Plane Plane;
         public Brep Geometry;
 
-        public ConnectorPlate()
+        public string Name;
+
+        public List<Dowel> Dowels;
+
+        public ConnectorPlate(string name = "ConnectorPlate")
         {
             Outlines = new Polyline[2];
+            Dowels = new List<Dowel>();
+            Name = name;
         }
     }
 
@@ -34,6 +41,11 @@ namespace GluLamb.Joints
             Axis = axis;
             Diameter = diameter;
             DrillDepth = depth > 0? depth : axis.Length;
+        }
+
+        public void Transform(Transform xform)
+        {
+            Axis.Transform(xform);
         }
     }
 }
