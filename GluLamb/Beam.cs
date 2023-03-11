@@ -125,10 +125,11 @@ namespace GluLamb
             Centreline.ClosestPoint(pt, out t);
             m_plane = GetPlane(t);
             m_plane.RemapToPlaneSpace(pt, out m_temp);
-            if (t > Centreline.Domain.Max)
-                
-            m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
 
+            if (Centreline.Domain.IncludesParameter(t))
+                m_temp.Z = Centreline.GetLength(
+                    new Interval(Centreline.Domain.Min, t));
+ 
             return m_temp;
         }
 
@@ -146,9 +147,7 @@ namespace GluLamb
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
 
-            Plane m_plane;
-            Point3d m_temp;
-            double t;
+
 
             if (approximate)
             {
@@ -161,9 +160,9 @@ namespace GluLamb
                 Parallel.For(0, pts.Count, i =>
 
                 {
-                    Centreline.ClosestPoint(pts[i], out t);
-                    m_plane = GetPlane(t);
-                    m_plane.RemapToPlaneSpace(pts[i], out m_temp);
+                    Centreline.ClosestPoint(pts[i], out double t);
+                    Plane m_plane = GetPlane(t);
+                    m_plane.RemapToPlaneSpace(pts[i], out Point3d m_temp);
 
                     var res = Array.BinarySearch(tt, t);
                     if (res < 0)
@@ -195,9 +194,9 @@ namespace GluLamb
                 //for (int i = 0; i < pts.Count; ++i)
                 Parallel.For(0, pts.Count, i =>
                 {
-                    Centreline.ClosestPoint(pts[i], out t);
-                    m_plane = GetPlane(t);
-                    m_plane.RemapToPlaneSpace(pts[i], out m_temp);
+                    Centreline.ClosestPoint(pts[i], out double t);
+                    Plane m_plane = GetPlane(t);
+                    m_plane.RemapToPlaneSpace(pts[i], out Point3d m_temp);
                     m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
 
                     m_output_pts[i] = m_temp;
@@ -301,18 +300,18 @@ namespace GluLamb
 
             else
             {
-                //Parallel.For(0, pts.Count, i =>
-                //{
-                    for (int i = 0; i < pts.Count; ++i)
-                    {
+                Parallel.For(0, pts.Count, i =>
+                {
+                    //for (int i = 0; i < pts.Count; ++i)
+                    //{
                     Plane m_plane;
 
                     curve.LengthParameter(pts[i].Z, out double t);
                     m_plane = GetPlane(t, curve);
 
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
-                }
-                //});
+                //}
+                });
             }
 
             return m_output_pts;
