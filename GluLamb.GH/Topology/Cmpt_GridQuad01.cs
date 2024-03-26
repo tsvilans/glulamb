@@ -33,12 +33,14 @@ namespace GluLamb.GH.Components
         public Cmpt_GridQuad01()
           : base("Generate Grid (Quad)", "GenQGrid",
               "Generate a simple quad grid over a Brep.",
-              "GluLamb", "Structure")
+              "GluLamb", UiNames.TopologySection)
         {
         }
 
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        public override Guid ComponentGuid => new Guid("e1d058be-479c-4385-a909-f4083a5a30d9");
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
         double m_scale_to_doc = 1.0;
-
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -158,19 +160,6 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(0, beams);
             DA.SetDataTree(1, topology);
             DA.SetDataTree(2, groups);
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_FreeformGlulam_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("e1d058be-479c-4385-a909-f4083a5a30d9"); }
         }
     }
 }

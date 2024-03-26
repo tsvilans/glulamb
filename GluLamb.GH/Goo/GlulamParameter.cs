@@ -33,12 +33,12 @@ namespace GluLamb.GH
 
     public class GlulamParameter : GH_PersistentParam<GH_Glulam>
     {
-        public GlulamParameter() : this("Glulam parameter", "Glulam", "This is a glulam.", "GluLamb", "Parameters") { }
+        public GlulamParameter() : this("Glulam parameter", "Glulam", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
         public GlulamParameter(string name, string nickname, string description, string category, string subcategory)
             : base(name, nickname, description, category, subcategory) { }
         public GlulamParameter(GH_InstanceDescription tag) : base(tag) { }
 
-        //public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         public override System.Guid ComponentGuid => new Guid("A43600E5-70B5-4B63-85DE-A6D40DC20DCB");
         protected override GH_GetterResult Prompt_Singular(ref GH_Glulam value)
@@ -58,12 +58,12 @@ namespace GluLamb.GH
 
     public class GlulamDataParameter : GH_PersistentParam<GH_GlulamData>
     {
-        public GlulamDataParameter() : this("GlulamData parameter", "GlulamData", "This is a glulam.", "GluLamb", "Parameters") { }
+        public GlulamDataParameter() : this("GlulamData parameter", "GlulamData", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
         public GlulamDataParameter(string name, string nickname, string description, string category, string subcategory)
             : base(name, nickname, description, category, subcategory) { }
         public GlulamDataParameter(GH_InstanceDescription tag) : base(tag) { }
 
-        //public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
         protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamData_24x24;
 
         public override System.Guid ComponentGuid => new Guid("83A42E0E-ACB8-4B25-B455-3448A391CEB2");

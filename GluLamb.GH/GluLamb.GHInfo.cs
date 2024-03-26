@@ -23,7 +23,7 @@ using Grasshopper.Kernel;
 
 namespace GluLamb.GH
 {
-    public class LamGHInfo : GH_AssemblyInfo
+    public class GluLambGHInfo : GH_AssemblyInfo
   {
     public override string Name
     {

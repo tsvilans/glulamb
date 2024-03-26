@@ -36,9 +36,13 @@ namespace GluLamb.GH.Components
         public Cmpt_CreateTopology()
           : base("Create Topology", "Topology",
               "Find links between individual curve elements.",
-              "GluLamb", "1. Topology")
+              "GluLamb", UiNames.TopologySection)
         {
         }
+
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        public override Guid ComponentGuid => new Guid("3ae73fff-be6f-4957-bb62-c1ad2f2d23b8");
+        public override GH_Exposure Exposure => GH_Exposure.primary;
 
         double m_scale_to_doc = 1.0;
 
@@ -103,17 +107,5 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(1, paramTree);
         }
 
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_FreeformGlulam_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("3ae73fff-be6f-4957-bb62-c1ad2f2d23b8"); }
-        }
     }
 }

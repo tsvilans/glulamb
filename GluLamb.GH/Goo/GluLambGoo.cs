@@ -167,7 +167,7 @@ return string.Empty;
 
             writer.SetByteArray("guide", GH_Convert.CommonObjectToByteArray(Value.Centreline));
 
-            GH_Glulam.WriteCrossSectionOrientation(writer, Value.Orientation);
+            GH_CrossSectionOrientation.Write(writer, Value.Orientation);
             GH_GlulamData.WriteGlulamData(writer, Value.Data);
 
             return base.Write(writer);
@@ -185,92 +185,12 @@ return string.Empty;
             if (guide == null)
                 throw new Exception("Failed to convert 'guide'.");
 
-            CrossSectionOrientation ori = GH_Glulam.ReadCrossSectionOrientation(reader);
+            GH_CrossSectionOrientation.Read(reader, out CrossSectionOrientation ori);
             GlulamData data = GH_GlulamData.ReadGlulamData(reader);
 
             Value = Glulam.CreateGlulam(guide, ori, data);
 
             return base.Read(reader);
-        }
-
-        public static void WriteCrossSectionOrientation(GH_IWriter writer, CrossSectionOrientation ori)
-        {
-            writer.SetString("orientation", ori.ToString());
-
-            switch (ori)
-            {
-                case RmfOrientation rmf:
-                    return;
-                case PlanarOrientation plan:
-                    var plane = plan.Plane;
-                    writer.SetPlane("orientation_plane", new GH_IO.Types.GH_Plane(
-                        plane.Origin.X, plane.Origin.Y, plane.Origin.Z,
-                        plane.XAxis.X, plane.XAxis.Y, plane.XAxis.Z,
-                        plane.YAxis.X, plane.YAxis.Y, plane.YAxis.Z
-                        
-                        ));
-                    return;
-                case VectorOrientation vec:
-                    var v = (Vector3d)vec.GetDriver();
-                    writer.SetPoint3D("orientation_vector", new GH_IO.Types.GH_Point3D(v.X, v.Y, v.Z));
-                    return;
-                case SurfaceOrientation srf:
-                    writer.SetByteArray("orientation_surface", GH_Convert.CommonObjectToByteArray(srf.GetDriver() as Brep));
-                    return;
-                case VectorListOrientation vlist:
-                    writer.SetInt32("orientation_num_vectors", vlist.Vectors.Count);
-                    writer.SetByteArray("orientation_guide", GH_Convert.CommonObjectToByteArray(vlist.GetCurve()));
-                    for (int i = 0; i < vlist.Parameters.Count; ++i)
-                    {
-                        writer.SetDouble("orientation_parameter", i, vlist.Parameters[i]);
-                        writer.SetPoint3D("orientation_vector", i, new GH_IO.Types.GH_Point3D(
-                            vlist.Vectors[i].X, vlist.Vectors[i].Y, vlist.Vectors[i].Z));
-                    }
-                    return;
-                default:
-                    return;
-            }
-        }
-
-        public static CrossSectionOrientation ReadCrossSectionOrientation(GH_IReader reader)
-        {
-            var type = reader.GetString("orientation");
-
-            switch (type)
-            {
-                case "RmfOrientation":
-                    return new RmfOrientation();
-                case "PlanarOrientation":
-                    var plane = reader.GetPlane("orientation_plane");
-
-                    return new PlanarOrientation(new Plane(
-                        new Point3d(plane.Origin.x, plane.Origin.y, plane.Origin.z), 
-                        new Vector3d(plane.XAxis.x, plane.XAxis.y, plane.XAxis.z),
-                        new Vector3d(plane.YAxis.x, plane.YAxis.y, plane.YAxis.z)));
-                case "VectorOrientation":
-                    var pt = reader.GetPoint3D("orientation_vector");
-                    return new VectorOrientation(new Vector3d(pt.x, pt.y, pt.z));
-                case "SurfaceOrientation":
-                    var srf_bytes = reader.GetByteArray("orientation_surface");
-                    var srf = GH_Convert.ByteArrayToCommonObject<Brep>(srf_bytes);
-                    return new SurfaceOrientation(srf);
-                case "VectorListOrientation":
-                    var vlguide = reader.GetByteArray("orientation_guide");
-
-                    var num_vecs = reader.GetInt32("orientation_num_vectors");
-                    List<Vector3d> vectors = new List<Vector3d>();
-                    List<double> parameters = new List<double>();
-
-                    for (int i = 0; i < num_vecs; ++i)
-                    {
-                        var v = reader.GetPoint3D("orientation_vector", i);
-                        var t = reader.GetDouble("orientation_parameter", i);
-                        vectors.Add(new Vector3d(v.x, v.y, v.z));
-                    }
-                    return new VectorListOrientation(GH_Convert.ByteArrayToCommonObject<Curve>(vlguide), parameters, vectors);
-                default:
-                    return new RmfOrientation();
-            }
         }
 
         public override IGH_GeometricGoo DuplicateGeometry()

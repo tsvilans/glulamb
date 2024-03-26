@@ -67,41 +67,45 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Analyze\Cmpt_AnalyzeLamellaBending2.cs" />
-    <Compile Include="Analyze\Cmpt_DeLaminate.cs" />
-    <Compile Include="Analyze\Cmpt_EstimateK.cs" />
-    <Compile Include="Analyze\Cmpt_GlulamParameters.cs" />
-    <Compile Include="Analyze\Cmpt_MeshGrainDeviation.cs" />
-    <Compile Include="Analyze\Cmpt_MeshGrainDirection.cs" />
-    <Compile Include="Map\Cmpt_Distribute2.cs" />
-    <Compile Include="Structure\Cmpt_CreateTopology.cs" />
-    <Compile Include="Structure\Cmpt_AssembleStructure.cs" />
-    <Compile Include="Create\Cmpt_CreateGlulamBeamElement.cs" />
-    <Compile Include="Create\Cmpt_CreateGlulam.cs" />
-    <Compile Include="Create\Cmpt_CreateGlulamDataFromWidthHeight.cs" />
-    <Compile Include="Create\Cmpt_GlulamData.cs" />
-    <Compile Include="Structure\Cmpt_GridTri01.cs" />
-    <Compile Include="Structure\Cmpt_GridQuad01.cs" />
-    <Compile Include="Structure\Cmpt_DeStructure.cs" />
-    <Compile Include="Structure\Cmpt_SolveJoints.cs" />
+    <Compile Include="Blank\Cmpt_AnalyzeLamellaBending2.cs" />
+    <Compile Include="Blank\Cmpt_CreateBlank.cs" />
+    <Compile Include="Blank\Cmpt_DeLaminate.cs" />
+    <Compile Include="Blank\Cmpt_EstimateK.cs" />
+    <Compile Include="Blank\Cmpt_GlulamParameters.cs" />
+    <Compile Include="Blank\Cmpt_MeshGrainDeviation.cs" />
+    <Compile Include="Blank\Cmpt_MeshGrainDirection.cs" />
+    <Compile Include="Api.cs" />
+    <Compile Include="Goo\BeamGoo.cs" />
+    <Compile Include="Goo\CrossSectionOrientationGoo.cs" />
+    <Compile Include="Utilities\Cmpt_Distribute2.cs" />
+    <Compile Include="Topology\Cmpt_FlipTopology.cs" />
+    <Compile Include="Topology\Cmpt_CreateTopology.cs" />
+    <Compile Include="Joints\Cmpt_AssembleStructure.cs" />
+    <Compile Include="Beam\Cmpt_CreateGlulamBeamElement.cs" />
+    <Compile Include="Beam\Cmpt_CreateBeam.cs" />
+    <Compile Include="Beam\Cmpt_GlulamData.cs" />
+    <Compile Include="Topology\Cmpt_GridTri01.cs" />
+    <Compile Include="Topology\Cmpt_GridQuad01.cs" />
+    <Compile Include="Joints\Cmpt_DeStructure.cs" />
+    <Compile Include="Joints\Cmpt_SolveJoints.cs" />
     <Compile Include="Goo\GluLambGoo.cs" />
     <Compile Include="Goo\GlulamParameter.cs" />
     <Compile Include="Goo\LogGoo.cs" />
-    <Compile Include="Structure\StructureGoo.cs" />
-    <Compile Include="Structure\Cmpt_ApplyJoints.cs" />
-    <Compile Include="Map\Cmpt_BidirVector2Color.cs" />
-    <Compile Include="Map\Cmpt_Distribute.cs" />
-    <Compile Include="Map\Cmpt_GetFrame.cs" />
-    <Compile Include="Map\Cmpt_GetFrameAtParameter.cs" />
-    <Compile Include="Map\Cmpt_GetFrameList.cs" />
-    <Compile Include="Map\Cmpt_MapToGlulamSpace.cs" />
-    <Compile Include="Modify\Cmpt_CutBrep.cs" />
-    <Compile Include="Modify\Cmpt_GetEdgePoints.cs" />
-    <Compile Include="Modify\Cmpt_GetGlulamFace.cs" />
-    <Compile Include="Modify\Cmpt_GetGlulamSideSrf.cs" />
-    <Compile Include="Modify\Cmpt_InflateGlulam.cs" />
-    <Compile Include="Modify\Cmpt_OffsetGlulam.cs" />
-    <Compile Include="Modify\Cmpt_SplitGlulam.cs" />
+    <Compile Include="Goo\StructureGoo.cs" />
+    <Compile Include="Joints\Cmpt_ApplyJoints.cs" />
+    <Compile Include="Utilities\Cmpt_BidirVector2Color.cs" />
+    <Compile Include="Utilities\Cmpt_Distribute.cs" />
+    <Compile Include="Beam\Cmpt_GetFrame.cs" />
+    <Compile Include="Beam\Cmpt_GetFrameAtParameter.cs" />
+    <Compile Include="Beam\Cmpt_GetFrameList.cs" />
+    <Compile Include="Beam\Cmpt_MapToBeamSpace.cs" />
+    <Compile Include="Utilities\Cmpt_CutBrep.cs" />
+    <Compile Include="Beam\Cmpt_GetEdgePoints.cs" />
+    <Compile Include="Beam\Cmpt_GetGlulamFace.cs" />
+    <Compile Include="Beam\Cmpt_GetBeamSideSrf.cs" />
+    <Compile Include="Beam\Cmpt_InflateGlulam.cs" />
+    <Compile Include="Beam\Cmpt_OffsetGlulam.cs" />
+    <Compile Include="Beam\Cmpt_SplitGlulam.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -185,6 +189,7 @@
   <ItemGroup>
     <None Include="Resources\glulamb_Vector2Color_24x24.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

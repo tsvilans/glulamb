@@ -33,13 +33,15 @@ namespace GluLamb.GH.Components
         public Cmpt_GridTri01()
           : base("Generate Grid (Tri)", "GenTGrid",
               "Generate a simple tri grid over a Brep.",
-              "GluLamb", "Structure")
+              "GluLamb", UiNames.TopologySection)
         {
             
         }
 
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        public override Guid ComponentGuid => new Guid("3bb2ed21-56e4-4f36-80eb-947f6f661fb2");
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
         double m_scale_to_doc = 1.0;
-
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -198,19 +200,6 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(0, beams);
             DA.SetDataTree(1, topology);
             DA.SetDataTree(2, groups);
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_FreeformGlulam_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("3bb2ed21-56e4-4f36-80eb-947f6f661fb2"); }
         }
     }
 }

@@ -37,9 +37,13 @@ namespace GluLamb.GH.Components
           : base("Flip Topology", "FlipTop",
               "Invert a tree of indices to create a new tree where every path is the index of the original element. " + 
                 "I.e., remap a tree of connections that holds indices to elements to a tree of elements that holds indices to connections.",
-              "GluLamb", "1. Topology")
+              "GluLamb", UiNames.TopologySection)
         {
         }
+
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        public override Guid ComponentGuid => new Guid("66ae9557-b770-4aa6-baf5-4251382df3f9");
+        public override GH_Exposure Exposure => GH_Exposure.primary;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -77,17 +81,5 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(1, itree);
         }
 
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_FreeformGlulam_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("66ae9557-b770-4aa6-baf5-4251382df3f9"); }
-        }
     }
 }
