@@ -10,6 +10,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class SpliceJoint_Lap1 : SpliceJoint
     {
         public static double DefaultDowelLength = 300;

@@ -11,6 +11,7 @@ using Rhino;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class SpliceJoint_BirdsMouth : SpliceJoint
     {
         public static double DefaultDowelLength = 150;

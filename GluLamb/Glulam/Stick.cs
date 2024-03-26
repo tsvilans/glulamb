@@ -24,6 +24,7 @@ namespace GluLamb
     /// <summary>
     /// An individual lamination in a glulam.
     /// </summary>
+    [Serializable]
     public class Stick
     {
         public string Species = "Spruce";

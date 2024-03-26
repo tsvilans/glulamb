@@ -29,6 +29,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public abstract class FreeformGlulam : Glulam
     {
         /// <summary>

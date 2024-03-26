@@ -9,6 +9,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class BranchJointSimple : BranchJoint
     {
         public BranchJointSimple(List<Element> elements, JointCondition jc) : base(elements, jc)

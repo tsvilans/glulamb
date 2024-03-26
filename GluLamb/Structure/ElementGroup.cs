@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace GluLamb
 {
+    [Serializable]
     public class ElementGroup: List<Element>
     {
         public string Name;

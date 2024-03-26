@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace GluLamb
 {
+    [Serializable]
     public class Element
     {
         public string Name;
@@ -22,6 +23,7 @@ namespace GluLamb
         public Element(string name = "")
         {
             Connections = new List<Connection>();
+            Joints = new List<Joint>();
             Handles = new List<Plane>();
             Name = name;
             m_plane = Plane.WorldXY;
@@ -110,6 +112,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public class BeamElement : Element
     {
         public Beam Beam;

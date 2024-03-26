@@ -11,6 +11,7 @@ using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class KJoint_Plate : VBeamJoint
     {
         public static double DefaultPlateDepth = 60.0;
@@ -393,6 +394,7 @@ namespace GluLamb.Joints
         }
     }
 
+    [Serializable]
     public class KJoint_Plate4 : VBeamJoint
     {
         public static double DefaultPlateDepth = 60.0;
@@ -951,6 +953,7 @@ namespace GluLamb.Joints
         }
     }
 
+    [Serializable]
     public class KJoint_Plate5 : GluLamb.Joints.VBeamJoint, IPlateJoint
     {
         public static double DefaultPlateDepth = 50.0;
@@ -1863,6 +1866,7 @@ namespace GluLamb.Joints
     /// Variation of the KJoint_Plate joint, with an added joist member. Developed
     /// during the HH DAC project (2022). 
     /// </summary>
+    [Serializable]
     public class KJoint_Plate6Joist : KJoint_Plate6
     {
         public JointPart Joist { 
@@ -2119,6 +2123,7 @@ namespace GluLamb.Joints
       */
     }
 
+    [Serializable]
     public class KJoint_Plate6 : GluLamb.Joints.VBeamJoint, IPlateJoint, IDowelJoint
     {
         public static double DefaultPlateDepth = 50.0;

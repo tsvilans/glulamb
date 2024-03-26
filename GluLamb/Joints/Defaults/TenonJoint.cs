@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class TenonJoint : Joint2
     {
         public TenonJoint(List<Element> elements, Factory.JointCondition jc)

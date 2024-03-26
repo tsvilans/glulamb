@@ -9,6 +9,7 @@ using Rhino.Geometry;
 namespace GluLamb.Joints
 {
 
+    [Serializable]
     public class CornerJoint : Joint2
     {
         public CornerJoint(List<Element> elements, Factory.JointCondition jc)

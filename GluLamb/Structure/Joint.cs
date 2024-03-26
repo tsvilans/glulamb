@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public class JointPart
     {
         public double Parameter;
@@ -50,6 +51,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public abstract class Joint
     {
         public Plane Plane;
@@ -69,6 +71,7 @@ namespace GluLamb
         public abstract bool Construct(bool append = false);
     }
 
+    [Serializable]
     public abstract class Joint1 : Joint
     {
         protected Joint1()
@@ -77,6 +80,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public abstract class Joint2 : Joint
     {
         protected Joint2()
@@ -85,6 +89,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public abstract class Joint3<T> : Joint
     {
         protected Joint3()
@@ -93,6 +98,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public abstract class Joint4<T> : Joint
     {
         protected Joint4()

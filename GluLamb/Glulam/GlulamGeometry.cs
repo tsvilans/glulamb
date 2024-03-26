@@ -84,10 +84,10 @@ namespace GluLamb
             return new Mesh();
         }
 
-        public virtual Brep ToBrep(double offset = 0.0)
-        {
-            return new Brep();
-        }
+        //public virtual Brep ToBrep(double offset = 0.0)
+        //{
+        //    return new Brep();
+        //}
 
         public virtual List<Curve> GetLamellaeCurves()
         {

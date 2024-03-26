@@ -28,6 +28,7 @@ using Rhino.Collections;
 
 namespace GluLamb
 {
+    [Serializable]
     public abstract class CrossSectionOrientation
     {
         public abstract Vector3d GetOrientation(Curve crv, double t);
@@ -84,6 +85,7 @@ namespace GluLamb
     /// An orientation consisting of a single direction vector. The 
     /// vector should not be parallel to the curve at any point.
     /// </summary>
+    [Serializable]
     public class VectorOrientation : CrossSectionOrientation
     {
         private Vector3d m_vector;
@@ -138,6 +140,7 @@ namespace GluLamb
     /// Simple class to group together curve parameter, direction vector, and angular offset
     /// for the VectorListOrientation class.
     /// </summary>
+    [Serializable]
     public struct VectorParameter : IComparable, IComparable<VectorParameter>, IComparable<double>
     {
         public Vector3d Direction;
@@ -204,6 +207,7 @@ namespace GluLamb
     /// along a curve. Vectors should be perpendicular to the curve upon input, 
     /// otherwise it might give funny results.
     /// </summary>
+    [Serializable]
     public class VectorListOrientation : CrossSectionOrientation
     {
         protected VectorParameter[] m_guides;
@@ -580,6 +584,7 @@ namespace GluLamb
     }
 
 
+    [Serializable]
     public class SurfaceOrientation : CrossSectionOrientation
     {
         private Brep m_surface;
@@ -654,6 +659,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public class RailCurveOrientation : CrossSectionOrientation
     {
         private Curve m_curve;
@@ -734,6 +740,7 @@ namespace GluLamb
     /// Frame). If querying multiple orientations, the vectors
     /// are reverse if necessary to avoid flips.
     /// </summary>
+    [Serializable]
     public class KCurveOrientation : CrossSectionOrientation
     {
 
@@ -796,6 +803,7 @@ namespace GluLamb
     /// Orientation that uses the rotation minimizing frame of the curve. 
     /// Direction vector is the Y-axis of the RMF.
     /// </summary>
+    [Serializable]
     public class RmfOrientation : CrossSectionOrientation
     {
 
@@ -874,6 +882,7 @@ namespace GluLamb
         }
     }
 
+    [Serializable]
     public class PlanarOrientation : CrossSectionOrientation
     {
         public Plane Plane;

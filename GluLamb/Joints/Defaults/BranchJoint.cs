@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class BranchJoint : Joint2
     {
         public BranchJoint(List<Element> elements, Factory.JointCondition jc)

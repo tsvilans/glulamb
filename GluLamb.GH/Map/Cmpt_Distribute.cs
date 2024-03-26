@@ -82,6 +82,7 @@ namespace GluLamb.GH.Components
                       Vector3d.XAxis, Vector3d.YAxis);
 
                     var geo = geometry_input[counter];
+                    if (geo == null) continue;
                     geo.Transform(Transform.PlaneToPlane(planes_input[counter], plane));
                     geometry.Add(geo);
 

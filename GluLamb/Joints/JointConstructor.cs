@@ -243,17 +243,19 @@ namespace GluLamb.Joints
                         joint = fourWayXtor.Invoke(new object[] { beams, jc }) as FourWayJoint;
                         break;
                     default:
+                        Rhino.RhinoApp.WriteLine("Failed to make joint out of condition: {0}", jc);
                         break;
                 }
-                joints.Add(joint);
-            }
 
+                if (joint != null)
+                    joints.Add(joint);
+            }
 
             return joints;
         }
     }
 
-
+    [Obsolete]
     public partial class JointConstructor
     {
         public Func<TenonJoint, bool> ProcessTenonJoint;

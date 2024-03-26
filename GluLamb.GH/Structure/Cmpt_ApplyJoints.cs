@@ -23,9 +23,12 @@ using System.Linq;
 
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Special;
+using Grasshopper.Kernel.Types;
+
 using Rhino.Geometry;
 
 using GluLamb.Joints;
+using GH_IO.Serialization;
 
 namespace GluLamb.GH.Components
 {
@@ -34,7 +37,7 @@ namespace GluLamb.GH.Components
         public Cmpt_ApplyJoints()
           : base("Apply joints", "ApplyJ",
               "Pick what type of joints to apply to structure.",
-              "GluLamb", "Map")
+              "GluLamb", "Structure")
         {
         }
 
@@ -42,7 +45,10 @@ namespace GluLamb.GH.Components
         List<IGH_Param> JointParams;
         List<List<Type>> JointTypes;
 
+        int[] JointIndices = new int[7];
+
         List<Type> BaseJointTypes = new List<Type> {
+            typeof(TenonJoint),
             typeof(CrossJoint),
             typeof(SpliceJoint),
             typeof(BranchJoint),
@@ -51,6 +57,7 @@ namespace GluLamb.GH.Components
             typeof(CornerJoint)};
 
         List<string> BaseJointShortnames = new List<string> { 
+            "TJ",
             "CJ", 
             "SJ", 
             "BJ", 
@@ -108,7 +115,8 @@ namespace GluLamb.GH.Components
                             valueList.ListItems.Add(new GH_ValueListItem(types[j].Name, $"{j + 1}"));
                         }
 
-                        valueList.SelectItem(0);
+                        
+                        valueList.SelectItem(JointIndices[i]);
                         LastJointId[i] = last.InstanceGuid;
                     }
 
@@ -130,6 +138,7 @@ namespace GluLamb.GH.Components
 
             int index = 0;
 
+            jointSolver.TenonJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(TenonJoint); index++;
             jointSolver.CrossJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(CrossJoint); index++;
             jointSolver.SpliceJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(SpliceJoint); index++;
             jointSolver.BranchJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(BranchJoint); index++;
@@ -137,7 +146,7 @@ namespace GluLamb.GH.Components
             jointSolver.VBeamJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(VBeamJoint); index++;
             jointSolver.CornerJoint = indices[index] < JointTypes[index].Count ? JointTypes[index][indices[index]] : typeof(CornerJoint);
 
-            DA.SetData("Joint solver", jointSolver);
+            DA.SetData("Joint solver", new GH_ObjectWrapper(jointSolver));
         }
 
         protected override System.Drawing.Bitmap Icon
@@ -151,6 +160,33 @@ namespace GluLamb.GH.Components
         public override Guid ComponentGuid
         {
             get { return new Guid("77abcac2-f2c7-42f4-a084-b9acbeaf3d2b"); }
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            for (int i = 0; i < JointIndices.Length; ++i)
+                writer.SetInt32("joint_index", i, JointIndices[i]);
+
+            return base.Write(writer);
+        }
+
+        public override bool Read(GH_IReader reader)
+        {
+            if (reader.ItemExists("joint_index"))
+            {
+                for (int i = 0; i < JointIndices.Length; ++i)
+                {
+                    try
+                    {
+                        JointIndices[i] = reader.GetInt32("joint_index", i);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
+            return base.Read(reader);
         }
     }
 }

@@ -9,6 +9,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class EndJoint : Joint1
     {
         public static Plane DefaultCutPlane = Plane.Unset;

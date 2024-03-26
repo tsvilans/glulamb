@@ -2,6 +2,9 @@
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
+    <TargetExt>.gha</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{05279F4B-0F9A-4B26-84F0-938A942BE2A3}</ProjectGuid>
@@ -70,15 +73,22 @@
     <Compile Include="Analyze\Cmpt_GlulamParameters.cs" />
     <Compile Include="Analyze\Cmpt_MeshGrainDeviation.cs" />
     <Compile Include="Analyze\Cmpt_MeshGrainDirection.cs" />
+    <Compile Include="Map\Cmpt_Distribute2.cs" />
+    <Compile Include="Structure\Cmpt_CreateTopology.cs" />
+    <Compile Include="Structure\Cmpt_AssembleStructure.cs" />
     <Compile Include="Create\Cmpt_CreateGlulamBeamElement.cs" />
     <Compile Include="Create\Cmpt_CreateGlulam.cs" />
     <Compile Include="Create\Cmpt_CreateGlulamDataFromWidthHeight.cs" />
     <Compile Include="Create\Cmpt_GlulamData.cs" />
+    <Compile Include="Structure\Cmpt_GridTri01.cs" />
+    <Compile Include="Structure\Cmpt_GridQuad01.cs" />
+    <Compile Include="Structure\Cmpt_DeStructure.cs" />
+    <Compile Include="Structure\Cmpt_SolveJoints.cs" />
     <Compile Include="Goo\GluLambGoo.cs" />
     <Compile Include="Goo\GlulamParameter.cs" />
     <Compile Include="Goo\LogGoo.cs" />
-    <Compile Include="Goo\StructureGoo.cs" />
-    <Compile Include="Map\Cmpt_ApplyJoints.cs" />
+    <Compile Include="Structure\StructureGoo.cs" />
+    <Compile Include="Structure\Cmpt_ApplyJoints.cs" />
     <Compile Include="Map\Cmpt_BidirVector2Color.cs" />
     <Compile Include="Map\Cmpt_Distribute.cs" />
     <Compile Include="Map\Cmpt_GetFrame.cs" />
@@ -177,16 +187,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>Copy "$(TargetPath)" "$(TargetDir)$(ProjectName).gha"
-Erase "$(TargetPath)"
-
-set GhPath=%25AppData%25\Grasshopper\Libraries\GluLamb\
-echo %25GhPath%25
-mkdir %25GhPath%25
-
-REM Copy files to GH path
-Copy "$(TargetDir)$(ProjectName).gha" "%25GhPath%25$(ProjectName).gha"
-Copy "$(TargetDir)GluLamb.dll" "%25GhPath%25GluLamb.dll"</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <Import Project="..\packages\RhinoCommon.7.15.22039.13001\build\RhinoCommon.targets" Condition="Exists('..\packages\RhinoCommon.7.15.22039.13001\build\RhinoCommon.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

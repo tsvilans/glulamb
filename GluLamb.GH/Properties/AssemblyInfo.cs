@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Tom Svilans")]
 [assembly: AssemblyProduct("GluLamb.GH")]
-[assembly: AssemblyCopyright("Copyright © Tom Svilans 2020")]
+[assembly: AssemblyCopyright("Copyright © Tom Svilans 2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

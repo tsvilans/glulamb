@@ -411,7 +411,7 @@ namespace GluLamb
                 var vmp = Rhino.Geometry.VolumeMassProperties.Compute(pieces[i], true, false, false, false);
                 if (vmp == null) continue;
 
-                if (vmp.Volume > volume)
+                if (Math.Abs(vmp.Volume) > volume)
                 {
                     index = i;
                     volume = vmp.Volume;

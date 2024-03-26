@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class SpliceJoint : Joint2
     {
         public SpliceJoint(List<Element> elements, Factory.JointCondition jc)

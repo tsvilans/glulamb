@@ -30,6 +30,7 @@ using GluLamb.Standards;
 
 namespace GluLamb
 {
+    [Serializable]
     public class GlulamData
     {
         public enum Interpolation

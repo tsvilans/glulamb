@@ -9,6 +9,7 @@ using GluLamb.Factory;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class SpliceJoint_Tenon3 : SpliceJoint
     {
         public static double DefaultTenonLength = 100;

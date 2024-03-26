@@ -9,6 +9,7 @@ using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class CrossJoint : Joint2
     {
         public CrossJoint(List<Element> elements, Factory.JointCondition jc)
@@ -95,6 +96,9 @@ namespace GluLamb.Joints
             var normal = normalLine.Direction;
             normal.Unitize();
 
+            if (normal * (oPlane.Origin - uPlane.Origin) < 0.0)
+                normal.Reverse();
+
             //var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, Vector3d.CrossProduct(oPlane.XAxis, uPlane.XAxis));
             //var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, oPlane.XAxis, uPlane.XAxis);
             var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, normal);
@@ -150,14 +154,20 @@ namespace GluLamb.Joints
             var oSrf = new Brep[3];
             height = obeam.Height * 0.5 + added;
 
+            // Adjust height based on distance from centreline (if centrelines don't intersect)
+            double oadded = (oPlane.Origin - plane.Origin) * normal;
+            height -= oadded;
+
             var oZAxis = plane.Project(oPlane.ZAxis); oZAxis.Unitize();
+            if (oZAxis * uPlane.XAxis > 0)
+                oZAxis.Reverse();
 
             var oPoints = new Point3d[]{
-        points[0] - oZAxis * added,
-        points[1] + oZAxis * added,
-        points[2] + oZAxis * added,
-        points[3] - oZAxis * added
-        };
+                points[0] - oZAxis * added,
+                points[1] + oZAxis * added,
+                points[2] + oZAxis * added,
+                points[3] - oZAxis * added
+                };
 
             oSrf[0] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[2], oPoints[3], 0.01);
             oSrf[1] = Brep.CreateFromCornerPoints(oPoints[0], oPoints[1], oPoints[1] + normal * height, oPoints[0] + normal * height, 0.01);
@@ -173,14 +183,19 @@ namespace GluLamb.Joints
 
             height = ubeam.Height * 0.5 + added;
 
-            var uZAxis = plane.Project(uPlane.ZAxis); uZAxis.Unitize();
+            // Adjust height based on distance from centreline (if centrelines don't intersect)
+            double uadded = (uPlane.Origin - plane.Origin) * normal;
+            height += uadded;
 
+            var uZAxis = plane.Project(uPlane.ZAxis); uZAxis.Unitize();
+            if (uZAxis * oPlane.XAxis > 0)
+                uZAxis.Reverse();
             //added = 0;
             var uPoints = new Point3d[]{
-        points[0] + uZAxis * added,
-        points[1] + uZAxis * added,
-        points[2] - uZAxis * added,
-        points[3] - uZAxis * added
+        points[0] - uZAxis * added,
+        points[1] - uZAxis * added,
+        points[2] + uZAxis * added,
+        points[3] + uZAxis * added
         };
 
             uSrf[0] = Brep.CreateFromCornerPoints(uPoints[0], uPoints[1], uPoints[2], uPoints[3], 0.01);
@@ -196,6 +211,7 @@ namespace GluLamb.Joints
 
     }
 
+    [Serializable]
     public class CrossJoint2 : CrossJoint
     {
         public CrossJoint2(List<Element> elements, GluLamb.Factory.JointCondition jc) : base(elements, jc)
@@ -220,21 +236,22 @@ namespace GluLamb.Joints
         }
 
 
-        public JointPart Over { get { return Parts[0]; } }
-        public JointPart Under { get { return Parts[1]; } }
+        //public JointPart Over { get { return Parts[0]; } }
+        //public JointPart Under { get { return Parts[1]; } }
 
         public override string ToString()
         {
             return "CrossJoint";
         }
 
-        public void Flip()
-        {
-            var temp = Parts[1];
-            Parts[1] = Parts[0];
-            Parts[0] = temp;
-        }
+        //public void Flip()
+        //{
+        //    var temp = Parts[1];
+        //    Parts[1] = Parts[0];
+        //    Parts[0] = temp;
+        //}
 
+        /*
         public void OrganizePlanes(ref Plane p0, ref Plane p1)
         {
             if (p0.YAxis * p1.YAxis < 0)
@@ -251,7 +268,7 @@ namespace GluLamb.Joints
                 p1.XAxis = -p1.XAxis;
             }
         }
-
+        */
         public override bool Construct(bool append = false)
         {
             if (!append)

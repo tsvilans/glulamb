@@ -10,6 +10,7 @@ using Rhino;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class CrossJoint_SingleBackcut : CrossJoint
     {
         public static double DefaultTaperAngle = 3.0;

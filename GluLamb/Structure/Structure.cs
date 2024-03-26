@@ -7,6 +7,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public class Structure
     {
         public List<Joint> Joints;
@@ -60,7 +61,6 @@ namespace GluLamb
 
             return structure;
         }
-
         public List<object> Discretize(double length, bool adaptive = true)
         {
             var segments = new List<object>();

@@ -10,6 +10,7 @@ using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class FourWayJoint_Split : FourWayJoint, IDowelJoint
     {
 

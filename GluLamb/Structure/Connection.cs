@@ -7,6 +7,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public class Connection
     {
         public static Connection Connect(Element eleA, Element eleB, double posA, double posB, string name = "")

@@ -1476,6 +1476,9 @@ namespace GluLamb.Blanks
                 {
                     if (Variables.ContainsKey(string.Format("E_{0}_CUT_{1}", e, i)))
                     {
+                        int is_on = (int)Variables[string.Format("E_{0}_CUT_{1}", e, i)];
+                        if (is_on == 0) continue;
+
                         Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_X", e, i), out x0);
                         Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_Y", e, i), out y0);
                         Variables.TryGetValue(string.Format("E_{0}_CUT_{1}_LINE_PKT_1_Z", e, i), out z0);

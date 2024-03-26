@@ -27,6 +27,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public class StraightGlulam : Glulam
     {
         public StraightGlulam() : base()

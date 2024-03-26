@@ -35,7 +35,6 @@ namespace GluLamb.GH.Components
         {
         }
 
-
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddCurveParameter("Curve", "C", "Glulam centreline curve.", GH_ParamAccess.item);

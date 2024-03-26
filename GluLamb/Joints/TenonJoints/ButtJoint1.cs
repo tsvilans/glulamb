@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class ButtJoint1 : TenonJoint, IDowelJoint
     {
         public static double DefaultTrimPlaneSize = 300.0;
@@ -105,6 +106,7 @@ namespace GluLamb.Joints
             int counter = 0;
             for (int i = -1; i < 2; i += 2)
             {
+                i = 0; // REMOVE
                 //Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (tbeam.Height * i - DowelOffset));
                 Point3d dp = new Point3d(tplane.Origin + tplane.YAxis * (DowelOffset * i));
 
@@ -159,6 +161,7 @@ namespace GluLamb.Joints
                 Mortise.Geometry.Add(cylMortise.ToBrep(true, true));
 
                 counter++;
+                break; // REMOVE
             }
 
             Tenon.Element.UserDictionary.Set(string.Format("DowelGroupT_{0}", Mortise.Element.Name), adTenon);

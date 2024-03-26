@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class FourWayJoint : Joint4<BeamElement>
     {
         public FourWayJoint(List<Element> elements, Factory.JointCondition jc)

@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class VBeamJoint : Joint3<BeamElement>
     {
         public VBeamJoint(List<Element> elements, Factory.JointCondition jc) : base()

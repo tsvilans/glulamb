@@ -9,6 +9,7 @@ using GluLamb.Joints;
 
 namespace GluLamb.Factory
 {
+    [Obsolete]
     public class StructureFactory
     {
         public static List<Joint> FindBeamJointConditions(List<Element> elements, double searchDistance, double overlapDistance, double end_threshold = 0.1)
@@ -216,6 +217,12 @@ namespace GluLamb.Factory
 
                         int case0 = Math.Abs(lA) < end_threshold || Math.Abs(lA - crv0Length) < end_threshold ? 0 : 1;
                         int case1 = Math.Abs(lB ) < end_threshold || Math.Abs(lB - crv1Length) < end_threshold ? 0 : 1;
+                        
+                        if ((case0 | (case1 << 1)) > 0 && Math.Abs(crv0.TangentAt(tA) * crv1.TangentAt(tB)) > 0.95)
+                        {
+                            case0 = 0;
+                            case1 = 0;
+                        }
 
                         var jc = new JointCondition(pos,
                           new List<JointConditionPart>()
@@ -237,6 +244,9 @@ namespace GluLamb.Factory
             if (elements.Count < 1) throw new Exception("FindJointConditions(): No elements in list!");
 
             var jcs = new List<JointCondition>();
+
+            var curves = elements.Select(x => (x as BeamElement).Beam.Centreline).ToList();
+            return FindJointConditions(curves, radius, end_threshold, merge_distance);
 
             for (int i = 0; i < elements.Count - 1; ++i)
             {
@@ -356,6 +366,8 @@ namespace GluLamb.Factory
 
         public static List<JointCondition> MergeJointConditions(List<JointCondition> jcs, double merge_distance = 50.0)
         {
+            if (jcs.Count < 1) return jcs;
+
             var flags = new bool[jcs.Count];
             var jcs_new = new List<JointCondition>();
 
@@ -374,11 +386,17 @@ namespace GluLamb.Factory
                 jcs_new.Add(jcs[i]);
             }
 
-
             if (!flags[jcs.Count - 1])
                 jcs_new.Add(jcs[jcs.Count - 1]);
 
             return jcs_new;
         }
+
+        public override string ToString()
+        {
+            return string.Format("JointCondition ({0})", string.Join(",", Parts.Select(x => x.Index.ToString()).ToArray()));
+        }
+
+
     }
 }

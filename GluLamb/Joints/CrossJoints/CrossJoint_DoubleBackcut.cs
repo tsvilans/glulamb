@@ -8,6 +8,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class CrossJoint_DoubleBackcut : CrossJoint
     {
         public static double DefaultOffset1 = 3.0;

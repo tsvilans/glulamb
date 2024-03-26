@@ -10,6 +10,7 @@ using Rhino.Collections;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class SpliceJoint_BlindTenon : SpliceJoint, IDowelJoint
     {
         public static double DefaultTenonLength = 100;
@@ -186,22 +187,25 @@ namespace GluLamb.Joints
             tapHoleAd.Set("PlateFace1", new Plane(FacePlane.Origin - FacePlane.YAxis * (TenonHeight / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.XAxis));
             tapHoleAd.Set("TenonSide0", new Plane(FacePlane.Origin + FacePlane.XAxis * (TenonWidth / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.YAxis));
             tapHoleAd.Set("TenonSide1", new Plane(FacePlane.Origin - FacePlane.XAxis * (TenonWidth / 2 + ToleranceSide), FacePlane.ZAxis, FacePlane.YAxis));
-            tapHoleAd.Set("PlateThickness", TenonHeight);
+            tapHoleAd.Set("PlateThickness", TenonHeight + ToleranceSide * 2);
             tapHoleAd.Set("Depth", Math.Abs(EndPlane.DistanceTo(FacePlane.Origin)));
 
             var tapAd = new ArchivableDictionary();
             //tapAd.Set("EndPlane", EndPlane);
-            tapAd.Set("EndPlane", EndPlaneT);
-            tapAd.Set("SlotPlane", FacePlane);
-            tapAd.Set("PlateFace0", new Plane(FacePlane.Origin + FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
-            tapAd.Set("PlateFace1", new Plane(FacePlane.Origin - FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
-            tapAd.Set("TenonSide0", new Plane(FacePlane.Origin + FacePlane.XAxis * TenonWidth / 2, FacePlane.ZAxis, FacePlane.YAxis));
-            tapAd.Set("TenonSide1", new Plane(FacePlane.Origin - FacePlane.XAxis * TenonWidth / 2, FacePlane.ZAxis, FacePlane.YAxis));
-            tapAd.Set("PlateThickness", TenonHeight);
-            tapAd.Set("Depth", Math.Abs(EndPlane.DistanceTo(FacePlane.Origin)));
+            tapAd.Set("TopPlane", EndPlaneT);
+            tapAd.Set("BasePlane", FacePlane);
+            tapAd.Set("WidthPlane0", new Plane(FacePlane.Origin + FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
+            tapAd.Set("WidthPlane1", new Plane(FacePlane.Origin - FacePlane.YAxis * TenonHeight / 2, FacePlane.ZAxis, FacePlane.XAxis));
+            tapAd.Set("HeightPlane0", new Plane(FacePlane.Origin + FacePlane.XAxis * TenonWidth / 2, FacePlane.ZAxis, FacePlane.YAxis));
+            tapAd.Set("HeightPlane1", new Plane(FacePlane.Origin - FacePlane.XAxis * TenonWidth / 2, FacePlane.ZAxis, FacePlane.YAxis));
+            tapAd.Set("DoSideCuts", true);
+            tapAd.Set("DoOutline", true);
+            
+            //tapAd.Set("PlateThickness", TenonHeight);
+            //tapAd.Set("Depth", Math.Abs(EndPlane.DistanceTo(FacePlane.Origin)));
 
             SecondHalf.Element.UserDictionary.Set(String.Format("SillTenonSlot_{0}", FirstHalf.Element.Name), tapHoleAd);
-            FirstHalf.Element.UserDictionary.Set(String.Format("SillTenonTap_{0}", SecondHalf.Element.Name), tapAd);
+            FirstHalf.Element.UserDictionary.Set(String.Format("Tap_{0}", SecondHalf.Element.Name), tapAd);
 
             // Create dowels
             var dowelPlane = new Plane(planes[0].Origin + planes[0].ZAxis * TenonLength * 0.5, planes[0].YAxis);
@@ -216,7 +220,7 @@ namespace GluLamb.Joints
             dowel.Height2 = DowelLength;
 
             var dowelTenonPlane = dowelPlane;
-            dowelTenonPlane.Origin = dowelTenonPlane.Origin - EndPlane.ZAxis * DowelSideTolerance;
+            dowelTenonPlane.Origin = dowelTenonPlane.Origin + EndPlane.ZAxis * DowelSideTolerance;
 
             var dowelTenon = new Cylinder(
               new Circle(dowelTenonPlane, DowelDiameter * 0.5), DowelLength);

@@ -30,7 +30,7 @@ using GH_IO;
 namespace GluLamb.GH
 {
 
-    public class GH_Glulam : GH_Goo<Glulam>, /*IGH_PreviewData,*/ GH_ISerializable
+    public class GH_Glulam : GH_GeometricGoo<Glulam>, /*IGH_PreviewData,*/ GH_ISerializable
     {
         #region Members
         //protected Mesh DisplayMesh = null;
@@ -74,13 +74,22 @@ namespace GluLamb.GH
 
     }*/
         public override string IsValidWhyNot => "You tell me.";
-        /*{
+
+        public override BoundingBox Boundingbox
+        {
             get
             {
-                if (Value == null) return "No data";
-                return string.Empty;
+                return Value.Centreline.GetBoundingBox(true);
             }
-        }*/
+        }
+
+        /*{
+get
+{
+if (Value == null) return "No data";
+return string.Empty;
+}
+}*/
         public override string ToString() => this.Value?.ToString();
 
         #region Casting
@@ -262,6 +271,30 @@ namespace GluLamb.GH
                 default:
                     return new RmfOrientation();
             }
+        }
+
+        public override IGH_GeometricGoo DuplicateGeometry()
+        {
+            return new GH_Glulam(Value.Duplicate());
+        }
+
+        public override BoundingBox GetBoundingBox(Transform xform)
+        {
+            var bb = Boundingbox;
+            if (bb.IsValid) bb.Transform(xform);
+            return bb;
+
+        }
+
+        public override IGH_GeometricGoo Transform(Transform xform)
+        {
+            Value.Transform(xform);
+            return new GH_Glulam(Value);
+        }
+
+        public override IGH_GeometricGoo Morph(SpaceMorph xmorph)
+        {
+            throw new NotImplementedException();
         }
         #endregion
 

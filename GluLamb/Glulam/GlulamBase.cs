@@ -34,6 +34,7 @@ namespace GluLamb
         DoubleCurved
     }
 
+    [Serializable]
     public abstract partial class Glulam : Beam
     {
         public static double RadiusMultiplier = 200.0;  // This is the Eurocode 5 formula: lamella thickness cannot exceed 1/200th of the curvature radius.

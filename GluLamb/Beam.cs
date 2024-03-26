@@ -27,6 +27,7 @@ using Rhino.Geometry;
 
 namespace GluLamb
 {
+    [Serializable]
     public class Beam
     {
         public Beam() { }
@@ -74,9 +75,7 @@ namespace GluLamb
                     curve.PointAt(tt[i]),
                     curve.TangentAt(tt[i]),
                     orientations[i]);
-
             });
-
             return planes;
         }
 
@@ -332,9 +331,14 @@ namespace GluLamb
             return m_mesh;
         }
 
-        public Brep ToBrep()
+        public virtual Brep ToBrep(double offset = 0.0)
         {
-            var tt = Centreline.DivideByLength((int)(Centreline.GetLength() / 50.0), true);
+            double[] tt;
+            if (Centreline.IsLinear())
+                tt = new double[] { Centreline.Domain.Min, Centreline.Domain.Max };
+            else
+                tt = Centreline.DivideByCount((int)Math.Ceiling(Centreline.GetLength() / 50.0), true);
+
             var planes = GetPlanes(tt);
 
             var xsections = new List<Curve>();

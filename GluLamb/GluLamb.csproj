@@ -120,7 +120,10 @@
     <Compile Include="Structure\Element.cs" />
     <Compile Include="Structure\ElementGroup.cs" />
     <Compile Include="Structure\Joint.cs" />
+    <Compile Include="Structure\LeanGraph.cs" />
     <Compile Include="Structure\Structure.cs" />
+    <Compile Include="Structure\Structure2.cs" />
+    <Compile Include="Structure\Topology.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="Glulam\GlulamBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

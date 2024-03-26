@@ -9,6 +9,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
+    [Serializable]
     public class ConnectorPlate
     {
         public double Thickness = 21;
@@ -30,6 +31,7 @@ namespace GluLamb.Joints
         }
     }
 
+    [Serializable]
     public class Dowel
     {
         public double Diameter = 16;
