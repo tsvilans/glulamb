@@ -34,7 +34,9 @@ namespace GluLamb.GH.Components
         {
         }
 
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.Distribute2;
+        public override Guid ComponentGuid => new Guid("c74409a1-e35b-4c8a-b33f-9ae93771fc05");
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
@@ -110,19 +112,6 @@ namespace GluLamb.GH.Components
 
             DA.SetDataList("Geometry", outputGeometry);
             DA.SetDataList("Planes", outputPlanes);
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_GlulamFrame_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("c74409a1-e35b-4c8a-b33f-9ae93771fc05"); }
         }
     }
 }

@@ -34,9 +34,9 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamFrame_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamPlane;
         public override Guid ComponentGuid => new Guid("0FF1A2CC-CDAE-40F0-B888-8108CF27C6FC");
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -60,7 +60,7 @@ namespace GluLamb.GH.Components
 
             // Get Beam
             Beam m_beam = null;
-            DA.GetData<Beam>("Glulam", ref m_beam);
+            DA.GetData<Beam>("Beam", ref m_beam);
             if (m_beam == null)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid beam input.");

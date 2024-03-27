@@ -19,9 +19,9 @@ namespace GluLamb.GH.Components
         }
 
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_CurvatureAnalysis_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.CurvatureAnalysis;
         public override Guid ComponentGuid => new Guid("62BBB1D6-F714-4462-A21C-5305114BE561");
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {

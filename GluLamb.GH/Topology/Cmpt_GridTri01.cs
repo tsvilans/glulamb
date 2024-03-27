@@ -38,7 +38,7 @@ namespace GluLamb.GH.Components
             
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.GridTri;
         public override Guid ComponentGuid => new Guid("3bb2ed21-56e4-4f36-80eb-947f6f661fb2");
         public override GH_Exposure Exposure => GH_Exposure.secondary;
         double m_scale_to_doc = 1.0;
@@ -191,7 +191,7 @@ namespace GluLamb.GH.Components
                         var edge = trim.Edge;
 
                         beams.Add(new GH_Curve(edge.ToNurbsCurve()), path);
-                        groups.Add(path.Indices[0], new GH_Path(2));
+                        groups.Add(path.Indices[0], new GH_Path(3));
                         path = path.Increment(0);
                     }
                 }

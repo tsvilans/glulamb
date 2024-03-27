@@ -37,9 +37,9 @@ namespace GluLamb.GH.Components
         }
 
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_FibreDeviation_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.FibreCuttingAnalysis;
         public override Guid ComponentGuid => new Guid("5D559BF0-92A4-47E1-A8C8-FECD15D9D861");
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {

@@ -59,8 +59,8 @@ namespace GluLamb.GH
                 return obj as Glulam;
         }
 
-        public override string TypeName => "BeamGoo";
-        public override string TypeDescription => "BeamGoo";
+        public override string TypeName => "Beam";
+        public override string TypeDescription => "Beam";
         public override object ScriptVariable() => Value;
         //public BoundingBox ClippingBox => DisplayMesh.GetBoundingBox(true);
 

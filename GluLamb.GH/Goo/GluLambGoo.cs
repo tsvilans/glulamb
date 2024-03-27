@@ -57,8 +57,8 @@ namespace GluLamb.GH
                 return obj as Glulam;
         }
 
-        public override string TypeName => "GlulamGoo";
-        public override string TypeDescription => "GlulamGoo";
+        public override string TypeName => "Glulam";
+        public override string TypeDescription => "Glulam";
         public override object ScriptVariable() => Value;
         //public BoundingBox ClippingBox => DisplayMesh.GetBoundingBox(true);
 
@@ -163,7 +163,7 @@ return string.Empty;
         #region Serialization
         public override bool Write(GH_IWriter writer)
         {
-            if (Value == null) throw new Exception("GlulamParameter.Value is null.");
+            if (Value == null) throw new Exception("Glulam.Value is null.");
 
             writer.SetByteArray("guide", GH_Convert.CommonObjectToByteArray(Value.Centreline));
 
@@ -227,8 +227,8 @@ return string.Empty;
         public GH_GlulamData(GlulamData native) { this.Value = native; }
         public override IGH_Goo Duplicate() => new GH_GlulamData(this);
         public override bool IsValid => true;
-        public override string TypeName => "GlulamDataGoo";
-        public override string TypeDescription => "GlulamDataGoo";
+        public override string TypeName => "GlulamData";
+        public override string TypeDescription => "GlulamData";
         public override string ToString() => Value.ToString();
         public override object ScriptVariable() => Value;
 
@@ -325,8 +325,8 @@ return string.Empty;
             return Value.ToString();
         }
 
-        public override string TypeName => "GlulamElementGoo";
-        public override string TypeDescription => "GlulamElementGoo";
+        public override string TypeName => "GlulamElement";
+        public override string TypeDescription => "GlulamElement";
         public override object ScriptVariable() => Value;
 
         public override bool IsValid

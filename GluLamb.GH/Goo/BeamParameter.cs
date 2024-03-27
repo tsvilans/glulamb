@@ -31,31 +31,39 @@ using Rhino.Geometry;
 namespace GluLamb.GH
 {
 
-    public class GlulamParameter : GH_PersistentParam<GH_Glulam>
+    public class BeamParameter : GH_PersistentParam<GH_Beam>
     {
-        public GlulamParameter() : this("Glulam parameter", "Glulam", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
-        public GlulamParameter(string name, string nickname, string description, string category, string subcategory)
+        public BeamParameter() : this("Beam", "Beam", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
+        public BeamParameter(string name, string nickname, string description, string category, string subcategory)
             : base(name, nickname, description, category, subcategory) { }
-        public GlulamParameter(GH_InstanceDescription tag) : base(tag) { }
+        public BeamParameter(GH_InstanceDescription tag) : base(tag) { }
 
         public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         public override System.Guid ComponentGuid => new Guid("A43600E5-70B5-4B63-85DE-A6D40DC20DCB");
-        protected override GH_GetterResult Prompt_Singular(ref GH_Glulam value)
+        protected override GH_GetterResult Prompt_Singular(ref GH_Beam value)
         {
-            value = new GH_Glulam();
-            return GH_GetterResult.success;
+            var doc = Rhino.RhinoDoc.ActiveDoc;
+            if (doc is null) return GH_GetterResult.cancel;
+
+            //value = new GH_Beam();
+            return GH_GetterResult.cancel;
         }
-        protected override GH_GetterResult Prompt_Plural(ref List<GH_Glulam> values)
+        protected override GH_GetterResult Prompt_Plural(ref List<GH_Beam> values)
         {
-            values = new List<GH_Glulam>();
-            return GH_GetterResult.success;
+            var doc = Rhino.RhinoDoc.ActiveDoc;
+            if (doc is null) return GH_GetterResult.cancel;
+
+            //values = new List<GH_Beam>();
+            return GH_GetterResult.cancel;
         }
 
-        protected override Bitmap Icon => Properties.Resources.glulamb_FreeformGlulam_24x24;
+        protected override Bitmap Icon => Properties.Resources.BeamParameter;
+
 
     }
 
+    /*
     public class GlulamDataParameter : GH_PersistentParam<GH_GlulamData>
     {
         public GlulamDataParameter() : this("GlulamData parameter", "GlulamData", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
@@ -64,7 +72,7 @@ namespace GluLamb.GH
         public GlulamDataParameter(GH_InstanceDescription tag) : base(tag) { }
 
         public override GH_Exposure Exposure => GH_Exposure.tertiary;
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamData_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamParameter;
 
         public override System.Guid ComponentGuid => new Guid("83A42E0E-ACB8-4B25-B455-3448A391CEB2");
         protected override GH_GetterResult Prompt_Singular(ref GH_GlulamData value)
@@ -78,7 +86,7 @@ namespace GluLamb.GH
             return GH_GetterResult.success;
         }
     }
-
+    */
     /*
     public class GlulamAssemblyParameter : GH_PersistentParam<GH_Assembly>
     {

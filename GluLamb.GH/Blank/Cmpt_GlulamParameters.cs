@@ -37,6 +37,11 @@ namespace GluLamb.GH.Components
         {
         }
 
+
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.GlulamDelaminate;
+        public override Guid ComponentGuid => new Guid("EE4E6303-23F3-445D-80DC-279CC43C579B");
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
+
         GH_ValueList valueList = null;
         IGH_Param parameter = null;
 
@@ -145,19 +150,6 @@ namespace GluLamb.GH.Components
             }
             
             DA.SetDataTree(0, output);
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_Delaminate_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("EE4E6303-23F3-445D-80DC-279CC43C579B"); }
         }
     }
 }

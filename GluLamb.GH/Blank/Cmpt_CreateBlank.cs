@@ -37,7 +37,7 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_Delaminate_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.GlulamCurved;
         public override Guid ComponentGuid => new Guid("f82e5284-63e3-460f-9f90-0a1aa8f608aa");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 

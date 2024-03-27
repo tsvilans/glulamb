@@ -38,6 +38,8 @@ namespace GluLamb.GH.Components
         {
         }
 
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.VectorColor;
+        public override Guid ComponentGuid => new Guid("4F4B5311-DD7C-4216-86FA-19ACFF6202C3");
         public override GH_Exposure Exposure => GH_Exposure.secondary;
 
         int method = 1;
@@ -84,7 +86,7 @@ namespace GluLamb.GH.Components
             DA.GetData("Vector", ref m_vec);
             m_vec.Unitize();
 
-            switch(method)
+            switch (method)
             {
                 case (2):
                     DA.SetData("Color", Mapping.VectorToColor2(m_vec).AsSystemColor());
@@ -93,19 +95,6 @@ namespace GluLamb.GH.Components
                     DA.SetData("Color", Mapping.VectorToColor1(m_vec).AsSystemColor());
                     break;
             }
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_Vector2Color_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("4F4B5311-DD7C-4216-86FA-19ACFF6202C3"); }
         }
     }
 }

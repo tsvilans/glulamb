@@ -77,6 +77,7 @@
     <Compile Include="Api.cs" />
     <Compile Include="Goo\BeamGoo.cs" />
     <Compile Include="Goo\CrossSectionOrientationGoo.cs" />
+    <Compile Include="Joints\Cmpt_ClassifyJoints.cs" />
     <Compile Include="Utilities\Cmpt_Distribute2.cs" />
     <Compile Include="Topology\Cmpt_FlipTopology.cs" />
     <Compile Include="Topology\Cmpt_CreateTopology.cs" />
@@ -89,7 +90,7 @@
     <Compile Include="Joints\Cmpt_DeStructure.cs" />
     <Compile Include="Joints\Cmpt_SolveJoints.cs" />
     <Compile Include="Goo\GluLambGoo.cs" />
-    <Compile Include="Goo\GlulamParameter.cs" />
+    <Compile Include="Goo\BeamParameter.cs" />
     <Compile Include="Goo\LogGoo.cs" />
     <Compile Include="Goo\StructureGoo.cs" />
     <Compile Include="Joints\Cmpt_ApplyJoints.cs" />
@@ -189,7 +190,90 @@
   <ItemGroup>
     <None Include="Resources\glulamb_Vector2Color_24x24.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="Resources\BeamCurved.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamFace.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamInflate.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamNew.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamOffset.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamOrientation.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamParameter.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamPlane.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamSoul.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamSplit.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamStraight.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamSurface.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\CreateTopology.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\CurvatureAnalysis.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\FibreCuttingAnalysis.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\FlipTopology.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GlulamCurved.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GlulamDelaminate.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GlulamStraight.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GrainDirectionAnalysis.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GridQuad.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GridTri.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Joint.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamEdges.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Distribute.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Distribute2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\ClassifyJoints.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\VectorColor.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

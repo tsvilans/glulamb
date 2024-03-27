@@ -38,9 +38,9 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamEdges_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamEdges;
         public override Guid ComponentGuid => new Guid("A406032A-6EB6-4ABA-A5FA-4EF5DC72483E");
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {

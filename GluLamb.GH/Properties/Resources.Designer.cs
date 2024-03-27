@@ -63,9 +63,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_Assembly_24x24 {
+        public static System.Drawing.Bitmap BeamCurved {
             get {
-                object obj = ResourceManager.GetObject("glulamb_Assembly_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamCurved", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -73,9 +73,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_Bisector_24x24 {
+        public static System.Drawing.Bitmap BeamEdges {
             get {
-                object obj = ResourceManager.GetObject("glulamb_Bisector_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamEdges", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -83,9 +83,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_BlankNormalToSrf_24x24 {
+        public static System.Drawing.Bitmap BeamFace {
             get {
-                object obj = ResourceManager.GetObject("glulamb_BlankNormalToSrf_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamFace", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -93,9 +93,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_BlankWithGuides_24x24 {
+        public static System.Drawing.Bitmap BeamInflate {
             get {
-                object obj = ResourceManager.GetObject("glulamb_BlankWithGuides_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamInflate", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -103,9 +103,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_CurvatureAnalysis_24x24 {
+        public static System.Drawing.Bitmap BeamNew {
             get {
-                object obj = ResourceManager.GetObject("glulamb_CurvatureAnalysis_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamNew", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -113,9 +113,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_Delaminate_24x24 {
+        public static System.Drawing.Bitmap BeamOffset {
             get {
-                object obj = ResourceManager.GetObject("glulamb_Delaminate_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamOffset", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -123,9 +123,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_FibreCutting_24x24 {
+        public static System.Drawing.Bitmap BeamOrientation {
             get {
-                object obj = ResourceManager.GetObject("glulamb_FibreCutting_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamOrientation", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -133,9 +133,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_FibreDeviation_24x24 {
+        public static System.Drawing.Bitmap BeamParameter {
             get {
-                object obj = ResourceManager.GetObject("glulamb_FibreDeviation_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamParameter", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -143,9 +143,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_FibreDirection_24x24 {
+        public static System.Drawing.Bitmap BeamPlane {
             get {
-                object obj = ResourceManager.GetObject("glulamb_FibreDirection_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamPlane", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -153,9 +153,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_FreeformGlulam_24x24 {
+        public static System.Drawing.Bitmap BeamSoul {
             get {
-                object obj = ResourceManager.GetObject("glulamb_FreeformGlulam_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamSoul", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -163,9 +163,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_GetGlulamSrf_24x24 {
+        public static System.Drawing.Bitmap BeamSplit {
             get {
-                object obj = ResourceManager.GetObject("glulamb_GetGlulamSrf_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamSplit", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -173,9 +173,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_GlulamData_24x24 {
+        public static System.Drawing.Bitmap BeamStraight {
             get {
-                object obj = ResourceManager.GetObject("glulamb_GlulamData_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamStraight", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -183,9 +183,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_GlulamEdges_24x24 {
+        public static System.Drawing.Bitmap BeamSurface {
             get {
-                object obj = ResourceManager.GetObject("glulamb_GlulamEdges_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("BeamSurface", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -193,9 +193,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_GlulamFrame_24x24 {
+        public static System.Drawing.Bitmap ClassifyJoints {
             get {
-                object obj = ResourceManager.GetObject("glulamb_GlulamFrame_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("ClassifyJoints", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -203,9 +203,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_GlulamFromBeam_24x24 {
+        public static System.Drawing.Bitmap CreateTopology {
             get {
-                object obj = ResourceManager.GetObject("glulamb_GlulamFromBeam_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("CreateTopology", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -213,9 +213,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_InflateGlulam_24x24 {
+        public static System.Drawing.Bitmap CurvatureAnalysis {
             get {
-                object obj = ResourceManager.GetObject("glulamb_InflateGlulam_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("CurvatureAnalysis", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -223,9 +223,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_OffsetGlulam_24x24 {
+        public static System.Drawing.Bitmap Distribute {
             get {
-                object obj = ResourceManager.GetObject("glulamb_OffsetGlulam_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("Distribute", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -233,9 +233,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_StraightGlulam_24x24 {
+        public static System.Drawing.Bitmap Distribute2 {
             get {
-                object obj = ResourceManager.GetObject("glulamb_StraightGlulam_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("Distribute2", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -243,9 +243,9 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_Vector2Color_24x24 {
+        public static System.Drawing.Bitmap FibreCuttingAnalysis {
             get {
-                object obj = ResourceManager.GetObject("glulamb_Vector2Color_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("FibreCuttingAnalysis", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -253,9 +253,89 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap glulamb_Workpiece_24x24 {
+        public static System.Drawing.Bitmap FlipTopology {
             get {
-                object obj = ResourceManager.GetObject("glulamb_Workpiece_24x24", resourceCulture);
+                object obj = ResourceManager.GetObject("FlipTopology", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GlulamCurved {
+            get {
+                object obj = ResourceManager.GetObject("GlulamCurved", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GlulamDelaminate {
+            get {
+                object obj = ResourceManager.GetObject("GlulamDelaminate", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GlulamStraight {
+            get {
+                object obj = ResourceManager.GetObject("GlulamStraight", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GrainDirectionAnalysis {
+            get {
+                object obj = ResourceManager.GetObject("GrainDirectionAnalysis", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GridQuad {
+            get {
+                object obj = ResourceManager.GetObject("GridQuad", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap GridTri {
+            get {
+                object obj = ResourceManager.GetObject("GridTri", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap Joint {
+            get {
+                object obj = ResourceManager.GetObject("Joint", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap VectorColor {
+            get {
+                object obj = ResourceManager.GetObject("VectorColor", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

@@ -41,7 +41,7 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamFrame_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.Joint;
         public override Guid ComponentGuid => new Guid("77abcac2-f2c7-42f4-a084-b9acbeaf3d2b");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 

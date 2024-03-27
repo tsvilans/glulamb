@@ -118,64 +118,88 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="glulamb_Assembly_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_Assembly_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamCurved" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamCurved.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_Bisector_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_Bisector_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamEdges" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamEdges.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_BlankNormalToSrf_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_BlankNormalToSrf_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamFace" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamFace.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_BlankWithGuides_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_BlankWithGuides_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamInflate" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamInflate.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_CurvatureAnalysis_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_CurvatureAnalysis_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamNew" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamNew.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_Delaminate_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_Delaminate_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamOffset" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamOffset.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_FibreCutting_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_FibreCutting_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamOrientation" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamOrientation.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_FibreDeviation_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_FibreDeviation_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamParameter" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamParameter.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_FibreDirection_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_FibreDirection_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamPlane" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamPlane.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_FreeformGlulam_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_FreeformGlulam_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamSoul" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamSoul.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_GetGlulamSrf_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_GetGlulamSrf_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamSplit" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamSplit.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_GlulamData_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_GlulamData_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamStraight" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamStraight.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_GlulamEdges_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_GlulamEdges_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="BeamSurface" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BeamSurface.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_GlulamFrame_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_GlulamFrame_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="ClassifyJoints" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\ClassifyJoints.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_GlulamFromBeam_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_GlulamFromBeam_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="CreateTopology" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\CreateTopology.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_InflateGlulam_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_InflateGlulam_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="CurvatureAnalysis" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\CurvatureAnalysis.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_OffsetGlulam_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_OffsetGlulam_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="Distribute" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Distribute.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_StraightGlulam_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_StraightGlulam_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="Distribute2" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Distribute2.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_Vector2Color_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_Vector2Color_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="FibreCuttingAnalysis" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\FibreCuttingAnalysis.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="glulamb_Workpiece_24x24" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\glulamb_Workpiece_24x24.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="FlipTopology" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\FlipTopology.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GlulamCurved" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GlulamCurved.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GlulamDelaminate" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GlulamDelaminate.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GlulamStraight" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GlulamStraight.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GrainDirectionAnalysis" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GrainDirectionAnalysis.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GridQuad" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GridQuad.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="GridTri" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\GridTri.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Joint" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Joint.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="VectorColor" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\VectorColor.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
 </root>

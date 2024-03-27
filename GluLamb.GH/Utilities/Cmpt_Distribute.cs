@@ -31,8 +31,11 @@ namespace GluLamb.GH.Components
           : base("Distribute", "Dist",
               "Distribute geometry on an XY grid.",
               "GluLamb", UiNames.UtilitiesSection)
-        {
+        { 
         }
+
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.Distribute;
+        public override Guid ComponentGuid => new Guid("daf77ad9-94cb-4280-9310-4f74b5d4e754");
 
         public override GH_Exposure Exposure => GH_Exposure.secondary;
 
@@ -93,19 +96,6 @@ namespace GluLamb.GH.Components
             }
             DA.SetDataList("Geometry", geometry);
             DA.SetDataList("Planes", planes);
-        }
-
-        protected override System.Drawing.Bitmap Icon
-        {
-            get
-            {
-                return Properties.Resources.glulamb_GlulamFrame_24x24;
-            }
-        }
-
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("daf77ad9-94cb-4280-9310-4f74b5d4e754"); }
         }
     }
 }

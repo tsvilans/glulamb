@@ -38,20 +38,20 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.glulamb_GlulamFrame_24x24;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamPlane;
         public override Guid ComponentGuid => new Guid("F5F14D9B-D168-4B35-86AC-D64F4634EC67");
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Beam", "B", "Beam to get plane from.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Parameters", "t", "Parameters at which to extract a Glulam frame.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Parameters", "t", "Parameters at which to extract a Beam frame.", GH_ParamAccess.list);
             //pManager.AddIntegerParameter("Number", "N", "Number of equally-spaced frames to extract.", GH_ParamAccess.item, 10);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Planes", "P", "Extracted Glulam planes.", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Planes", "P", "Extracted Beam planes.", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
