@@ -23,12 +23,12 @@ using Grasshopper.Kernel;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_InflateGlulam : GH_Component
+    public class Cmpt_InflateBeam : GH_Component
     {
 
-        public Cmpt_InflateGlulam()
-          : base("Inflate Glulam", "InfGlulam",
-              "Expand Glulam in all directions.",
+        public Cmpt_InflateBeam()
+          : base("Inflate Beam", "InfBeam",
+              "Expand Beam in all directions.",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -39,37 +39,31 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Input Glulam.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "Input Beam.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Amount", "A", "Amount to inflate all sides.", GH_ParamAccess.item, 10.0);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Output", "O", "Output inflated Glulam.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "The inflated Beam.", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            object raw_g = null;
-            if (!DA.GetData("Glulam", ref raw_g))
+            Beam beam = null;
+            if (!DA.GetData<Beam>("Beam", ref beam))
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid Glulam input.");
                 return;
             }
-
-            GH_Glulam ghg = raw_g as GH_Glulam;
-            if (ghg == null)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid Glulam input.");
-                return;
-            }
-
-            Glulam g = ghg.Value;
 
             double offset = 0.0;
             DA.GetData("Amount", ref offset);
 
-            DA.SetData("Output", g.ToBrep(offset));
+            var new_beam = beam.Duplicate();
+            new_beam.Width += offset;
+            new_beam.Height += offset;
+
+            DA.SetData("Beam", new GH_Beam(new_beam));
         }
     }
 }

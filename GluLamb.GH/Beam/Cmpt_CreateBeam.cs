@@ -45,10 +45,12 @@ namespace GluLamb.GH.Components
 
         private double m_scale = 1.0;
 
-        readonly IGH_Param[] parameters = new IGH_Param[4]
+        readonly IGH_Param[] parameters = new IGH_Param[6]
         {
             new Param_Number() { Name = "Width", NickName = "W", Description = "Cross-section width (X-axis).", Optional = true },
             new Param_Number() { Name = "Height", NickName = "H", Description = "Cross-section height (Y-axis).", Optional = true },
+            new Param_Number() { Name = "OffsetX", NickName = "OX", Description = "Cross-section width offset (X-axis).", Optional = true },
+            new Param_Number() { Name = "OffsetY", NickName = "OY", Description = "Cross-section height offset (Y-axis).", Optional = true },
             new Param_Integer() { Name = "Samples", NickName = "S", Description = "Samples along length.", Optional = true },
             new Param_Integer() { Name = "Alignment", NickName = "A", Description = "Cross-section alignment as integer value between 0 and 8.", Optional = true },
         };
@@ -56,18 +58,51 @@ namespace GluLamb.GH.Components
         protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
         {
             Menu_AppendItem(menu, "Dimensions", AddWidthHeight, true, Params.Input.Any(x => x.Name == "Width") && Params.Input.Any(x => x.Name == "Height"));
+            Menu_AppendItem(menu, "Offsets", AddOffsets, true, Params.Input.Any(x => x.Name == "OffsetX") && Params.Input.Any(x => x.Name == "OffsetY"));
             Menu_AppendItem(menu, "Samples", AddSamples, true, Params.Input.Any(x => x.Name == "Samples"));
             Menu_AppendItem(menu, "Alignment", AddAlignment, true, Params.Input.Any(x => x.Name == "Alignment"));
         }
 
         private void AddWidthHeight(object sender, EventArgs e)
         {
-            AddParam(0);
-            AddParam(1);
+            AddParams(new int[] { 0, 1 });
         }
 
-        private void AddSamples(object sender, EventArgs e) => AddParam(2);
-        private void AddAlignment(object sender, EventArgs e) => AddParam(3);
+        private void AddOffsets(object sender, EventArgs e)
+        {
+            AddParams(new int[] { 2, 3 });
+        }
+        private void AddSamples(object sender, EventArgs e) => AddParam(4);
+        private void AddAlignment(object sender, EventArgs e) => AddParam(5);
+
+        private void AddParams(int[] indices)
+        {
+            foreach (var index in indices)
+            {
+                IGH_Param parameter = parameters[index];
+
+                if (Params.Input.Any(x => x.Name == parameter.Name))
+                {
+                    Params.UnregisterInputParameter(Params.Input.First(x => x.Name == parameter.Name), true);
+                }
+                else
+                {
+                    int insertIndex = Params.Input.Count;
+                    for (int i = 0; i < Params.Input.Count; i++)
+                    {
+                        int otherIndex = Array.FindIndex(parameters, x => x.Name == Params.Input[i].Name);
+                        if (otherIndex > index)
+                        {
+                            insertIndex = i;
+                            break;
+                        }
+                    }
+                    Params.RegisterInputParam(parameter, insertIndex);
+                }
+            }
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
 
         private void AddParam(int index)
         {
@@ -248,17 +283,26 @@ namespace GluLamb.GH.Components
             DA.GetDataList("Orientation", r_orientation);
 
             double width = 0.1 * m_scale, height = 0.2 * m_scale;
+            double offsetX = 0, offsetY = 0;
+
             int samples = (int)Math.Ceiling(crv.GetLength() / (0.05 * m_scale)) + 1;
             int alignment = 0;
 
             bool hasDimensions = Params.Input.Any(x => x.Name == "Width");
             bool hasSamples = Params.Input.Any(x => x.Name == "Samples");
             bool hasAlignment = Params.Input.Any(x => x.Name == "Alignment");
+            bool hasOffsets = Params.Input.Any(x => x.Name == "OffsetX");
 
             if (hasDimensions)
             {
                 DA.GetData("Width", ref width);
                 DA.GetData("Height", ref height);
+            }
+
+            if (hasOffsets)
+            {
+                DA.GetData("OffsetX", ref offsetX);
+                DA.GetData("OffsetY", ref offsetY);
             }
 
             if (hasSamples)
@@ -276,7 +320,13 @@ namespace GluLamb.GH.Components
             CrossSectionOrientation orientation = ParseGlulamOrientation(r_orientation, crv);
             AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, orientation.ToString());
 
-            var beam = new Beam() { Centreline = crv, Orientation = orientation, Width = width, Height = height };
+            var beam = new Beam() { 
+                Centreline = crv, 
+                Orientation = orientation, 
+                Width = width, 
+                Height = height, 
+                OffsetX = offsetX, 
+                OffsetY = offsetY };
 
             DA.SetData("Beam", new GH_Beam(beam));
         }

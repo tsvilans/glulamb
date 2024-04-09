@@ -29,7 +29,7 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_GetPlane()
           : base("Beam Frame", "BFrame",
-              "Get Glulam cross-section frame closest to point.",
+              "Get beam cross-section frame closest to point.",
               "GluLamb", UiNames.BeamSection)
         {
         }

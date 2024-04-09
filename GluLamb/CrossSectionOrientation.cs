@@ -898,11 +898,11 @@ namespace GluLamb
 
         public override Vector3d GetOrientation(Curve crv, double t)
         {
-            return Vector3d.CrossProduct(Plane.Normal, crv.TangentAt(t));
+            return Vector3d.CrossProduct(crv.TangentAt(t), Plane.Normal);
         }
         public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            return t.Select(x => Vector3d.CrossProduct(Plane.Normal, crv.TangentAt(x))).ToArray();
+            return t.Select(x => Vector3d.CrossProduct(crv.TangentAt(x), Plane.Normal)).ToArray();
         }
 
         public override void Remap(Curve old_curve, Curve new_curve)

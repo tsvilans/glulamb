@@ -41,7 +41,7 @@ namespace GluLamb.GH
         //public GH_Glulam(Glulam native) { this.Value = native; this.DisplayMesh = native.GetBoundingMesh(0, Value.Data.InterpolationType); }
         public GH_Glulam(Glulam native) { this.Value = native; }
         public GH_Glulam() { this.Value = null; }
-        public GH_Glulam(GH_Glulam goo) { this.Value = goo.Value?.Duplicate(); }
+        public GH_Glulam(GH_Glulam goo) { this.Value = goo.Value?.DuplicateGlulam(); }
 
         public override IGH_Goo Duplicate()
         {
@@ -195,7 +195,7 @@ return string.Empty;
 
         public override IGH_GeometricGoo DuplicateGeometry()
         {
-            return new GH_Glulam(Value.Duplicate());
+            return new GH_Glulam(Value.DuplicateGlulam());
         }
 
         public override BoundingBox GetBoundingBox(Transform xform)

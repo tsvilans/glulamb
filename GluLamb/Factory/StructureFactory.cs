@@ -136,7 +136,7 @@ namespace GluLamb.Factory
 
         public JointConditionPart(int index, int jointcase, double parameter)
         {
-            Index = index;
+            Index = index; // Index of element
             Case = jointcase; // 0 for end of curve, 1 for mid-curve
             Parameter = parameter; // parameter on curve where the intersection is closest to
         }

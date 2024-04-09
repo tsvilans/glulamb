@@ -31,22 +31,22 @@ using System.Linq;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_MapToBeamSpace : GH_Component
+    public class Cmpt_MapToWorldSpace : GH_Component
     {
-        public Cmpt_MapToBeamSpace()
-          : base("Map Geometry To Beam Space", "Map2Beam",
-              "Maps geometry to free-form beam coordinate space.",
+        public Cmpt_MapToWorldSpace()
+          : base("Map Geometry To World Space", "Map2World",
+              "Maps geometry from free-form beam space to world space.",
               "GluLamb", UiNames.BeamSection)
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamSoul;
-        public override Guid ComponentGuid => new Guid("9A484B1E-9BCF-47F7-843C-29D27B6FE932");
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.World;
+        public override Guid ComponentGuid => new Guid("cfd78ef5-272a-487b-9b36-b8d20a1cdaf0");
         public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Beam", "B", "Beam to map to.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "Beam to map from.", GH_ParamAccess.item);
             pManager.AddGenericParameter("Geometry", "Geo", "Geometry to map.", GH_ParamAccess.list);
         }
 
@@ -67,30 +67,31 @@ namespace GluLamb.GH.Components
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, single.ToString());
 
                 if (single is Point3d)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace((Point3d)single) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace((Point3d)single) });
                 else if (single is GH_Point)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace((single as GH_Point).Value) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace((single as GH_Point).Value) });
                 else if (single is Plane)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace((Plane)single) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace((Plane)single) });
                 else if (single is GH_Plane)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace((single as GH_Plane).Value) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace((single as GH_Plane).Value) });
                 if (single is GH_Mesh)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace((single as GH_Mesh).Value) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace((single as GH_Mesh).Value) });
                 if (single is Mesh)
-                    DA.SetDataList("Geometry", new object[] { beam.ToBeamSpace(single as Mesh) });
+                    DA.SetDataList("Geometry", new object[] { beam.FromBeamSpace(single as Mesh) });
 
                 return;
             }
 
             if (input.First() is GH_Plane)
-                DA.SetDataList("Geometry", beam.ToBeamSpace(input.Select(x => (x as GH_Plane).Value).ToList()));
+                DA.SetDataList("Geometry", beam.FromBeamSpace(input.Select(x => (x as GH_Plane).Value).ToList()));
             else if (input.First() is Plane)
-                DA.SetDataList("Geometry", beam.ToBeamSpace(input.Select(x => (Plane)x).ToList()));
+                DA.SetDataList("Geometry", beam.FromBeamSpace(input.Select(x => (Plane)x).ToList()));
             else if (input.First() is GH_Point)
-                DA.SetDataList("Geometry", beam.ToBeamSpace(input.Select(x => (x as GH_Point).Value).ToList()));
+                DA.SetDataList("Geometry", beam.FromBeamSpace(input.Select(x => (x as GH_Point).Value).ToList()));
             else if (input.First() is Point3d)
-                DA.SetDataList("Geometry", beam.ToBeamSpace(input.Select(x => (Point3d)x).ToList()));
+                DA.SetDataList("Geometry", beam.FromBeamSpace(input.Select(x => (Point3d)x).ToList()));
         }
+
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {

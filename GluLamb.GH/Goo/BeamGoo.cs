@@ -99,11 +99,17 @@ return string.Empty;
         {
             switch (source)
             {
-                case Beam glulam:
+                case Glulam glulam:
                     Value = glulam;
                     return true;
-                case GH_Beam gh_glulam:
+                case GH_Glulam gh_glulam:
                     Value = gh_glulam.Value;
+                    return true;
+                case Beam beam:
+                    Value = beam;
+                    return true;
+                case GH_Beam gh_beam:
+                    Value = gh_beam.Value;
                     return true;
             }
 
@@ -138,7 +144,13 @@ return string.Empty;
                 target = (Q)cl;
                 return true;
             }
-            if (typeof(Q).IsAssignableFrom(typeof(Glulam)))
+            if (Value is Glulam && typeof(Q).IsAssignableFrom(typeof(Glulam)))
+            {
+                object blank = Value;
+                target = (Q)blank;
+                return true;
+            }
+            if (typeof(Q).IsAssignableFrom(typeof(Beam)))
             {
                 object blank = Value;
                 target = (Q)blank;
@@ -168,9 +180,14 @@ return string.Empty;
         {
             if (Value == null) throw new Exception("GlulamParameter.Value is null.");
 
+            writer.SetString("type", Value.GetType().FullName);
             writer.SetByteArray("guide", GH_Convert.CommonObjectToByteArray(Value.Centreline));
 
             GH_CrossSectionOrientation.Write(writer, Value.Orientation);
+            if (Value is Glulam glulam)
+            {
+                GH_GlulamData.WriteGlulamData(writer, glulam.Data);
+            }
 
             return base.Write(writer);
         }
@@ -191,11 +208,44 @@ return string.Empty;
 
             GH_CrossSectionOrientation.Read(reader, out CrossSectionOrientation ori);
 
-            double width = 0.1 * m_scale, height = 0.2 * m_scale;
-            reader.TryGetDouble("width", ref width);
-            reader.TryGetDouble("height", ref height);
+            // New way of parsing beam and glulam parameters
+            if (reader.ItemExists("type") && false)
+            {
+                var type = reader.GetString("type");
+                switch(type)
+                {
+                    case ("Glulam"):
+                    case ("StraightGlulam"):
+                    case ("FreeformGlulam"):
+                    case ("SingleCurvedGlulam"):
+                    case ("DoubleCurvedGlulam"):
+                        GlulamData data = GH_GlulamData.ReadGlulamData(reader);
+                        Value = Glulam.CreateGlulam(guide, ori, data);
+                        break;
+                    default:
+                        double width = 0.1 * m_scale, height = 0.2 * m_scale;
+                        reader.TryGetDouble("width", ref width);
+                        reader.TryGetDouble("height", ref height);
+                        Value = new Beam() { Centreline = guide, Orientation = ori, Width = width, Height = height };
+                        break;
+                }
+                return base.Read(reader);
+            }
 
-            Value = new Beam() { Centreline = guide, Orientation = ori, Width = width, Height = height };
+            // Handle old way of parsing glulams
+            if (reader.ItemExists("data_NumWidth"))
+            {
+                GlulamData data = GH_GlulamData.ReadGlulamData(reader);
+                Value = Glulam.CreateGlulam(guide, ori, data);
+            }
+            else
+            {
+                double width = 0.1 * m_scale, height = 0.2 * m_scale;
+                reader.TryGetDouble("width", ref width);
+                reader.TryGetDouble("height", ref height);
+
+                Value = new Beam() { Centreline = guide, Orientation = ori, Width = width, Height = height };
+            }
 
             return base.Read(reader);
         }

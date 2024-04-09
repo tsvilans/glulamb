@@ -33,7 +33,7 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_GetEdgePoints()
           : base("Get Edge Points", "GetEdges",
-              "Gets list of points for each Glulam section edge.",
+              "Gets list of points for each beam section edge.",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -44,8 +44,8 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Input glulam blank to deconstruct.", GH_ParamAccess.item);
-            pManager.AddIntegerParameter("Samples", "S", "Optional number of samples to use instead of Glulam data. " + 
+            pManager.AddGenericParameter("Beam", "B", "Input beam to deconstruct.", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Samples", "S", "Optional number of samples to use. " + 
                 "Must be >= 2.", GH_ParamAccess.item, -1);
         }
 
@@ -59,24 +59,12 @@ namespace GluLamb.GH.Components
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            object obj = null;
-
-            if (!DA.GetData("Glulam", ref obj))
+            // Get Beam
+            Beam m_beam = null;
+            DA.GetData<Beam>("Beam", ref m_beam);
+            if (m_beam == null)
             {
-                this.AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "No glulam blank connected.");
-                return;
-            }
-
-            Glulam g;
-
-            if (obj is GH_Glulam)
-                g = (obj as GH_Glulam).Value;
-            else
-                g = obj as Glulam;
-
-            if (g == null)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid glulam input.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid beam input.");
                 return;
             }
 
@@ -84,21 +72,21 @@ namespace GluLamb.GH.Components
 
             DA.GetData("Samples", ref N);
 
-            if (N < 2) N = Math.Max(g.Data.Samples, 6);
+            if (N < 2) N = Math.Max(40, 6);
 
             //double[] tt = g.Centreline.DivideByCount(N, true);
 
             //Plane[] planes = tt.Select(x => g.GetPlane(x)).ToArray();
 
-           g.GenerateCrossSectionPlanes(N, out Plane[] planes, out double[] parameters, g.Data.InterpolationType);
+           BeamOps.GenerateCrossSectionPlanes(m_beam, N, out Plane[] planes, out double[] parameters, GlulamData.Interpolation.LINEAR);
 
 
-            double w = g.Width;
-            double h = g.Height;
+            double w = m_beam.Width;
+            double h = m_beam.Height;
             double hw = w / 2;
             double hh = h / 2;
 
-            Point3d[] corners = g.GenerateCorners();
+            Point3d[] corners = BeamOps.GenerateCorners(m_beam);
 
             Point3d[] ptsTR = planes.Select(x => x.PointAt(corners[0].X, corners[0].Y)).ToArray();
             Point3d[] ptsTL = planes.Select(x => x.PointAt(corners[1].X, corners[1].Y)).ToArray();

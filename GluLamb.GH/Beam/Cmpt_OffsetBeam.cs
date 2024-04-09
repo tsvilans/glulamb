@@ -24,11 +24,11 @@ using Rhino.Geometry;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_OffsetGlulam : GH_Component
+    public class Cmpt_OffsetBeam : GH_Component
     {
-        public Cmpt_OffsetGlulam()
-          : base("Offset Glulam", "OfGlulam",
-              "Offset Glulam in its local space.",
+        public Cmpt_OffsetBeam()
+          : base("Offset Beam", "OfBeam",
+              "Offset a beam in its local space, using its cross-section orientation as a guide.",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -39,24 +39,24 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Glulam to offset.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "Beam to offset.", GH_ParamAccess.item);
             pManager.AddNumberParameter("OffsetX", "X", "Amount to offset in X direction.", GH_ParamAccess.item, 0.0);
             pManager.AddNumberParameter("OffsetY", "Y", "Amount to offset in Y direction.", GH_ParamAccess.item, 0.0);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Offset Glulam.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "Offset beam.", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
 
-            Glulam m_glulam = null;
+            Beam m_beam = null;
 
-            if (!DA.GetData<Glulam>("Glulam", ref m_glulam))
+            if (!DA.GetData<Beam>("Beam", ref m_beam))
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Could not get Glulam.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Could not get Beam.");
                 return;
             }
 
@@ -64,16 +64,31 @@ namespace GluLamb.GH.Components
             DA.GetData("OffsetX", ref x);
             DA.GetData("OffsetY", ref y);
 
-            Curve crv = m_glulam.CreateOffsetCurve(x, y);
+            Curve crv = BeamOps.CreateOffsetCurve(m_beam, x, y);
 
-
-           // GlulamData data = GlulamData.FromCurveLimits(crv,g.Data.NumWidth * g.Data.LamWidth, g.Data.NumHeight * g.Data.LamHeight, g.GetAllPlanes());
+            // GlulamData data = GlulamData.FromCurveLimits(crv,g.Data.NumWidth * g.Data.LamWidth, g.Data.NumHeight * g.Data.LamHeight, g.GetAllPlanes());
 
             //data.Samples = g.Data.Samples;
 
-            Glulam offset_glulam = Glulam.CreateGlulam(crv, m_glulam.Orientation.Duplicate(), m_glulam.Data.Duplicate());
+            Beam beam;
+            if (m_beam is Glulam m_glulam)
+            {
+                beam = Glulam.CreateGlulam(crv, m_glulam.Orientation.Duplicate(), m_glulam.Data.Duplicate());
+            }
+            else
+            {
+                beam = new Beam()
+                {
+                    Centreline = crv,
+                    Width = m_beam.Width,
+                    Height = m_beam.Height,
+                    Orientation = m_beam.Orientation.Duplicate(),
+                    OffsetX = m_beam.OffsetX,
+                    OffsetY = m_beam.OffsetY
+                };
+            }
 
-            DA.SetData("Glulam", new GH_Glulam(offset_glulam));
+            DA.SetData("Beam", new GH_Beam(beam));
         }
     }
 }

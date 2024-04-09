@@ -303,6 +303,16 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap GridIsoQuad {
+            get {
+                object obj = ResourceManager.GetObject("GridIsoQuad", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap GridQuad {
             get {
                 object obj = ResourceManager.GetObject("GridQuad", resourceCulture);
@@ -336,6 +346,16 @@ namespace GluLamb.GH.Properties {
         public static System.Drawing.Bitmap VectorColor {
             get {
                 object obj = ResourceManager.GetObject("VectorColor", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap World {
+            get {
+                object obj = ResourceManager.GetObject("World", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

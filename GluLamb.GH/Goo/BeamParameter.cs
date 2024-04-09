@@ -38,7 +38,7 @@ namespace GluLamb.GH
             : base(name, nickname, description, category, subcategory) { }
         public BeamParameter(GH_InstanceDescription tag) : base(tag) { }
 
-        public override GH_Exposure Exposure => GH_Exposure.tertiary;
+        public override GH_Exposure Exposure => GH_Exposure.quarternary;
 
         public override System.Guid ComponentGuid => new Guid("A43600E5-70B5-4B63-85DE-A6D40DC20DCB");
         protected override GH_GetterResult Prompt_Singular(ref GH_Beam value)

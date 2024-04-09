@@ -107,7 +107,7 @@ namespace GluLamb.GH.Components
                     var glulam = (be.Beam as Glulam);
 
                     if (glulam == null) continue;
-                    glulam = glulam.Duplicate();
+                    glulam = glulam.DuplicateGlulam();
                     //glulam.Extend(CurveEnd.Both, 80.0, CurveExtensionStyle.Smooth);
                     element_data.Append(new GH_Brep(glulam.ToBrep()), path);
 

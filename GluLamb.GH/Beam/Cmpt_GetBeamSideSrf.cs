@@ -54,20 +54,14 @@ namespace GluLamb.GH.Components
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            object raw_in = null;
-            if (!DA.GetData("Beam", ref raw_in))
+            // Get Beam
+            Beam m_beam = null;
+            DA.GetData<Beam>("Beam", ref m_beam);
+            if (m_beam == null)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No Glulam specified.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid beam input.");
                 return;
             }
-            GH_Beam ghg = raw_in as GH_Beam;
-            if (ghg == null)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Input is not valid Beam object.");
-                return;
-            }
-            Glulam g = ghg.Value as Glulam;
-            if (g == null) throw new NotImplementedException("Haven't converted this function yet.");
 
             int side = 0;
             DA.GetData("Side", ref side);
@@ -78,7 +72,7 @@ namespace GluLamb.GH.Components
             double extension = 0.0;
             DA.GetData("Extension", ref extension);
 
-            Brep b = g.GetSideSurface(side, offset, width, extension);
+            Brep b = BeamOps.GetSideSurface(m_beam, side, offset, width, extension);
 
             DA.SetData("Brep", b);
         }

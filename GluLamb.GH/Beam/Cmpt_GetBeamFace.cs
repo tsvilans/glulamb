@@ -24,12 +24,12 @@ using Rhino.Geometry;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_GetGlulamFace : GH_Component
+    public class Cmpt_GetBeamFace : GH_Component
     {
 
-        public Cmpt_GetGlulamFace()
-          : base("Get Glulam Face", "GFace",
-              "Get a specific face of the Glulam. ",
+        public Cmpt_GetBeamFace()
+          : base("Get Beam Faces", "BFace",
+              "Get a specific face or multiple faces of the Beam. ",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -39,19 +39,19 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Input Glulam.", GH_ParamAccess.item);
-            pManager.AddIntegerParameter("Side", "S", "Side of Glulam to extract. Use bitmask flags to get multiple sides.", GH_ParamAccess.item, 0);
+            pManager.AddGenericParameter("Beam", "B", "Input Beam.", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Side", "S", "Side of Beam to extract. Use bitmask flags to get multiple sides.", GH_ParamAccess.item, 0);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddBrepParameter("Faces", "F", "Glulam faces.", GH_ParamAccess.item);
+            pManager.AddBrepParameter("Faces", "F", "Beam faces.", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            Glulam glulam = null;
-            if (!DA.GetData<Glulam>("Glulam", ref glulam))
+            Beam beam = null;
+            if (!DA.GetData<Beam>("Beam", ref beam))
             {
                 return;
             }
@@ -59,7 +59,7 @@ namespace GluLamb.GH.Components
             int side = 0;
             DA.GetData("Side", ref side);
 
-            Brep[] breps = glulam.GetGlulamFaces(side);
+            Brep[] breps = BeamOps.GetFaces(beam, side);
 
             DA.SetDataList("Faces", breps);
         }

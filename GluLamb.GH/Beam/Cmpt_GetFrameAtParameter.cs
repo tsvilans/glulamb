@@ -29,7 +29,7 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_GetFrameAtParameter()
           : base("Beam Frame (t)", "BFrame",
-              "Get Glulam cross-section frame at parameter.",
+              "Get beam cross-section frame at parameter.",
               "GluLamb", UiNames.BeamSection)
         {
         }

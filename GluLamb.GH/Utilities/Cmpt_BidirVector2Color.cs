@@ -40,7 +40,7 @@ namespace GluLamb.GH.Components
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.VectorColor;
         public override Guid ComponentGuid => new Guid("4F4B5311-DD7C-4216-86FA-19ACFF6202C3");
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
+        public override GH_Exposure Exposure => GH_Exposure.tertiary;
 
         int method = 1;
 

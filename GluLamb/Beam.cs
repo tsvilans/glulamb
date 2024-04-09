@@ -41,18 +41,23 @@ namespace GluLamb
             get; set;
         }
 
+        public double OffsetX { get; set; }
+        public double OffsetY { get; set; }
+
         public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation { get; set; }
 
         public virtual Beam Duplicate()
         {
-            var beam = new Beam();
-            beam.Centreline = Centreline.DuplicateCurve();
-            beam.Orientation = Orientation.Duplicate();
-            beam.Width = Width;
-            beam.Height = Height;
-
-            return beam;
+            return new Beam()
+            {
+                Centreline = Centreline.DuplicateCurve(),
+                Orientation = Orientation.Duplicate(),
+                Width = Width,
+                Height = Height,
+                OffsetX = OffsetX,
+                OffsetY = OffsetY
+            };
         }
 
         public Plane GetPlane(double t) => GetPlane(t, Centreline);
@@ -242,6 +247,137 @@ namespace GluLamb
         /// </summary>
         /// <param name="pts"></param>
         /// <returns></returns>
+        public Point3d FromBeamSpace(Point3d point, bool extend = true)
+        {
+            var curve = Centreline.DuplicateCurve();
+            double length = curve.GetLength();
+
+            if (extend)
+            {
+                double maxZ = 0;
+                maxZ = Math.Max(maxZ, point.Z);
+
+                if (maxZ > length)
+                    curve = curve.Extend(CurveEnd.End, maxZ - length + 1, CurveExtensionStyle.Line);
+            }
+
+
+            if (curve.IsLinear())
+            {
+                curve.Domain = new Interval(0, length);
+
+                    Plane m_plane;
+                    m_plane = GetPlane(point.Z, curve);
+                    return m_plane.PointAt(point.X, point.Y);
+            }
+            else
+            {
+                    Plane m_plane;
+                    curve.LengthParameter(point.Z, out double t);
+                    m_plane = GetPlane(t, curve);
+                    return m_plane.PointAt(point.X, point.Y);
+            }
+        }
+
+        /// <summary>
+        /// Map points from beam space to world space.
+        /// </summary>
+        /// <param name="pts"></param>
+        /// <returns></returns>
+        public Plane FromBeamSpace(Plane plane, bool extend = true)
+        {
+            var curve = Centreline.DuplicateCurve();
+            double length = curve.GetLength();
+
+            if (extend)
+            {
+                double maxZ = 0;
+                maxZ = Math.Max(maxZ, plane.Origin.Z);
+
+                if (maxZ > length)
+                    curve = curve.Extend(CurveEnd.End, maxZ - length + 1, CurveExtensionStyle.Line);
+            }
+
+            Plane m_plane;
+            //Point3d origin;
+
+            if (curve.IsLinear())
+            {
+                curve.Domain = new Interval(0, length);
+
+                m_plane = GetPlane(plane.Origin.Z, curve);
+                //origin = m_plane.PointAt(plane.Origin.X, plane.Origin.Y);
+            }
+            else
+            {
+                curve.LengthParameter(plane.Origin.Z, out double t);
+                m_plane = GetPlane(t, curve);
+                //origin = m_plane.PointAt(plane.Origin.X, plane.Origin.Y);
+            }
+
+            plane.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, m_plane));
+
+            return plane;
+        }
+
+        /// <summary>
+        /// Map points from beam space to world space.
+        /// </summary>
+        /// <param name="pts"></param>
+        /// <returns></returns>
+        public Plane[] FromBeamSpace(IList<Plane> planes, bool extend = true)
+        {
+            var curve = Centreline.DuplicateCurve();
+            double length = curve.GetLength();
+            var new_planes = new Plane[planes.Count];
+
+            if (extend)
+            {
+                double maxZ = 0;
+                foreach (var plane in planes)
+                    maxZ = Math.Max(maxZ, plane.Origin.Z);
+
+                if (maxZ > length)
+                    curve = curve.Extend(CurveEnd.End, maxZ - length + 1, CurveExtensionStyle.Line);
+            }
+
+            Plane m_plane;
+            //Point3d origin;
+
+            if (curve.IsLinear())
+            {
+                for (int i = 0; i < planes.Count; ++i)
+                {
+                    curve.Domain = new Interval(0, length);
+
+                    m_plane = GetPlane(planes[i].Origin.Z, curve);
+                    //origin = m_plane.PointAt(plane.Origin.X, plane.Origin.Y);
+                    planes[i].Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, m_plane));
+
+                    new_planes[i] = planes[i];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < planes.Count; ++i)
+                {
+                    curve.LengthParameter(planes[i].Origin.Z, out double t);
+                     m_plane = GetPlane(t, curve);
+                    //origin = m_plane.PointAt(plane.Origin.X, plane.Origin.Y);
+                    planes[i].Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, m_plane));
+
+                    new_planes[i] = planes[i];
+                }
+            }
+
+            return new_planes;
+        }
+
+        /// <summary>
+        /// Map points from beam space to world space.
+        /// </summary>
+        /// <param name="pts"></param>
+        /// <returns></returns>
         public Point3d[] FromBeamSpace(IList<Point3d> pts, bool extend=true)
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
@@ -344,16 +480,22 @@ namespace GluLamb
 
             foreach (Plane plane in planes)
             {
-                var rec = new Rectangle3d(plane, new Interval(-Width * 0.5, Width * 0.5),
-                  new Interval(-Height * 0.5, Height * 0.5)).ToNurbsCurve();
+                var rec = new Rectangle3d(plane, new Interval(-Width * 0.5 + OffsetX, Width * 0.5 + OffsetX),
+                  new Interval(-Height * 0.5 + OffsetY, Height * 0.5 + OffsetY)).ToNurbsCurve();
                 xsections.Add(rec);
             }
 
-            var loft = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false);
-            loft[0] = loft[0].CapPlanarHoles(0.01);
-            loft[0].Flip();
+            var loft = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false)[0];
+            loft.Flip();
 
-            return loft[0];
+            var capped = loft.CapPlanarHoles(0.01);
+            if (capped != null)
+            {
+                capped.Faces.SplitKinkyFaces(0.1);
+                return capped;
+            }
+
+            return loft;
 
         }
 
@@ -490,5 +632,44 @@ namespace GluLamb
             }
             return loft;
         }
+
+        public virtual Beam Trim(Interval domain, double overlap)
+        {
+            double l1 = Centreline.GetLength(new Interval(Centreline.Domain.Min, domain.Min));
+            double l2 = Centreline.GetLength(new Interval(Centreline.Domain.Min, domain.Max));
+            double t1, t2;
+
+            if (!Centreline.LengthParameter(l1 - overlap, out t1)) t1 = domain.Min;
+            if (!Centreline.LengthParameter(l2 + overlap, out t2)) t2 = domain.Max;
+
+            domain = new Interval(
+                Math.Max(t1, Centreline.Domain.Min),
+                Math.Min(t2, Centreline.Domain.Max));
+
+            double length = Centreline.GetLength(domain);
+
+            if (domain.IsDecreasing || length < overlap || length < Glulam.OverlapTolerance)
+                return null;
+
+            double percentage = length / Centreline.GetLength();
+
+            Curve trimmed_curve = Centreline.Trim(domain);
+
+            CrossSectionOrientation trimmed_orientation = Orientation.Trim(domain);
+            trimmed_orientation.Remap(Centreline, trimmed_curve);
+
+            var beam = new Beam() { 
+                Centreline = trimmed_curve, 
+                Orientation = trimmed_orientation, 
+                Width = Width, 
+                Height = Height,
+                OffsetX = OffsetX,
+                OffsetY = OffsetY
+            };
+
+            return beam;
+        }
+
+
     }
 }

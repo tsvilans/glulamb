@@ -50,6 +50,8 @@ namespace GluLamb.GH.Components
         public override GH_Exposure Exposure => GH_Exposure.primary;
 
         bool monochrome = false;
+        bool fullName = false;
+
         List<JointCondition> JointConditions = new List<JointCondition>();
         Dictionary<int, Point3d> JointOrigins = null;
         Dictionary<int, Line> JointLines = null;
@@ -68,6 +70,7 @@ namespace GluLamb.GH.Components
         protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
         {
             Menu_AppendItem(menu, "Monochrome", ToggleMonochrome, true, monochrome);
+            Menu_AppendItem(menu, "Full name", ToggleFullName, true, fullName);
         }
 
         private void ToggleMonochrome(object sender, EventArgs e)
@@ -76,6 +79,11 @@ namespace GluLamb.GH.Components
             ExpirePreview(true);
         }
 
+        private void ToggleFullName(object sender, EventArgs e)
+        {
+            fullName = !fullName;
+            ExpireSolution(true);
+        }
 
         public string ClassifyJoint(int[] flags)
         {
@@ -147,6 +155,7 @@ namespace GluLamb.GH.Components
             pManager.AddCurveParameter("Curves", "C", "Input centrelines to use for classifying joint conditions.", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Connected pairs", "CP", "Indices of connected pairs as tree. Each path is the ID of the connection.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Connected parameters", "CT", "Parameters of connections as tree. Each path is the ID of the connection.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Merge distance", "M", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -161,6 +170,9 @@ namespace GluLamb.GH.Components
             if (!DA.GetDataTree(0, out GH_Structure<GH_Curve> curves)) return;
             if (!DA.GetDataTree(1, out GH_Structure<GH_Integer> pairs)) return;
             if (!DA.GetDataTree(2, out GH_Structure<GH_Number> parameters)) return;
+
+            double mergeDistance = 50;
+            DA.GetData("Merge distance", ref mergeDistance);
 
             JointOrigins = new Dictionary<int, Point3d>();
             JointLines = new Dictionary<int, Line>();
@@ -203,7 +215,7 @@ namespace GluLamb.GH.Components
                 JointConditions.Add(jc);
             }
 
-            JointConditions = JointCondition.MergeJointConditions(JointConditions, 10);
+            JointConditions = JointCondition.MergeJointConditions(JointConditions, mergeDistance);
 
             for (int i = 0; i < JointConditions.Count; ++i)
             {
@@ -212,7 +224,15 @@ namespace GluLamb.GH.Components
 
                 var jointType = ClassifyJoint(jc.Parts.Select(x => x.Case).ToArray());
 
-                JointNames.Add(i, $"Joint {i} ({jointType})");
+                if (fullName)
+                {
+                    JointNames.Add(i, $"Joint {i} ({jointType})");
+                }
+                else
+                {
+                    JointNames.Add(i, $"{jointType}");
+                }
+
                 JointTypes.Add(i, jointType);
             }
 

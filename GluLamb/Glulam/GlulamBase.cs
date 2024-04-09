@@ -119,7 +119,8 @@ namespace GluLamb
         /// Duplicate glulam data.
         /// </summary>
         /// <returns></returns>
-        public new Glulam Duplicate() => CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+        public new Glulam DuplicateGlulam() => CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+        public override Beam Duplicate() => DuplicateGlulam();
 
         public override int GetHashCode() => Id.GetHashCode();
         public override string ToString() => "Glulam";
@@ -213,7 +214,7 @@ namespace GluLamb
             return blanks;
         }
 
-        public Glulam Trim(Interval domain, double overlap)
+        public override Beam Trim(Interval domain, double overlap)
         {
             double l1 = Centreline.GetLength(new Interval(Centreline.Domain.Min, domain.Min));
             double l2 = Centreline.GetLength(new Interval(Centreline.Domain.Min, domain.Max));
@@ -308,13 +309,13 @@ namespace GluLamb
         public Glulam[] Split(IList<double> t, double overlap = 0.0)
         {
             if (t.Count < 1)
-                return new Glulam[] { this.Duplicate() };
+                return new Glulam[] { this.DuplicateGlulam() };
             if (t.Count < 2)
             {
                 if (Centreline.Domain.IncludesParameter(t[0]))
                     return Split(t[0]).ToArray();
                 else
-                    return new Glulam[] { this.Duplicate() };
+                    return new Glulam[] { this.DuplicateGlulam() };
             }
 
 

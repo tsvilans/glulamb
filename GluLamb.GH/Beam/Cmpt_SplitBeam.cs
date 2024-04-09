@@ -29,11 +29,11 @@ using System.Linq;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_SplitGlulam : GH_Component
+    public class Cmpt_SplitBeam : GH_Component
     {
-        public Cmpt_SplitGlulam()
-          : base("Split Glulam", "SplitG",
-              "Splits Glulam with optional overlap.",
+        public Cmpt_SplitBeam()
+          : base("Split Beam", "SplitB",
+              "Splits Beam with optional overlap.",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -44,26 +44,26 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulam", "G", "Input glulam blank to deconstruct.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Parameter", "T", "Point on Glulam at which to split.", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Beam", "B", "Input beam to split.", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Parameter", "T", "Point on beam at which to split.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Overlap", "O", "Amount of overlap at split point.", GH_ParamAccess.item, 0);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Glulams", "G", "Glulam pieces.", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Beams", "B", "Beam pieces.", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
 
             // Get Glulam
-            Glulam m_glulam = null;
-            DA.GetData<Glulam>("Glulam", ref m_glulam);
+            Beam m_beam = null;
+            DA.GetData<Beam>("Beam", ref m_beam);
 
-            if (m_glulam == null)
+            if (m_beam == null)
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid glulam input.");
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid beam input.");
                 return;
             }
 
@@ -77,32 +77,32 @@ namespace GluLamb.GH.Components
 
             m_params.Sort();
 
-            List<Glulam> m_glulams = new List<Glulam>();
+            List<Beam> m_beams = new List<Beam>();
 
             //m_glulams = g.Split(m_params.ToArray(), m_overlap);
 
             List<Interval> domains = new List<Interval>();
-            double dmin = m_glulam.Centreline.Domain.Min;
+            double dmin = m_beam.Centreline.Domain.Min;
 
             domains.Add(new Interval(dmin, m_params.First()));
             for (int i = 0; i < m_params.Count - 1; ++i)
             {
                 domains.Add(new Interval(m_params[i], m_params[i + 1]));
             }
-            domains.Add(new Interval(m_params.Last(), m_glulam.Centreline.Domain.Max));
+            domains.Add(new Interval(m_params.Last(), m_beam.Centreline.Domain.Max));
 
             //domains = domains.Where(x => m_glulam.Centreline.GetLength(x) > m_overlap).ToList();
 
             for (int i = 0; i < domains.Count; ++i)
             {
-                Glulam temp = m_glulam.Trim(domains[i], m_overlap);
+                Beam temp = m_beam.Trim(domains[i], m_overlap);
                 if (temp == null)
                     continue;
 
-                m_glulams.Add(temp);
+                m_beams.Add(temp);
             }
 
-            DA.SetDataList("Glulams", m_glulams.Select(x => new GH_Glulam(x)));
+            DA.SetDataList("Beams", m_beams.Select(x => new GH_Beam(x)));
         }
     }
 }

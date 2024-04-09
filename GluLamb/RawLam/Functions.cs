@@ -286,7 +286,7 @@ namespace GluLamb
                 tmax = Math.Max(tmax, t);
             }
 
-            var ng = glulam.Duplicate();
+            var ng = glulam.DuplicateGlulam();
             ng.Centreline = ng.Centreline.Trim(tmin, tmax);
 
             return ng;
@@ -352,7 +352,7 @@ namespace GluLamb
                 tmax = Math.Max(tmax, t);
             }
 
-            var ng = glulam.Duplicate();
+            var ng = glulam.DuplicateGlulam();
             ng.Centreline = ng.Centreline.Trim(tmin, tmax);
 
             return ng;
