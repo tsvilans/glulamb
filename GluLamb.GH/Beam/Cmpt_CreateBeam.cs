@@ -164,9 +164,9 @@ namespace GluLamb.GH.Components
                 if (single is GH_Vector)
                     return new VectorOrientation((single as GH_Vector).Value);
                 if (single is Plane)
-                    return new VectorOrientation(((Plane)single).YAxis);
+                    return new PlanarOrientation(((Plane)single));
                 if (single is GH_Plane)
-                    return new VectorOrientation((single as GH_Plane).Value.YAxis);
+                    return new PlanarOrientation((single as GH_Plane).Value);
                 if (single is GH_Line)
                     return new VectorOrientation((single as GH_Line).Value.Direction);
                 if (single is Surface)

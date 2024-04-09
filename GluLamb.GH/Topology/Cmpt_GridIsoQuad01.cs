@@ -95,10 +95,14 @@ namespace GluLamb.GH.Components
                     {
                         baseCurve.LengthParameter(stepsI[i] * j, out double t);
                         var isoCurve = face.IsoCurve(1 - i, t);
+                        var isoCurves = face.TrimAwareIsoCurve(1 - i, t);
 
-                        beams.Add(new GH_Curve(isoCurve), path);
-                        groups.Add(path.Indices[0], new GH_Path(i));
-                        path = path.Increment(0);
+                        for(int k = 0; k < isoCurves.Length; ++k)
+                        {
+                            beams.Add(new GH_Curve(isoCurves[k]), path);
+                            groups.Add(path.Indices[0], new GH_Path(i));
+                            path = path.Increment(0);
+                        }
                     }
                 }
             }
