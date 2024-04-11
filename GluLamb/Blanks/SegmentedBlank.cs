@@ -52,7 +52,7 @@ namespace GluLamb.Blanks
         public SegmentedBlank(Curve centreline, Curve[] edge_curves, Plane plane, double width0, double width1, double height, double layer_thickness)
         {
             if (plane == Plane.Unset)
-                if (!Centreline.TryGetPlane(out plane))
+                if (!centreline.TryGetPlane(out plane))
                     plane = Plane.WorldXY;
 
             this.Plane = plane;
@@ -585,6 +585,17 @@ namespace GluLamb.Blanks
                 Geometry.Transform(xform);
             PlaneAtStart.Transform(xform);
             PlaneAtEnd.Transform(xform);
+        }
+
+        public Curve GetOutline()
+        {
+            var end0 = new Line(m_curves[0].PointAtStart, m_curves[1].PointAtStart);
+            var end1 = new Line(m_curves[0].PointAtEnd, m_curves[1].PointAtEnd);
+
+            var outline = Curve.JoinCurves(new Curve[] { m_curves[0], end0.ToNurbsCurve(), m_curves[1], end1.ToNurbsCurve() });
+            if (outline != null && outline.Length > 0)
+                return outline[0];
+            return null;
         }
     }
 

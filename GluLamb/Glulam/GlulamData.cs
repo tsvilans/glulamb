@@ -291,7 +291,7 @@ namespace GluLamb
 
         public override string ToString()
         {
-            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumHeight} nh {NumHeight} s {Samples} sa {SectionAlignment} ]";
+            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumHeight} nh {NumHeight} s {Samples}]";
         }
 
 

@@ -21,6 +21,8 @@ using System;
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Special;
+using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
 
 namespace GluLamb.GH.Components
@@ -90,14 +92,15 @@ namespace GluLamb.GH.Components
                 var bb = geo.GetBoundingBox(inputPlanes[i]);
                 debug.Add(bb);
 
-
                 maxRowY = Math.Max(maxRowY, bb.Max.Y - bb.Min.Y);
+                
+                currentX -= bb.Min.X;
 
                 var plane = new Plane(new Point3d(x + currentX, y, 0), Vector3d.XAxis, Vector3d.YAxis);
 
                 geo.Transform(Transform.PlaneToPlane(inputPlanes[i], plane));
 
-                currentX += bb.Max.X - bb.Min.X + spacingX;
+                currentX += bb.Max.X + spacingX;
 
                 if (currentX > maxX)
                 {

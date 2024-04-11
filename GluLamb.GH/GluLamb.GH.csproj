@@ -67,8 +67,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Beam\Cmpt_GetHandle.cs" />
     <Compile Include="Beam\Cmpt_MapToWorldSpace.cs" />
     <Compile Include="Blank\Cmpt_AnalyzeLamellaBending2.cs" />
+    <Compile Include="Blank\Cmpt_UnbendGlulam.cs" />
+    <Compile Include="Blank\Cmpt_CreateSegmentedBlank.cs" />
     <Compile Include="Blank\Cmpt_CreateBlank.cs" />
     <Compile Include="Blank\Cmpt_DeLaminate.cs" />
     <Compile Include="Blank\Cmpt_EstimateK.cs" />
@@ -281,6 +284,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\World.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamHandle.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\SegmentedBlank.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Unbend.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

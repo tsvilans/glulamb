@@ -389,6 +389,10 @@ namespace GluLamb
             double x = Width;
             double y = Height;
 
+            offsetX = OffsetX;
+            offsetY = OffsetY;
+            return;
+
             //double x0 = 0, y0 = 0;
             double hx = x / 2, hy = y / 2;
 
@@ -445,16 +449,16 @@ namespace GluLamb
         {
             double x = Width;
             double y = Height;
+            double hx = Width * 0.5, hy = Height * 0.5;
 
-            double x0 = 0, x1 = x, y0 = 0, y1 = y;
-            double hx = x / 2, hy = y / 2;
+            double x0 = -hx + OffsetX, x1 = hx + OffsetX, y0 = -hy + OffsetY, y1 = hy + OffsetY;
 
             int numCorners = 4;
 
             Point3d[] section_corners = new Point3d[numCorners];
 
             //m_section_corners = new Point3d[numCorners];
-
+            /*
             switch (Data.SectionAlignment)
             {
                 case (GlulamData.CrossSectionPosition.MiddleCentre):
@@ -492,6 +496,7 @@ namespace GluLamb
                     x0 -= x; x1 -= x;
                     break;
             }
+            */
 
             section_corners[0] = new Point3d(x0 - offset, y0 - offset, 0);
             section_corners[1] = new Point3d(x0 - offset, y1 + offset, 0);

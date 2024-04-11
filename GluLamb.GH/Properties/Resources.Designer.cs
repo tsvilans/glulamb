@@ -93,6 +93,16 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap BeamHandle {
+            get {
+                object obj = ResourceManager.GetObject("BeamHandle", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap BeamInflate {
             get {
                 object obj = ResourceManager.GetObject("BeamInflate", resourceCulture);
@@ -336,6 +346,26 @@ namespace GluLamb.GH.Properties {
         public static System.Drawing.Bitmap Joint {
             get {
                 object obj = ResourceManager.GetObject("Joint", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap SegmentedBlank {
+            get {
+                object obj = ResourceManager.GetObject("SegmentedBlank", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap Unbend {
+            get {
+                object obj = ResourceManager.GetObject("Unbend", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
