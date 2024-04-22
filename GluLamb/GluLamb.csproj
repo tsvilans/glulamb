@@ -69,7 +69,10 @@
     <Compile Include="Globals.cs" />
     <Compile Include="Joints\BranchJoints\BranchJointSimple.cs" />
     <Compile Include="Joints\Connectors.cs" />
+    <Compile Include="Joints\CornerJoints\CornerJointX.cs" />
+    <Compile Include="Joints\Defaults\CrossJointX.cs" />
     <Compile Include="Joints\Defaults\EndJoint.cs" />
+    <Compile Include="Joints\Defaults\SpliceJointX.cs" />
     <Compile Include="Joints\FourWayJoints\FourWayJoint_Split.cs" />
     <Compile Include="Joints\CrossJoints\CrossJoint_SingleBackCut.cs" />
     <Compile Include="Joints\Defaults\BranchJoint.cs" />
@@ -86,6 +89,7 @@
     <Compile Include="Joints\SpliceJoints\SpliceJoint_BlindTenon.cs" />
     <Compile Include="Joints\SpliceJoints\SpliceJoint_Lap1.cs" />
     <Compile Include="Joints\SpliceJoints\SpliceJoint_Tenon3.cs" />
+    <Compile Include="Joints\TenonJoints\TenonJointX.cs" />
     <Compile Include="Joints\VBeamJoints\KJoint_Plate.cs" />
     <Compile Include="Joints\VBeamJoints\VBeam_ThruTenon1.cs" />
     <Compile Include="Joints\TenonJoints\ButtJoint1.cs" />
@@ -131,7 +135,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\" />
-    <Folder Include="Joints\CornerJoints\" />
     <Folder Include="Joints\EndJoints\" />
   </ItemGroup>
   <ItemGroup>

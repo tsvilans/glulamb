@@ -50,6 +50,7 @@ namespace GluLamb.GH.Components
             pManager.AddGenericParameter("Beams", "B", "Beams.", GH_ParamAccess.tree);
             pManager.AddGenericParameter("Joints", "J", "Joints to solve and construct.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Types", "T", "Type specification for joints.", GH_ParamAccess.tree);
+
             pManager.AddGenericParameter("Settings", "S", "Optional joint settings to specify types of joints.", GH_ParamAccess.item);
 
             pManager[3].Optional = true;
@@ -76,10 +77,10 @@ namespace GluLamb.GH.Components
                 var branch = beamTree[path];
                 if (branch.Count < 1) continue;
 
-                var beam = branch[0] as Beam;
-                if (beam == null) return;
+                var beam = branch[0] as GH_Beam;
+                if (beam == null) continue;
 
-                beams.Add(path.Indices[0], beam);
+                beams.Add(path.Indices[0], beam.Value);
             }
 
             foreach (var path in jointTree.Paths)
@@ -87,10 +88,10 @@ namespace GluLamb.GH.Components
                 var branch = jointTree[path];
                 if (branch.Count < 1) continue;
 
-                var joint = branch[0] as JointX;
-                if (joint == null) return;
+                var joint = branch[0] as GH_Joint;
+                if (joint == null) continue;
 
-                joints.Add(path.Indices[0], joint);
+                joints.Add(path.Indices[0], joint.Value);
             }
 
             foreach (var path in typesTree.Paths)
@@ -99,7 +100,7 @@ namespace GluLamb.GH.Components
                 if (branch.Count < 1) continue;
 
                 var type = branch[0] as GH_String;
-                if (type == null) return;
+                if (type == null) continue;
 
                 types.Add(path.Indices[0], type.Value);
             }
@@ -107,6 +108,8 @@ namespace GluLamb.GH.Components
             var keys = new List<int>(joints.Keys);
             foreach (var key in keys)
             {
+                if (!joints.ContainsKey(key) || !types.ContainsKey(key)) continue;
+                
                 var joint = joints[key];
                 var type = types[key];
 
@@ -164,9 +167,6 @@ namespace GluLamb.GH.Components
 
             DA.SetDataTree(0, jointsOutput);
             DA.SetDataTree(1, jointGeometries);
-
-
-
 
             /*
             GH_Structure structure = null;
