@@ -4,3 +4,6 @@ packages
 bin
 .vs
 GluLamb.GH/GluLamb.GH.csproj.user
+GluLamb.Raw/obj/
+GluLamb.Raw.GH/obj/
+GluLamb.Raw.Test/obj/
