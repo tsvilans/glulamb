@@ -30,7 +30,7 @@ using System.Linq;
 
 namespace GluLamb.GH.Components
 {
-    public class Cmpt_CreateBlank : GH_Component
+    public class Cmpt_CreateBlank : GH_Component, IGH_VariableParameterComponent
     {
         public Cmpt_CreateBlank()
           : base("Create Blank", "Blank",
@@ -132,5 +132,11 @@ namespace GluLamb.GH.Components
 
             DA.SetData("Glulam", new GH_Glulam(glulam));
         }
+
+        bool IGH_VariableParameterComponent.CanInsertParameter(GH_ParameterSide side, int index) => false;
+        bool IGH_VariableParameterComponent.CanRemoveParameter(GH_ParameterSide side, int index) => false;
+        IGH_Param IGH_VariableParameterComponent.CreateParameter(GH_ParameterSide side, int index) => null;
+        bool IGH_VariableParameterComponent.DestroyParameter(GH_ParameterSide side, int index) => false;
+        void IGH_VariableParameterComponent.VariableParameterMaintenance() { }
     }
 }

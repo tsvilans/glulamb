@@ -56,8 +56,7 @@ namespace GluLamb.GH.Components
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-
-            // Get Glulam
+            // Get beam
             Beam m_beam = null;
             DA.GetData<Beam>("Beam", ref m_beam);
 
@@ -95,6 +94,9 @@ namespace GluLamb.GH.Components
 
             for (int i = 0; i < domains.Count; ++i)
             {
+                if (m_beam.Centreline.GetLength(domains[i]) < m_overlap)
+                    continue;
+
                 Beam temp = m_beam.Trim(domains[i], m_overlap);
                 if (temp == null)
                     continue;

@@ -97,7 +97,7 @@ namespace GluLamb.GH.Components
                 width,
                 width,
                 beam.Width,
-                20
+                thickness
             );
 
             var divisions = segBlank.SegmentCentreline2b(minLength, maxLength, true);

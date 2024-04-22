@@ -39,17 +39,25 @@ namespace GluLamb
 
             for (int i = 0; i < keys.Count - 1; ++i)
             {
+                var crv0 = curves[keys[i]];
+                if (crv0 == null) continue;
+
                 for (int j = i + 1; j < keys.Count; ++j)
                 {
-                    var crv0 = curves[keys[i]]; var crv1 = curves[keys[j]];
+                    var crv1 = curves[keys[j]];
+                    if (crv1 == null) continue;
+
                     var intersections = Rhino.Geometry.Intersect.Intersection.CurveCurve(crv0, crv1, tolerance, overlapTolerance);
 
                     if (intersections.Count > 0)
                     {
                         foreach (var intersection in intersections)
                         {
-                            var pair = new Pair { A = keys[i], B = keys[j], tA = intersection.ParameterA, tB = intersection.ParameterB };
-                            pairs.Add(pair);
+                            if (intersection.IsPoint)
+                                pairs.Add(new Pair { A = keys[i], B = keys[j], tA = intersection.ParameterA, tB = intersection.ParameterB });
+                            else if (intersection.IsOverlap)
+                                pairs.Add(new Pair { A = keys[i], B = keys[j], tA = intersection.OverlapA.Mid, tB = intersection.OverlapB.Mid });
+
                         }
                     }
                 }

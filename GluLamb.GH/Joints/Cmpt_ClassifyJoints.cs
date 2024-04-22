@@ -85,50 +85,22 @@ namespace GluLamb.GH.Components
             ExpireSolution(true);
         }
 
-        public string ClassifyJoint(int[] flags)
+        public void ClassifyJointPosition(Curve c, double t, out int jointCase, out Vector3d direction, double end_tolerance = 10)
         {
-            switch (flags.Length)
-            {
-                case (0):
-                    throw new ArgumentException("No flags present!");
-                case (1):
-                    return "E";
-                case (2):
-                    int f0 = flags[0], f1 = flags[1];
-                    if (((f0 & 1) == 0) && ((f1 & 1) == 0))
-                        return "L";
-                    if (((f0 & 1) == 1) && ((f1 & 1) == 1))
-                        return "X";
-                    return "T";
-                default:
-                    return $"{flags.Length}J";
-            }
-        }
+            jointCase = 0; // initialize
 
-        public int ClassifyJointPosition(Curve c, double t, double end_tolerance = 10)
-        {
-            var status = 0;
-            // bit 1 = 0 is end of curve, 1 is middle
-            // bit 2 = 0 is start end, 1 is end end
+            jointCase = t > c.Domain.Mid ? JointPartX.SetAtEnd1(jointCase) : JointPartX.SetAtEnd0(jointCase);
 
-            if (t > c.Domain.Mid)
-                status = status | 2;
+            double length = JointPartX.End1(jointCase) ? c.GetLength(new Interval(t, c.Domain.Max)) : c.GetLength(new Interval(c.Domain.Min, t));
 
-            double length = 0;
-            if ((status & 2) > 0)
-                length = c.GetLength(new Interval(t, c.Domain.Max));
-            else
-                length = c.GetLength(new Interval(c.Domain.Min, t));
-
-            if (length > end_tolerance)
-            {
-                status = status | 1;
-            }
-            return status;
+            jointCase = length < end_tolerance ? JointPartX.SetAtEnd(jointCase) : JointPartX.SetAtMiddle(jointCase);
+            
+            direction = (JointPartX.End0(jointCase) && JointPartX.IsAtEnd(jointCase)) ? -c.TangentAt(t) : c.TangentAt(t);
         }
 
         public override void DrawViewportMeshes(IGH_PreviewArgs args)
         {
+            if (JointOrigins != null)
             foreach (var key in JointOrigins.Keys)
             {
                 var pt = JointOrigins[key];
@@ -156,13 +128,15 @@ namespace GluLamb.GH.Components
             pManager.AddIntegerParameter("Connected pairs", "CP", "Indices of connected pairs as tree. Each path is the ID of the connection.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Connected parameters", "CT", "Parameters of connections as tree. Each path is the ID of the connection.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Merge distance", "M", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50);
+            pManager.AddNumberParameter("End tolerance", "ET", "Distance within which to consider a joint at the end of an element.", GH_ParamAccess.item, 10);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddIntegerParameter("Connected elements", "CI", "Indices of all connected elements for each joint. Each path is the ID of the joint.", GH_ParamAccess.tree);
-            pManager.AddIntegerParameter("Connected parameters", "CP", "Curve parameters of all connected elements for each joint at their connection point. Each path is the ID of the joint.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Connected parameters", "CP", "Curve parameters of all connected elements for each joint at their connection point. Each path is the ID of the joint.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Connection type", "CT", "Type of each connection. Each path is the ID of the joint.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Joints", "J", "Joints created from the input joint conditions.", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -174,12 +148,15 @@ namespace GluLamb.GH.Components
             double mergeDistance = 50;
             DA.GetData("Merge distance", ref mergeDistance);
 
+            double endTolerance = 10;
+            DA.GetData("End tolerance", ref endTolerance);
+
             JointOrigins = new Dictionary<int, Point3d>();
             JointLines = new Dictionary<int, Line>();
             JointNames = new Dictionary<int, string>();
             JointTypes = new Dictionary<int, string>();
 
-            var JointConditions = new List<JointCondition>();
+            var Joints = new List<JointX>();
 
             var jointPaths = pairs.Paths;
             foreach (var jp in jointPaths)
@@ -194,9 +171,9 @@ namespace GluLamb.GH.Components
 
                 var path0 = new GH_Path(i0);
                 var path1 = new GH_Path(i1);
-
-                var c0 = curves[i0][0].Value;
-                var c1 = curves[i1][0].Value;
+                
+                var c0 = curves[path0][0].Value;
+                var c1 = curves[path1][0].Value;
 
                 var t0 = parameters[jp][0].Value;
                 var t1 = parameters[jp][1].Value;
@@ -204,25 +181,30 @@ namespace GluLamb.GH.Components
                 var p0 = c0.PointAt(t0);
                 var p1 = c1.PointAt(t1);
 
-                var s0 = ClassifyJointPosition(c0, t0);
-                var s1 = ClassifyJointPosition(c1, t1);
+                ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
+                ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
 
-                var jc = new JointCondition((p0 + p1) * 0.5, new List<JointConditionPart>{
-            new JointConditionPart(i0, s0, t0),
-            new JointConditionPart(i1, s1, t1)
-            });
+                var jc = new JointX(
+                    new List<JointPartX>
+                    {
+                        new JointPartX() {Case = s0, ElementIndex = i0, JointIndex = id, Parameter = t0, Direction = v0 },
+                        new JointPartX() {Case = s1, ElementIndex = i1, JointIndex = id, Parameter = t1, Direction = v1 },
+                    },
+                    (p0 + p1) * 0.5
+                    );
 
-                JointConditions.Add(jc);
+                Joints.Add(jc);
             }
 
-            JointConditions = JointCondition.MergeJointConditions(JointConditions, mergeDistance);
+            Joints = JointX.MergeJoints(Joints, mergeDistance);
 
-            for (int i = 0; i < JointConditions.Count; ++i)
+            for (int i = 0; i < Joints.Count; ++i)
             {
-                var jc = JointConditions[i];
+                var jc = Joints[i];
                 JointOrigins.Add(i, jc.Position);
 
-                var jointType = ClassifyJoint(jc.Parts.Select(x => x.Case).ToArray());
+                var jointType = JointX.ClassifyJoint(jc);
+
 
                 if (fullName)
                 {
@@ -240,14 +222,14 @@ namespace GluLamb.GH.Components
             var parameterTree = new DataTree<double>();
             var typeTree = new DataTree<string>();
 
-            for (int i = 0; i < JointConditions.Count; ++i)
+            for (int i = 0; i < Joints.Count; ++i)
             {
-                var jc = JointConditions[i];
+                var jc = Joints[i];
 
                 var path = new GH_Path(i);
                 foreach (var part in jc.Parts)
                 {
-                    jointTree.Add(part.Index, path);
+                    jointTree.Add(part.ElementIndex, path);
                     parameterTree.Add(part.Parameter, path);
                 }
 
@@ -257,6 +239,7 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(0, jointTree);
             DA.SetDataTree(1, parameterTree);
             DA.SetDataTree(2, typeTree);
+            DA.SetDataList(3, Joints.Select(x => new GH_Joint(x)));
         }
     }
 }

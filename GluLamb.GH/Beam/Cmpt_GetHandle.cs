@@ -69,6 +69,11 @@ namespace GluLamb.GH.Components
 
             var xaxis = m_beam.Centreline.PointAtEnd - m_beam.Centreline.PointAtStart;
             var yaxis = m_beam.Centreline.PointAt(m_beam.Centreline.Domain.Mid) - m_beam.Centreline.PointAtStart;
+            if (m_beam.Centreline.IsLinear())
+            {
+                yaxis = m_beam.GetPlane(m_beam.Centreline.Domain.Min).YAxis;
+            }
+
             var origin = m_beam.Centreline.PointAtStart;
 
             Plane plane = new Plane(origin, xaxis, yaxis);

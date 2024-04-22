@@ -25,6 +25,8 @@ using System.Collections.Generic;
 using Rhino.Display;
 using System.Drawing;
 using Rhino.Geometry;
+using Grasshopper.Kernel;
+using System.ComponentModel;
 
 namespace GluLamb
 {
@@ -809,6 +811,58 @@ namespace GluLamb
             angle = Vector3d.VectorAngle(yaxis, -Vector3d.ZAxis) * sign;
 
             return true;
+        }
+
+        public static Plane AdjustPlaneToBrep(Brep brep, Plane plane, double tolerance = 0.01, double threshold = 0.9)
+        {
+            Vector3d normal = Vector3d.Unset;
+            double best = 0;
+
+            for (int i = 0; i < brep.Faces.Count; ++i)
+            {
+                var face = brep.Faces[i];
+                if (!face.TryGetPlane(out Plane fplane, tolerance))
+                {
+                    continue;
+                }
+
+                var dot = fplane.ZAxis * plane.ZAxis;
+
+                if (Math.Abs(dot) > threshold
+                    && Math.Abs(dot) > best)
+                {
+                    best = Math.Abs(dot);
+                    if (dot < 0)
+                        normal = -fplane.ZAxis;
+                    else
+                        normal = fplane.ZAxis;
+                }
+            }
+            
+            if (normal == Vector3d.Unset)
+            {
+                return Plane.Unset;
+            }
+
+            var yaxis = Vector3d.CrossProduct(normal, plane.XAxis);
+            var xaxis = Vector3d.CrossProduct(yaxis, normal);
+
+            return new Plane(plane.Origin, xaxis, yaxis);
+        }
+
+        public static Vector3d ClosestAxis(Plane plane, Vector3d vector)
+        {
+            var axes = new Vector3d[]
+            {
+                plane.XAxis,
+                plane.YAxis,
+                -plane.XAxis,
+                -plane.YAxis
+            };
+
+            var (number, index) = axes.Select(x => vector * x).Select((n, i) => (n, i)).Max();
+
+            return axes[index];
         }
     }
 

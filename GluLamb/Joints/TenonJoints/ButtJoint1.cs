@@ -56,10 +56,7 @@ namespace GluLamb.Joints
 
         }
 
-        public override string ToString()
-        {
-            return "ButtJoint_Flat2Dowels";
-        }
+        public override string ToString() => "ButtJoint_Flat2Dowels";
 
         public override bool Construct(bool append = false)
         {

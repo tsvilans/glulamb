@@ -25,6 +25,8 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 using Grasshopper.Kernel.Data;
 using Grasshopper;
+using System.Linq;
+using GH_IO.Serialization;
 
 namespace GluLamb.GH.Components
 {
@@ -42,6 +44,26 @@ namespace GluLamb.GH.Components
         public override GH_Exposure Exposure => GH_Exposure.secondary;
         double m_scale_to_doc = 1.0;
 
+        private bool FlipU = false;
+        private bool FlipV = false;
+
+        protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, "Flip U", ToggleFlipU, true, FlipU);
+            Menu_AppendItem(menu, "Flip V", ToggleFlipV, true, FlipV);
+        }
+        private void ToggleFlipU(object sender, EventArgs e)
+        {
+            FlipU = !FlipU;
+            ExpireSolution(true);
+        }
+
+        private void ToggleFlipV(object sender, EventArgs e)
+        {
+            FlipV = !FlipV;
+            ExpireSolution(true);
+        }
+
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             m_scale_to_doc = RhinoMath.UnitScale(UnitSystem.Meters, RhinoDoc.ActiveDoc.ModelUnitSystem);
@@ -58,6 +80,20 @@ namespace GluLamb.GH.Components
             pManager.AddIntegerParameter("Groups", "G", "Element groups as a tree. Branch 0 contains identifiers for elements in the X-direction, " +
                 "branch 1 for elements in the Y-direction, and branch 2 for the boundary edges of the Brep.", GH_ParamAccess.tree);
 
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            writer.SetBoolean("FlipU", FlipU);
+            writer.SetBoolean("FlipV", FlipV);
+            return base.Write(writer);
+        }
+
+        public override bool Read(GH_IReader reader)
+        {
+            reader.TryGetBoolean("FlipU", ref FlipU);
+            reader.TryGetBoolean("FlipV", ref FlipV);
+            return base.Read(reader);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -86,15 +122,21 @@ namespace GluLamb.GH.Components
                 for (int i = 0; i < 2; ++i)
                 {
                     var domain = face.Domain(1 - i);
+                    double bt = domain.Min;
 
-                    var baseCurve = face.IsoCurve(i, domain.Min);
+                    if ((FlipU && i == 0) || (FlipV && i == 1))
+                        bt = domain.Max;
+
+                    var baseCurve = face.IsoCurve(i, bt);
 
                     var nI = (int)Math.Ceiling(baseCurve.GetLength() / stepsI[i]);
+                    var rest = (baseCurve.GetLength() / nI) * 0.5;
 
                     for (int j = 1; j < nI; ++j)
                     {
+                        //baseCurve.LengthParameter(rest + stepsI[i] * j, out double t);
                         baseCurve.LengthParameter(stepsI[i] * j, out double t);
-                        var isoCurve = face.IsoCurve(1 - i, t);
+                        //var isoCurve = face.IsoCurve(1 - i, t);
                         var isoCurves = face.TrimAwareIsoCurve(1 - i, t);
 
                         for(int k = 0; k < isoCurves.Length; ++k)
@@ -124,7 +166,6 @@ namespace GluLamb.GH.Components
                         path = path.Increment(0);
                     }
                 }
-                
             }
 
             DA.SetDataTree(0, beams);

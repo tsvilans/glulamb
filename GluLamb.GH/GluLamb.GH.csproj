@@ -79,10 +79,15 @@
     <Compile Include="Blank\Cmpt_MeshGrainDeviation.cs" />
     <Compile Include="Blank\Cmpt_MeshGrainDirection.cs" />
     <Compile Include="Api.cs" />
+    <Compile Include="Beam\Cmpt_DeBeam.cs" />
+    <Compile Include="Goo\JointParameter.cs" />
+    <Compile Include="Goo\JointGoo.cs" />
     <Compile Include="Goo\BeamGoo.cs" />
     <Compile Include="Goo\CrossSectionOrientationGoo.cs" />
     <Compile Include="Joints\Cmpt_ClassifyJoints.cs" />
+    <Compile Include="Joints\Cmpt_DeJoint.cs" />
     <Compile Include="Topology\Cmpt_GridIsoQuad01.cs" />
+    <Compile Include="Utilities\Cmpt_InterpolatePlanes.cs" />
     <Compile Include="Utilities\Cmpt_Distribute2.cs" />
     <Compile Include="Topology\Cmpt_FlipTopology.cs" />
     <Compile Include="Topology\Cmpt_CreateTopology.cs" />
@@ -293,6 +298,24 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Unbend.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamInfo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BeamMesh.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\InterpolatePlanes.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Joint2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\JointInfo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\JointParameter.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

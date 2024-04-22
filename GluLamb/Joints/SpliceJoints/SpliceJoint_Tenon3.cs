@@ -57,10 +57,13 @@ namespace GluLamb.Joints
             }
 
             // TODO: Align curve tangents and ends
+            var normal0 = Parts[0].Parameter > beams[0].Centreline.Domain.Mid ? planes[0].ZAxis : -planes[0].ZAxis;
+            var normal1 = Parts[1].Parameter > beams[1].Centreline.Domain.Mid ? planes[1].ZAxis : -planes[1].ZAxis;
+
 
             var endPlanes = new Plane[2];
-            endPlanes[0] = beams[0].GetPlane(planes[0].Origin - planes[0].ZAxis * TenonLength * 0.5);
-            endPlanes[1] = beams[1].GetPlane(planes[1].Origin + planes[1].ZAxis * TenonLength * 0.5);
+            endPlanes[0] = beams[0].GetPlane(planes[0].Origin - normal0 * TenonLength * 0.5);
+            endPlanes[1] = beams[1].GetPlane(planes[1].Origin - normal1 * TenonLength * 0.5);
 
             var x0 = endPlanes[0].XAxis;
             var x1 = endPlanes[1].XAxis;
@@ -120,15 +123,17 @@ namespace GluLamb.Joints
             var dowelPlanes = new Plane[2];
             double dowelDistance = beams[0].Height / 3;
 
-            dowelPlanes[0] = new Plane(planes[0].Origin + planes[0].YAxis * dowelDistance * 0.5, planes[0].XAxis);
-            dowelPlanes[1] = new Plane(planes[0].Origin - planes[0].YAxis * dowelDistance * 0.5, planes[0].XAxis);
+            var midPlane = Interpolation.InterpolatePlanes2(planes[0], planes[1], 0.5);
+
+            dowelPlanes[0] = new Plane(midPlane.Origin + midPlane.YAxis * dowelDistance * 0.5, midPlane.XAxis);
+            dowelPlanes[1] = new Plane(midPlane.Origin - midPlane.YAxis * dowelDistance * 0.5, midPlane.XAxis);
 
             dowelPlanes[0].Transform(Transform.Translation(dowelPlanes[0].ZAxis * -DowelLength * 0.5));
             dowelPlanes[1].Transform(Transform.Translation(dowelPlanes[1].ZAxis * -DowelLength * 0.5));
 
             for (int i = 0; i < 2; ++i)
             {
-                dowelPlanes[i].Transform(Transform.Rotation(DowelInclination, planes[0].ZAxis, planes[0].Origin));
+                dowelPlanes[i].Transform(Transform.Rotation(DowelInclination, midPlane.ZAxis, midPlane.Origin));
             }
 
             var dowels = new Brep[2];

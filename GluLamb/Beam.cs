@@ -41,6 +41,11 @@ namespace GluLamb
             get; set;
         }
 
+        public virtual int Samples
+        {
+            get; set;
+        }
+
         public double OffsetX { get; set; }
         public double OffsetY { get; set; }
 
@@ -474,7 +479,10 @@ namespace GluLamb
             else
                 tt = Centreline.DivideByCount((int)Math.Ceiling(Centreline.GetLength() / 50.0), true);
 
-            var planes = GetPlanes(tt);
+            //var planes = GetPlanes(tt);
+            int N = Math.Max(Samples, 6);
+
+            BeamOps.GenerateCrossSectionPlanes(this, N, out Plane[] planes, out tt);
 
             var xsections = new List<Curve>();
 
@@ -496,7 +504,6 @@ namespace GluLamb
             }
 
             return loft;
-
         }
 
         /// <summary>

@@ -113,6 +113,26 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap BeamInfo {
+            get {
+                object obj = ResourceManager.GetObject("BeamInfo", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap BeamMesh {
+            get {
+                object obj = ResourceManager.GetObject("BeamMesh", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap BeamNew {
             get {
                 object obj = ResourceManager.GetObject("BeamNew", resourceCulture);
@@ -343,9 +363,49 @@ namespace GluLamb.GH.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap InterpolatePlanes {
+            get {
+                object obj = ResourceManager.GetObject("InterpolatePlanes", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap Joint {
             get {
                 object obj = ResourceManager.GetObject("Joint", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap Joint2 {
+            get {
+                object obj = ResourceManager.GetObject("Joint2", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap JointInfo {
+            get {
+                object obj = ResourceManager.GetObject("JointInfo", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap JointParameter {
+            get {
+                object obj = ResourceManager.GetObject("JointParameter", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

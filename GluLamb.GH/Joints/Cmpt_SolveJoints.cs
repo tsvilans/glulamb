@@ -25,6 +25,10 @@ using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
 
 using GluLamb.Joints;
+using Rhino;
+using Grasshopper.Kernel.Data;
+using Grasshopper;
+using System.Collections;
 
 namespace GluLamb.GH.Components
 {
@@ -43,22 +47,128 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Structure", "S", "Structure.", GH_ParamAccess.item);
-            pManager.AddGenericParameter("Joint solver", "JS", "Joint solver to use for solving joints.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Search radius", "SR", "Radius to search for joints.", GH_ParamAccess.item, 100.0);
-            pManager.AddNumberParameter("End threshold", "ET", "Length from end to consider overlap.", GH_ParamAccess.item, 50.0);
-            pManager.AddNumberParameter("Merge distance", "MD", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50.0);
+            pManager.AddGenericParameter("Beams", "B", "Beams.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Joints", "J", "Joints to solve and construct.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Types", "T", "Type specification for joints.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Settings", "S", "Optional joint settings to specify types of joints.", GH_ParamAccess.item);
 
+            pManager[3].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Structure", "S", "Timber structure.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Joints", "J", "Joints.", GH_ParamAccess.tree);
+            pManager.AddBrepParameter("Geometry", "G", "Cutting geometry for each beam.", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+            var beams = new Dictionary<int, Beam>();
+            var joints = new Dictionary<int, JointX>();
+            var types = new Dictionary<int, string>();
 
+            if (!DA.GetDataTree(0, out GH_Structure<IGH_Goo> beamTree)) return;
+            if (!DA.GetDataTree(1, out GH_Structure<IGH_Goo> jointTree)) return;
+            if (!DA.GetDataTree(2, out GH_Structure<GH_String> typesTree)) return;
+
+            foreach (var path in beamTree.Paths)
+            {
+                var branch = beamTree[path];
+                if (branch.Count < 1) continue;
+
+                var beam = branch[0] as Beam;
+                if (beam == null) return;
+
+                beams.Add(path.Indices[0], beam);
+            }
+
+            foreach (var path in jointTree.Paths)
+            {
+                var branch = jointTree[path];
+                if (branch.Count < 1) continue;
+
+                var joint = branch[0] as JointX;
+                if (joint == null) return;
+
+                joints.Add(path.Indices[0], joint);
+            }
+
+            foreach (var path in typesTree.Paths)
+            {
+                var branch = typesTree[path];
+                if (branch.Count < 1) continue;
+
+                var type = branch[0] as GH_String;
+                if (type == null) return;
+
+                types.Add(path.Indices[0], type.Value);
+            }
+
+            var keys = new List<int>(joints.Keys);
+            foreach (var key in keys)
+            {
+                var joint = joints[key];
+                var type = types[key];
+
+                switch (type)
+                {
+                    case ("X"):
+                        var crossJoint = new CrossJointX(joint);
+                        crossJoint.Construct(beams);
+                        joint = crossJoint;
+                        break;
+                    case ("T"):
+                        var tenonJoint = new TJointX(joint);
+                        tenonJoint.BlindOffset = 30;
+
+                        tenonJoint.Construct(beams);
+                        joint = tenonJoint;
+                        break;
+                    case ("S"):
+                        var spliceJoint = new SpliceJointX(joint);
+                        spliceJoint.Added = 10;
+                        spliceJoint.SpliceAngle = RhinoMath.ToRadians(10.0);
+                        spliceJoint.SpliceLength = 300;
+
+                        spliceJoint.Construct(beams);
+                        joint = spliceJoint;
+                        break;
+                    case ("L"):
+                        var cornerJoint = new CornerJointX(joint);
+                        cornerJoint.BlindOffset = 0;
+                        cornerJoint.Added = 20;
+                        cornerJoint.Construct(beams);
+                        joint = cornerJoint;
+                        break;
+                    default:
+                        break;
+                }
+
+                joints[key] = joint;
+            }
+
+            var jointsOutput = new DataTree<GH_Joint>();
+            var jointGeometries = new DataTree<GH_Brep>();
+
+            foreach (var key in keys)
+            {
+                foreach (var part in joints[key].Parts)
+                {
+                    var path = new GH_Path(part.ElementIndex);
+
+                    jointGeometries.AddRange(part.Geometry.Select(x => new GH_Brep(x)), path);
+                }
+
+                jointsOutput.Add(new GH_Joint(joints[key]), new GH_Path(key));
+            }
+
+            DA.SetDataTree(0, jointsOutput);
+            DA.SetDataTree(1, jointGeometries);
+
+
+
+
+            /*
             GH_Structure structure = null;
             DA.GetData<GH_Structure>("Structure", ref structure);
 
@@ -99,6 +209,7 @@ namespace GluLamb.GH.Components
             }
 
             DA.SetData("Structure", structure);
+            */
         }
     }
 }

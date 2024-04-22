@@ -33,7 +33,7 @@ namespace GluLamb.GH
 
     public class BeamParameter : GH_PersistentParam<GH_Beam>
     {
-        public BeamParameter() : this("Beam", "Beam", "This is a glulam.", "GluLamb", UiNames.UtilitiesSection) { }
+        public BeamParameter() : this("Beam", "Beam", "This is a beam.", "GluLamb", UiNames.UtilitiesSection) { }
         public BeamParameter(string name, string nickname, string description, string category, string subcategory)
             : base(name, nickname, description, category, subcategory) { }
         public BeamParameter(GH_InstanceDescription tag) : base(tag) { }

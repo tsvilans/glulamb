@@ -79,7 +79,7 @@ namespace GluLamb.GH.Components
             foreach (var path in curveTree.Paths)
             {
                 var branch = curveTree[path];
-                if (branch.Count < 1) continue;
+                if (branch.Count < 1 || branch[0] == null) continue;
                 curves.Add(path.Indices[0], branch[0].Value);
 
                 if (branch.Count > 1)

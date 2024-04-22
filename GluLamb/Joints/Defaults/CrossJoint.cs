@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using Rhino.Collections;
+using Microsoft.SqlServer.Server;
 
 namespace GluLamb.Joints
 {
@@ -402,6 +403,5 @@ namespace GluLamb.Joints
         }
 
     }
-
 
 }
