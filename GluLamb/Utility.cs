@@ -864,6 +864,11 @@ namespace GluLamb
 
             return axes[index];
         }
+
+        public static int ClosestDimension2D(Plane plane, Vector3d vector)
+        {
+            return Math.Abs(plane.Project(vector) * plane.XAxis) > 0.5 ? 0 : 1;
+        }
     }
 
 }

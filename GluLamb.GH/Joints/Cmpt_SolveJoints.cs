@@ -128,9 +128,9 @@ namespace GluLamb.GH.Components
                         joint = tenonJoint;
                         break;
                     case ("S"):
-                        var spliceJoint = new SpliceJointX(joint);
+                        var spliceJoint = new LappedSpliceJointX(joint);
                         spliceJoint.Added = 10;
-                        spliceJoint.SpliceAngle = RhinoMath.ToRadians(10.0);
+                        //spliceJoint.SpliceAngle = RhinoMath.ToRadians(10.0);
                         spliceJoint.SpliceLength = 300;
 
                         spliceJoint.Construct(beams);

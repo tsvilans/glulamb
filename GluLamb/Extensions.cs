@@ -243,6 +243,12 @@ namespace GluLamb
                 poly.Transform(Transform.PlaneToPlane(Plane.WorldXY, plane));
             return poly;
         }
+
+        public static Point3d Transformed(this Point3d point, Transform xform)
+        {
+            point.Transform(xform);
+            return point;
+        }
     }
 
     public static class CurveExtensionMethods
