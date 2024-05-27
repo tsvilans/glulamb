@@ -27,6 +27,7 @@ using System.Drawing;
 using Rhino.Geometry;
 using Grasshopper.Kernel;
 using System.ComponentModel;
+using System.Collections;
 
 namespace GluLamb
 {
@@ -868,6 +869,206 @@ namespace GluLamb
         public static int ClosestDimension2D(Plane plane, Vector3d vector)
         {
             return Math.Abs(plane.Project(vector) * plane.XAxis) > 0.5 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Flip a plane around the bounding box of a geometry, effectively flipping the 
+        /// object.
+        /// </summary>
+        /// <param name="geo">Geometry to flip.</param>
+        /// <param name="plane">Baseplane of geometry.</param>
+        /// <returns>New baseplane.</returns>
+        public static Plane FlipBasePlane(GeometryBase geo, Plane plane)
+        {
+            geo.GetBoundingBox(plane, out Box box);
+            return new Plane(box.GetCorners()[7], plane.XAxis, -plane.YAxis);
+        }
+
+        /// <summary>
+        /// Find most reasonable baseplane for a Brep. This attempts to align the longest axis of the Brep
+        /// with the X-axis, and the largest face with the Z-axis. Perfect for laying out flat pieces for
+        /// machining. The baseplane will sit at the bottom left corner of the Brep's bounding box.
+        /// </summary>
+        /// <param name="brep">Input Brep.</param>
+        /// <returns>A baseplane for the Brep.</returns>
+        public static Plane FindBestBasePlane(Brep brep, Vector3d optx, double linearTolerance = 0.001, double dotTolerance = 0.1, bool biggestPlane = true)
+        {
+            Vector3d vec = Vector3d.XAxis;
+            Vector3d xaxis = Vector3d.XAxis, zaxis = Vector3d.ZAxis;
+            BoundingBox bb = BoundingBox.Empty;
+            Plane plane = Plane.Unset;
+
+            if (optx.IsValid)
+                xaxis = optx;
+            else
+            {
+
+                var edge_vectors = new List<Vector3d>();
+
+                foreach (var edge in brep.Edges)
+                {
+                    if (edge.IsLinear(linearTolerance))
+                    {
+                        xaxis = edge.TangentAtStart;
+                        xaxis *= edge.GetLength();
+
+                        if (xaxis * vec < 0)
+                            xaxis.Reverse();
+
+                        vec += xaxis;
+                        edge_vectors.Add(xaxis);
+                    }
+                }
+
+                double[] distances = edge_vectors.Select(x => Math.Abs(x * vec)).ToArray();
+                var min_index = Array.IndexOf(distances, distances.Max());
+
+                xaxis = edge_vectors[min_index];
+            }
+
+            zaxis = biggestPlane ? GetBestCrossVector2(brep, xaxis, dotTolerance) :  GetBestCrossVector(brep, xaxis, dotTolerance);
+
+            plane = new Plane(Point3d.Origin, xaxis, Vector3d.CrossProduct(zaxis, xaxis));
+
+            Box box;
+            bb = brep.GetBoundingBox(plane, out box);
+
+            plane = new Plane(box.GetCorners()[0], plane.XAxis, plane.YAxis);
+
+            return plane;
+        }
+
+        /// <summary>
+        /// Given a vector, calculates the best normal that makes the Brep lie flattest.
+        /// </summary>
+        /// <param name="brep">Input Brep.</param>
+        /// <param name="fwd">Main direction.</param>
+        /// <returns>A perpendicular direction that is normal to the largest, flattest face of the Brep.</returns>
+        /// <exception cref="Exception"></exception>
+        public static Vector3d GetBestCrossVector(Brep brep, Vector3d fwd, double tolerance = 0.1)
+        {
+            var candidates = new List<Tuple<double, double, BrepFace, Vector3d>>();
+
+            for (int i = 0; i < brep.Faces.Count; ++i)
+            {
+                var face = brep.Faces[i];
+                var zaxis = Vector3d.Unset;
+                if (face.IsPlanar())
+                {
+                    Plane plane;
+                    face.TryGetPlane(out plane);
+                    zaxis = plane.ZAxis;
+                }
+                else
+                {
+                    var midU = face.Domain(0).Mid;
+                    var midV = face.Domain(1).Mid;
+
+                    zaxis = face.NormalAt(midU, midV);
+                }
+
+                var amp = AreaMassProperties.Compute(face);
+                if (amp == null || amp.Area <= 0)
+                {
+                    continue;
+                }
+                //throw new Exception("Bad face area.");
+
+
+                var dot = Math.Abs(zaxis * fwd);
+                if (dot < tolerance)
+                {
+                    candidates.Add(new Tuple<double, double, BrepFace, Vector3d>(1 / Math.Abs(amp.Area), dot, face, zaxis));
+                }
+            }
+
+            if (candidates.Count < 1)
+            {
+                return Math.Abs(fwd * Vector3d.ZAxis) == 1.0 ? Vector3d.YAxis : Vector3d.ZAxis;
+            }
+
+            candidates = candidates.OrderBy(x => x.Item1).ThenBy(x => x.Item2).ToList();
+
+            return candidates[0].Item4;
+        }
+
+        /// <summary>
+        /// Given a vector, calculates the best normal that makes the Brep lie flattest.
+        /// </summary>
+        /// <param name="brep">Input Brep.</param>
+        /// <param name="fwd">Main direction.</param>
+        /// <returns>A perpendicular direction that is normal to the largest, flattest face of the Brep.</returns>
+        /// <exception cref="Exception"></exception>
+        public static Vector3d GetBestCrossVector2(Brep brep, Vector3d fwd, double tolerance = 0.1)
+        {
+            var planes = new Dictionary<int[], double>(new IntArrayComparer());
+            var planesActual = new Dictionary<int[], Plane>(new IntArrayComparer());
+
+            for (int i = 0; i < brep.Faces.Count; ++i)
+            {
+                var face = brep.Faces[i];
+                Plane plane;
+
+                if (face.IsPlanar())
+                {
+                    face.TryGetPlane(out plane);
+                }
+                else
+                {
+                    var midU = face.Domain(0).Mid;
+                    var midV = face.Domain(1).Mid;
+
+                    plane = new Plane(face.PointAt(midU, midV), face.NormalAt(midU, midV));
+                }
+
+                var dot = Math.Abs(plane.ZAxis * fwd);
+                if (dot > tolerance)
+                {
+                    continue;
+                }
+
+                var n = plane.ZAxis;
+                var origin = plane.Origin;
+
+                double d = (-n.X * origin.X - n.Y * n.Y - n.Z * n.Z);
+
+                var scalarPlane = new int[] { (int)(n.X * 1000), (int)(n.Y * 1000), (int)(n.Z * 1000), (int)(d * 1000) };
+
+                var amp = AreaMassProperties.Compute(face);
+                if (amp == null || amp.Area <= 0)
+                {
+                    continue;
+                }
+                // throw new Exception("Bad face area.");
+
+                if (!planes.ContainsKey(scalarPlane))
+                {
+                    planes.Add(scalarPlane, 0);
+                    planesActual.Add(scalarPlane, plane);
+                }
+
+                planes[scalarPlane] += amp.Area;
+
+            }
+
+            if (planes.Count < 1)
+            {
+                return Math.Abs(fwd * Vector3d.ZAxis) == 1.0 ? Vector3d.YAxis : Vector3d.ZAxis;
+            }
+
+            int[] biggest = new int[] { 0, 0, 0, 0 };
+            double biggestArea = 0;
+
+            foreach (var kvp in planes)
+            {
+                if (kvp.Value > biggestArea)
+                {
+                    biggest = kvp.Key;
+                    biggestArea = kvp.Value;
+                }
+            }
+
+            return planesActual[biggest].ZAxis;
         }
     }
 

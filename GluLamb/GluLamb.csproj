@@ -67,6 +67,7 @@
     <Compile Include="BeamOps.cs" />
     <Compile Include="Blanks\SegmentedBlank.cs" />
     <Compile Include="Globals.cs" />
+    <Compile Include="IntArrayComparer.cs" />
     <Compile Include="Joints\BranchJoints\BranchJointSimple.cs" />
     <Compile Include="Joints\Connectors.cs" />
     <Compile Include="Joints\CornerJoints\CornerJointX.cs" />
