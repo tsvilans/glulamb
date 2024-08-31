@@ -22,7 +22,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using Rhino.Geometry;
 
 namespace GluLamb
@@ -473,6 +472,15 @@ namespace GluLamb
 
         public virtual Brep ToBrep(double offset = 0.0)
         {
+            if (Centreline.IsLinear() && Orientation.IsConstant())
+            {
+                var cplane = GetPlane(Centreline.Domain.Min);
+                var rec = new Rectangle3d(cplane, new Interval(-Width * 0.5 + OffsetX, Width * 0.5 + OffsetX),
+                  new Interval(-Height * 0.5 + OffsetY, Height * 0.5 + OffsetY)).ToNurbsCurve();
+
+                return Extrusion.Create(rec, Centreline.GetLength(), true).ToBrep();
+            }
+
             double[] tt;
             if (Centreline.IsLinear())
                 tt = new double[] { Centreline.Domain.Min, Centreline.Domain.Max };

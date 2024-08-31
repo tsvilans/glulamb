@@ -1070,6 +1070,88 @@ namespace GluLamb
 
             return planesActual[biggest].ZAxis;
         }
+
+        public static double CrossSectionArea(IEnumerable<Point3d> polygon)
+        {
+            var X = polygon.Select(point => point.X).ToArray();
+            var Y = polygon.Select(point => point.Y).ToArray();
+
+            var N = X.Length;
+            double A = 0;
+
+            for (int i = 0; i < N - 1; ++i)
+            {
+                A += X[i] * Y[i + 1] - X[i + 1] * Y[i];
+            }
+            return A * 0.5;
+        }
+
+        public static Point3d CrossSectionCentroid(IEnumerable<Point3d> polygon)
+        {
+            var x = polygon.Select(point => point.X).ToArray();
+            var y = polygon.Select(point => point.Y).ToArray();
+
+            var N = y.Length;
+            double A = 0;
+            double cx = 0, cy = 0;
+
+            for (int i = 0; i < N - 1; ++i)
+            {
+                A += x[i] * y[i + 1] - x[i + 1] * y[i];
+                cx += (x[i] + x[i + 1]) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+                cy += (y[i] + y[i + 1]) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+            }
+
+            A *= 0.5;
+            cx /= 6 * A;
+            cy /= 6 * A;
+
+            return new Point3d(cx, cy, 0);
+        }
+
+        public static void CrossSectionInertia(IEnumerable<Point3d> polygon, out double Ixx, out double Iyy, out double Ixy)
+        {
+            var x = polygon.Select(point => point.X).ToArray();
+            var y = polygon.Select(point => point.Y).ToArray();
+
+            var N = y.Length;
+            double A = 0;
+            double cx = 0, cy = 0;
+
+            for (int i = 0; i < N - 1; ++i)
+            {
+                A += x[i] * y[i + 1] - x[i + 1] * y[i];
+                cx += (x[i] + x[i + 1]) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+                cy += (y[i] + y[i + 1]) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+            }
+
+            A *= 0.5;
+            cx /= 6 * A;
+            cy /= 6 * A;
+
+            double sxx = 0, syy = 0, sxy = 0;
+
+            for (int i = 0; i < N - 1; ++i)
+            {
+                sxx += (Math.Pow(y[i], 2) + y[i] * y[i + 1] + Math.Pow(y[i + 1], 2)) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+                syy += (Math.Pow(x[i], 2) + x[i] * x[i + 1] + Math.Pow(x[i + 1], 2)) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+                sxy += (x[i] * y[i + 1] + 2 * x[i] * y[i] + 2 * x[i + 1] * y[i + 1] + x[i + 1] * y[i]) * (x[i] * y[i + 1] - x[i + 1] * y[i]);
+            }
+
+            Ixx = sxx / 12 - A * Math.Pow(cy, 2);
+            Iyy = syy / 12 - A * Math.Pow(cx, 2);
+            Ixy = sxy / 24 - A * cx * cy;
+        }
+
+        public static void PrincipalDirections(double Ixx, double Iyy, double Ixy, out double I1, out double I2, out double theta)
+        {
+            double avg = (Ixx + Iyy) / 2;
+            double diff = (Ixx - Iyy) / 2;
+            double ddii = Math.Sqrt(diff * diff + Ixy * Ixy);
+            I1 = avg + ddii;
+            I2 = avg - ddii;
+            theta = Math.Atan2(-Ixy, diff) / 2;
+        }
     }
 
 }

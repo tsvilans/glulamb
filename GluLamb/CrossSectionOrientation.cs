@@ -55,6 +55,11 @@ namespace GluLamb
             return new_orientations;
         }
 
+        public virtual bool IsConstant()
+        {
+            return false;
+        }
+
         public abstract CrossSectionOrientation Join(CrossSectionOrientation orientation);
 
         public virtual CrossSectionOrientation Duplicate()
@@ -134,6 +139,8 @@ namespace GluLamb
         {
             m_vector.Transform(x);
         }
+
+        public override bool IsConstant() => true;
     }
 
     /// <summary>
@@ -657,6 +664,8 @@ namespace GluLamb
         {
             return;
         }
+
+        public override bool IsConstant() => m_surface.Faces.Count < 2 && m_surface.Faces[0].IsPlanar();
     }
 
     [Serializable]
@@ -797,6 +806,8 @@ namespace GluLamb
         {
             return;
         }
+
+        public override bool IsConstant() => true;
     }
 
     /// <summary>
@@ -880,6 +891,9 @@ namespace GluLamb
         {
             return;
         }
+
+        public override bool IsConstant() => true;
+
     }
 
     [Serializable]
@@ -941,5 +955,7 @@ namespace GluLamb
             Plane.Transform(x);
             return;
         }
+
+        public override bool IsConstant() => true;
     }
 }

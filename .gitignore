@@ -1,9 +1,10 @@
-GluLamb/obj
-GluLamb.GH/obj
 packages
 bin
 .vs
-GluLamb.GH/GluLamb.GH.csproj.user
+GluLamb/obj
+GluLamb.GH/obj
 GluLamb.Raw/obj/
 GluLamb.Raw.GH/obj/
 GluLamb.Raw.Test/obj/
+GluLamb.Works/obj/
+GluLamb.Rhino/obj/

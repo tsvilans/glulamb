@@ -13,7 +13,7 @@ namespace GluLamb.Joints
         public double Added = 10.0;
         public double AddedUp = 100.0;
         public double Inset = 0.0;
-        public double BlindOffset = 0;
+        //public double BlindOffset = 0;
         public double SpliceLength = 200;
         public double SpliceRatio = 0.25;
         public bool SideSplice = false;
