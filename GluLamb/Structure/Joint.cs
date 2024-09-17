@@ -131,7 +131,7 @@ namespace GluLamb
             Parts = Parts.Distinct().ToList();
         }
 
-        public static string ClassifyJoint(JointX joint)
+        public static string ClassifyJoint(JointX joint, double perpendicularThreshold)
         {
             string type = "null";
 
@@ -157,11 +157,11 @@ namespace GluLamb
                         double dot = joint.Parts[0].Direction * joint.Parts[1].Direction;
                         double angle = Math.Acos(dot);
 
-                        if (angle < PerpendicularThreshold)
+                        if (angle < perpendicularThreshold)
                         {
                             type = "V";
                         }
-                        else if (angle > PerpendicularThreshold && angle < (Math.PI - PerpendicularThreshold))
+                        else if (angle > perpendicularThreshold && angle < (Math.PI - perpendicularThreshold))
                         {
                             type = "L";
                         }
@@ -222,6 +222,12 @@ namespace GluLamb
 
             return newJoints;
         }
+
+        public virtual void Configure(Dictionary<string, double> values)
+        {
+        }
+
+        public virtual List<object> GetDebugList() { return null; }
 
     }
 

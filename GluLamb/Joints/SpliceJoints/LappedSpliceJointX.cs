@@ -28,6 +28,8 @@ namespace GluLamb.Joints
 
         public List<object> debug = new List<object>();
 
+        public LappedSpliceJointX() { }
+
         public LappedSpliceJointX(JointX parent)
         {
             if (parent.Parts.Count != 2)
@@ -38,6 +40,21 @@ namespace GluLamb.Joints
 
             Parts = parent.Parts;
             Position = parent.Position;
+        }
+
+        public override void Configure(Dictionary<string, double> values)
+        {
+            if (values.TryGetValue("Added", out double _added)) Added = _added;
+            if (values.TryGetValue("AddedUp", out double _addedup)) AddedUp = _addedup;
+            if (values.TryGetValue("Inset", out double _inset)) Inset = _inset;
+            if (values.TryGetValue("SpliceLength", out double _splicelength)) SpliceLength = _splicelength;
+            if (values.TryGetValue("SpliceRatio", out double _spliceratio)) SpliceRatio = _spliceratio;
+            if (values.TryGetValue("SideSplice", out double _sidesplice)) SideSplice = _sidesplice > 0;
+        }
+
+        public override List<object> GetDebugList()
+        {
+            return debug;
         }
 
         public override int Construct(Dictionary<int, Beam> beams)

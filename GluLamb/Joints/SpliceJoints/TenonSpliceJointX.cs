@@ -39,6 +39,22 @@ namespace GluLamb.Joints
             Position = parent.Position;
         }
 
+        public override void Configure(Dictionary<string, double> values)
+        {
+            if (values.TryGetValue("Added", out double _added)) Added = _added;
+            if (values.TryGetValue("AddedUp", out double _addedup)) AddedUp = _addedup;
+            if (values.TryGetValue("Inset", out double _inset)) Inset = _inset;
+            if (values.TryGetValue("BlindOffset", out double _blindoffset)) BlindOffset = _blindoffset;
+            if (values.TryGetValue("SpliceLength", out double _splicelength)) SpliceLength = _splicelength;
+            if (values.TryGetValue("SpliceAngle", out double _spliceangle)) SpliceAngle = _spliceangle;
+            if (values.TryGetValue("SideSplice", out double _sidesplice)) SideSplice = _sidesplice > 0;
+        }
+
+        public override List<object> GetDebugList()
+        {
+            return debug;
+        }
+
         public override int Construct(Dictionary<int, Beam> beams)
         {
             for (int i = 0; i < Parts.Count; ++i)

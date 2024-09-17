@@ -21,7 +21,11 @@ namespace GluLamb
 
         public BeamObject()
         {
-            m_beam = new Beam() { Centreline = this.CurveGeometry, Width = 100, Height = 100, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+            m_beam = new Beam() { 
+                Centreline = this.CurveGeometry, 
+                Width = m_beam.Width, 
+                Height = m_beam.Height, 
+                Orientation = m_beam.Orientation.Duplicate()};
             if (this.CurveGeometry != null)
             {
                 m_brep = m_beam.ToBrep();
@@ -30,7 +34,7 @@ namespace GluLamb
 
         public BeamObject(Curve crv)
         {
-            m_beam = new Beam() { Centreline = crv, Width = 100, Height = 100, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+            m_beam = new Beam() { Centreline = crv, Width = 100, Height = 200, Orientation = new VectorOrientation(Vector3d.ZAxis) };
             if (crv != null)
             {
                 m_brep = m_beam.ToBrep();

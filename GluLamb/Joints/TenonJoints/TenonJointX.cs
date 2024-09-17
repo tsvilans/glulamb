@@ -33,6 +33,8 @@ namespace GluLamb.Joints
 
         public List<object> debug = new List<object>();
 
+        public TJointX() { }
+
         public TJointX(JointX parent)
         {
             if (parent.Parts.Count != 2)
@@ -44,6 +46,19 @@ namespace GluLamb.Joints
 
             Parts = parent.Parts;
             Position = parent.Position;
+        }
+
+        public override void Configure(Dictionary<string, double> values)
+        {
+            if (values.TryGetValue("Added", out double _added)) Added = _added;
+            if (values.TryGetValue("Inset", out double _inset)) Inset = _inset;
+            if (values.TryGetValue("BlindOffset", out double _blindoffset)) BlindOffset = _blindoffset;
+            if (values.TryGetValue("FlipDirection", out double _flipdirection)) FlipDirection = _flipdirection > 0;
+        }
+
+        public override List<object> GetDebugList()
+        {
+            return debug;
         }
 
         public override int Construct(Dictionary<int, Beam> beams)

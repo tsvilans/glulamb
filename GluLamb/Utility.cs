@@ -868,7 +868,9 @@ namespace GluLamb
 
         public static int ClosestDimension2D(Plane plane, Vector3d vector)
         {
-            return Math.Abs(plane.Project(vector) * plane.XAxis) > 0.5 ? 0 : 1;
+            var projected = plane.Project(vector);
+            return Math.Abs(projected * plane.XAxis) > Math.Abs(projected * plane.YAxis) ? 0 : 1;
+            //return Math.Abs(plane.Project(vector) * plane.XAxis) > 0.5 ? 0 : 1;
         }
 
         /// <summary>
@@ -921,7 +923,8 @@ namespace GluLamb
                 }
 
                 double[] distances = edge_vectors.Select(x => Math.Abs(x * vec)).ToArray();
-                var min_index = Array.IndexOf(distances, distances.Max());
+                var max_distance = distances.Max();
+                var min_index = Array.IndexOf(distances, max_distance);
 
                 xaxis = edge_vectors[min_index];
             }

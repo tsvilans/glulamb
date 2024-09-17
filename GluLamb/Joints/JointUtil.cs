@@ -3,13 +3,58 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using Rhino.Geometry;
 
 namespace GluLamb.Joints
 {
     public static class JointUtil
     {
+        public static void ClassifyJointPosition(Curve c, double t, out int jointCase, out Vector3d direction, double end_tolerance = 10)
+        {
+            jointCase = 0; // initialize
+
+            jointCase = t > c.Domain.Mid ? JointPartX.SetAtEnd1(jointCase) : JointPartX.SetAtEnd0(jointCase);
+
+            double length = JointPartX.End1(jointCase) ? c.GetLength(new Interval(t, c.Domain.Max)) : c.GetLength(new Interval(c.Domain.Min, t));
+
+            jointCase = length < end_tolerance ? JointPartX.SetAtEnd(jointCase) : JointPartX.SetAtMiddle(jointCase);
+
+            direction = (JointPartX.End0(jointCase) && JointPartX.IsAtEnd(jointCase)) ? -c.TangentAt(t) : c.TangentAt(t);
+        }
+
+        public static JointX Connect(Beam b0, int id0, Beam b1, int id1, int joint_id = -1, double tolerance = 0.1, double overlapTolerance = 50, double endTolerance = 50)
+        {
+            return Connect(b0.Centreline, id0, b1.Centreline, id1, joint_id, tolerance, overlapTolerance, endTolerance);
+        }
+
+        public static JointX Connect(Curve c0, int id0, Curve c1, int id1, int joint_id = -1, double tolerance= 0.1, double overlapTolerance= 50, double endTolerance = 50)
+        {
+            var intersections = Rhino.Geometry.Intersect.Intersection.CurveCurve(c0, c1, tolerance, overlapTolerance);
+            if (intersections == null || intersections.Count < 1) return null;
+
+            var intersection = intersections[0];
+
+            var p0 = intersection.PointA;
+            var p1 = intersection.PointB;
+
+            double t0 = intersection.ParameterA;
+            double t1 = intersection.ParameterB;
+
+            ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
+            ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
+
+            var jc = new JointX(
+                new List<JointPartX>
+                {
+                    new JointPartX() {Case = s0, ElementIndex = id0, JointIndex = joint_id, Parameter = t0, Direction = v0 },
+                        new JointPartX() {Case = s1, ElementIndex = id1, JointIndex = joint_id, Parameter = t1, Direction = v1 },
+                },
+                (p0 + p1) * 0.5
+                );
+
+            return jc;
+        }
+
         public static Vector3d GetEndConnectionVector(Beam beam, Point3d jp)
         {
             var crv = beam.Centreline;

@@ -5,6 +5,9 @@
   </PropertyGroup>
   <PropertyGroup>
     <ActiveDebugProfile>Rhino 8 netfx</ActiveDebugProfile>
-    <ActiveDebugFramework>net48</ActiveDebugFramework>
+    <ActiveDebugFramework>net7.0</ActiveDebugFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0|AnyCPU'">
+    <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

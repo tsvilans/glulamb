@@ -33,6 +33,7 @@ using static Rhino.FileIO.FileObjWriteOptions;
 using System.Drawing;
 using GluLamb.Factory;
 using Grasshopper;
+using Rhino;
 
 namespace GluLamb.GH.Components
 {
@@ -129,6 +130,7 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Connected parameters", "CT", "Parameters of connections as tree. Each path is the ID of the connection.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Merge distance", "M", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50);
             pManager.AddNumberParameter("End tolerance", "ET", "Distance within which to consider a joint at the end of an element.", GH_ParamAccess.item, 10);
+            pManager.AddNumberParameter("Perp threshold", "PT", "Angle threshold at which to consider a joint a splice, corner, or graft.", GH_ParamAccess.item, JointX.PerpendicularThreshold);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -150,6 +152,9 @@ namespace GluLamb.GH.Components
 
             double endTolerance = 10;
             DA.GetData("End tolerance", ref endTolerance);
+
+            double csThreshold = JointX.PerpendicularThreshold;
+            DA.GetData("Perp threshold", ref csThreshold);
 
             JointOrigins = new Dictionary<int, Point3d>();
             JointLines = new Dictionary<int, Line>();
@@ -203,7 +208,7 @@ namespace GluLamb.GH.Components
                 var jc = Joints[i];
                 JointOrigins.Add(i, jc.Position);
 
-                var jointType = JointX.ClassifyJoint(jc);
+                var jointType = JointX.ClassifyJoint(jc, csThreshold);
 
 
                 if (fullName)

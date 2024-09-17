@@ -3,6 +3,7 @@ using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -41,6 +42,17 @@ namespace GluLamb.Joints
 
             Parts = parent.Parts;
             Position = parent.Position;
+        }
+
+        public override void Configure(Dictionary<string, double> values)
+        {
+            if (values.TryGetValue("Added", out double _added)) Added = _added;
+            if (values.TryGetValue("Inset", out double _inset)) Inset = _inset;
+        }
+
+        public override List<object> GetDebugList()
+        {
+            return debug;
         }
 
         public override int Construct(Dictionary<int, Beam> beams)

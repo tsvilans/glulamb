@@ -44,6 +44,18 @@ namespace GluLamb.Joints
             Position = parent.Position;
         }
 
+        public override void Configure(Dictionary<string, double> values)
+        {
+            if (values.TryGetValue("Added", out double _added)) Added = _added;
+            if (values.TryGetValue("Inset", out double _inset)) Inset = _inset;
+            if (values.TryGetValue("BlindOffset", out double _blindoffset)) Inset = _blindoffset;
+        }
+
+        public override List<object> GetDebugList()
+        {
+            return debug;
+        }
+
         public override int Construct(Dictionary<int, Beam> beams)
         {
             for (int i = 0; i < Parts.Count; ++i)
@@ -109,6 +121,7 @@ namespace GluLamb.Joints
             debug.Add(Beam1Side1Plane);
 
             Normal = Vector3d.CrossProduct(beam0SideDirection, beam1SideDirection);
+            Normal.Unitize();
             debug.Add(new GH_Vector(Normal));
 
             var LapOrigin = Interpolation.Lerp(Beam0Plane.Origin, Beam1Plane.Origin,
