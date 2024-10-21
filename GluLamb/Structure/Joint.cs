@@ -131,7 +131,7 @@ namespace GluLamb
             Parts = Parts.Distinct().ToList();
         }
 
-        public static string ClassifyJoint(JointX joint, double perpendicularThreshold)
+        public static string ClassifyJoint(JointX joint, double perpendicularThreshold=Math.PI * 0.25)
         {
             string type = "null";
 

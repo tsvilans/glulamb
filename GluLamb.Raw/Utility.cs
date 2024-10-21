@@ -1,4 +1,8 @@
-﻿namespace GluLamb.Raw
+﻿using Accord;
+using Accord.Math;
+using Accord.Math.Optimization;
+
+namespace GluLamb.Raw
 {
     public static class Utility
     {
@@ -86,6 +90,66 @@
             //eigenValues = eigen.ImaginaryEigenvalues;
 
             eigenVectors = eigen.Eigenvectors;
+        }
+
+        public static void GetPlanarTCP(double[][] frames, out double[] tcp)
+        {
+            tcp = new double[3];
+
+            var transformationMatrices = new Matrix4x4[3];
+            for (int i=0; i < frames.GetLength(0); ++i)
+            {
+                var v0 = new Vector4((float)frames[i][0], (float)frames[i][1], (float)frames[i][2], (float)frames[i][3]);
+                var v1 = new Vector4((float)frames[i][4], (float)frames[i][5], (float)frames[i][6], (float)frames[i][7]);
+                var v2 = new Vector4((float)frames[i][8], (float)frames[i][9], (float)frames[i][10], (float)frames[i][11]);
+                var v3 = new Vector4((float)frames[i][12], (float)frames[i][13], (float)frames[i][14], (float)frames[i][15]);
+                transformationMatrices[i] = Matrix4x4.CreateFromRows(v0, v1, v2, v3);
+            }
+            double[] initialGuess = { 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0 };
+
+            LeastSquaresFunction function = (parameters, residualsArray) =>
+            {
+                residualsArray = new double[3];
+                Vector4 tcp = new Vector4( (float)parameters[0], (float)parameters[1], (float)parameters[2], 1.0f );  // TCP (x, y, z)
+                Vector3 planeNormal = new Vector3( (float)parameters[3], (float)parameters[4], (float)parameters[5] ); // Plane normal (a, b, c)
+                double planeD = parameters[6];  // Plane distance (d)
+
+                for (int i = 0; i < transformationMatrices.Length; i++)
+                {
+                    // Extract rotation matrix and translation vector from the 4x4 matrix
+                    Matrix4x4 T = transformationMatrices[i];
+
+                    Matrix3x3 rotation = Matrix3x3.CreateFromRows(
+                        T.GetRow(0).ToVector3(),
+                        T.GetRow(1).ToVector3(),
+                        T.GetRow(2).ToVector3());
+
+                    Vector3 translation = T.GetColumn(3).ToVector3(); // Last column (translation)
+
+                    // Transform the TCP from tool frame to world frame
+
+                    Vector4 tcpWorld = Matrix4x4.Multiply(transformationMatrices[i], tcp);
+
+                    // Calculate the plane equation: a * x + b * y + c * z + d = 0
+                    double planeEq = Vector3.Dot(planeNormal, tcpWorld.ToVector3()) + planeD;
+
+                    // Store the residual (this should be close to 0)
+                    residualsArray[i] = planeEq;
+                }
+
+                return 0;
+            };
+
+            // Create a Levenberg-Marquardt solver
+            var lm = new LevenbergMarquardt(parameters: 7);
+            lm.Function = function;
+
+            
+
+            // Optimize the parameters (TCP and plane parameters)
+            var success = lm.Minimize(frames, tcp);
+
+
         }
     }
 }

@@ -851,7 +851,7 @@ namespace GluLamb
             return new Plane(plane.Origin, xaxis, yaxis);
         }
 
-        public static Vector3d ClosestAxis(Plane plane, Vector3d vector)
+        public static Vector3d ClosestAxis(Plane plane, Vector3d vector, Plane? guide = null)
         {
             var axes = new Vector3d[]
             {
@@ -862,7 +862,9 @@ namespace GluLamb
             };
 
             var (number, index) = axes.Select(x => vector * x).Select((n, i) => (n, i)).Max();
-
+            
+            if (guide!= null && guide.HasValue && guide.Value.IsValid)
+                return new Vector3d[] { guide.Value.XAxis, guide.Value.YAxis, -guide.Value.XAxis, -guide.Value.YAxis }[index];
             return axes[index];
         }
 

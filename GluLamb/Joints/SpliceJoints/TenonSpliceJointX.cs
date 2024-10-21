@@ -17,6 +17,8 @@ namespace GluLamb.Joints
         public double SpliceAngle = 0;
         public bool SideSplice = false;
 
+        public double DowelEndOffset = 60;
+
         public Plane Beam0Plane = Plane.Unset;
         public Plane Beam1Plane = Plane.Unset;
 
@@ -48,6 +50,8 @@ namespace GluLamb.Joints
             if (values.TryGetValue("SpliceLength", out double _splicelength)) SpliceLength = _splicelength;
             if (values.TryGetValue("SpliceAngle", out double _spliceangle)) SpliceAngle = _spliceangle;
             if (values.TryGetValue("SideSplice", out double _sidesplice)) SideSplice = _sidesplice > 0;
+
+            if (values.TryGetValue("DowelEndOffset", out double _dowelendoffset)) DowelEndOffset = _dowelendoffset;
         }
 
         public override List<object> GetDebugList()
@@ -86,10 +90,8 @@ namespace GluLamb.Joints
                 beam0Height = beam1.Width;
             }
 
-            var dim = Math.Abs(Beam0Plane.Project(Beam1Plane.XAxis) * xAxis) > 0.5 ? 0 : 1;
-
-
-            if (dim > 0)
+            //var dim = Math.Abs(Beam0Plane.Project(Beam1Plane.XAxis) * xAxis) > 0.5 ? 0 : 1;
+            if (GluLamb.Utility.ClosestDimension2D(Beam0Plane, Beam1Plane.XAxis) > 0)
             {
                 beam1Width = beam1.Height;
                 beam1Height = beam1.Width;
@@ -126,6 +128,8 @@ namespace GluLamb.Joints
             var proj0 = End0Plane.ProjectAlongVector(SplicePlane.ZAxis);
             var proj1 = End1Plane.ProjectAlongVector(SplicePlane.ZAxis);
 
+            debug.Add(SplicePlane);
+
             var topProfile = new Polyline()
             {
                 points[0].Transformed(proj0),
@@ -153,6 +157,25 @@ namespace GluLamb.Joints
 
             Parts[0].Geometry.AddRange(tenonGeo);
             Parts[1].Geometry.AddRange(tenonGeo);
+
+            // Dowels
+            var dowelSpan = End1Plane.Origin - End0Plane.Origin;
+            var dowelSpacing = (dowelSpan.Length - (DowelEndOffset * 2));
+
+            dowelSpan.Unitize();
+
+            for (int i = 0; i < 2; ++i)
+            {
+                var dowelOrigin = End0Plane.Origin + dowelSpan * (DowelEndOffset + i * dowelSpacing)
+                    - SplicePlane.YAxis * (beam0Height + Added);
+                var dowel = new Cylinder(
+                    new Circle(
+                        new Plane(dowelOrigin, SplicePlane.XAxis), 8), beam0Height + beam1Height + Added * 2).ToBrep(true, true);
+
+                Parts[0].Geometry.Add(dowel);
+                Parts[1].Geometry.Add(dowel);
+            }
+
 
             return 0;
         }
