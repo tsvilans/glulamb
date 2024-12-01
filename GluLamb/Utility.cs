@@ -28,6 +28,8 @@ using Rhino.Geometry;
 using Grasshopper.Kernel;
 using System.ComponentModel;
 using System.Collections;
+using Rhino.DocObjects;
+using Rhino;
 
 namespace GluLamb
 {
@@ -1157,6 +1159,48 @@ namespace GluLamb
             I2 = avg - ddii;
             theta = Math.Atan2(-Ixy, diff) / 2;
         }
+    }
+
+    public static class DocUtility
+    {
+        public static Plane GetElementPlane(RhinoObject rhinoObject, bool userDictionary = false)
+        {
+            string originString, xaxisString, yaxisString;
+
+            if (userDictionary)
+            {
+                rhinoObject.UserDictionary.TryGetString("plane.Origin", out originString);
+                rhinoObject.UserDictionary.TryGetString("plane.XAxis", out xaxisString);
+                rhinoObject.UserDictionary.TryGetString("plane.YAxis", out yaxisString);
+            }
+            else
+            {
+                originString = rhinoObject.Attributes.GetUserString("plane.Origin");
+                xaxisString = rhinoObject.Attributes.GetUserString("plane.XAxis");
+                yaxisString = rhinoObject.Attributes.GetUserString("plane.YAxis");
+            }
+
+            if (string.IsNullOrEmpty(originString) || string.IsNullOrEmpty(xaxisString) || string.IsNullOrEmpty(yaxisString))
+                return Plane.Unset;
+
+            if (Point3d.TryParse(originString, out Point3d origin) && Point3d.TryParse(xaxisString, out Point3d xaxis) &&
+                Point3d.TryParse(yaxisString, out Point3d yaxis))
+                return new Plane(origin, new Vector3d(xaxis), new Vector3d(yaxis));
+
+            return Plane.Unset;
+        }
+
+#if RHINO8
+        public static int GetOrCreateLayer(RhinoDoc doc, string layerPath)
+        {
+            var layerIndex = doc.Layers.FindByFullPath(layerPath, -1);
+            if (layerIndex < 0)
+            {
+                layerIndex = doc.Layers.AddPath(layerPath);
+            }
+            return layerIndex;
+        }
+#endif
     }
 
 }

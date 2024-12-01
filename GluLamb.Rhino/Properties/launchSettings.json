@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "Win Rhino 7 net48": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Rhino 7\\System\\Rhino.exe",
+      "commandLineArgs": "/nosplash"
+    },
+    "Win Rhino 8 net48": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Rhino 8\\System\\Rhino.exe",
+      "commandLineArgs": "/nosplash /netfx"
+    },
+    "Win Rhino 8 Net7.0": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Rhino 8\\System\\Rhino.exe",
+      "commandLineArgs": "/nosplash /dotnet"
+    }
+  }

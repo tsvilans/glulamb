@@ -31,8 +31,6 @@ namespace GluLamb.Projects.HHDAC22
         void ToCix(List<string> cix, string prefix = "");
     }
 
-  
-
     public class Drill2d : ITransformable, IHasGeometry
     {
         public Point3d Position;
@@ -742,6 +740,8 @@ namespace GluLamb.Projects.HHDAC22
             return Sides.SelectMany(x => x.Operations).ToList();
         }
     }
+
+
 
 
 
