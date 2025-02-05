@@ -6,12 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using GluLamb.Projects.HHDAC22;
 using Rhino;
 using Rhino.Geometry;
+//using static GluLamb.Projects.CixFactory;
 
 namespace GluLamb.Projects
 {
-    public class CixWorkpiece
+    public class CixCurvedWorkpiece : CixWorkpiece
     {
         internal string Indent = "    ";
 
@@ -23,7 +25,6 @@ namespace GluLamb.Projects
         /// <summary>
         /// Name of workpiece
         /// </summary>
-        public string Name;
 
         public int NumBlankPoints = 45;
         public Curve BlankCurveInner;
@@ -41,13 +42,28 @@ namespace GluLamb.Projects
         public Line CleanCut1;
         public Line CleanCut2;
 
-        public CixWorkpiece()
-        { 
+        public Transform ToZDown = Rhino.Geometry.Transform.Identity;
+
+
+        public CixCurvedWorkpiece(string name = "Workpiece")
+        {
+            Name = name;
+            Sides = new BeamSide[]
+            {
+                new BeamSide(BeamSideType.End1),
+                new BeamSide(BeamSideType.End2),
+                new BeamSide(BeamSideType.Top),
+                new BeamSide(BeamSideType.Bottom),
+                new BeamSide(BeamSideType.Inside),
+                new BeamSide(BeamSideType.Outside)
+            };
+
+            ToZDown.M22 = -1;
         }
 
-        public CixWorkpiece Duplicate()
+        public CixCurvedWorkpiece Duplicate()
         {
-            return new CixWorkpiece()
+            var duplicate = new CixCurvedWorkpiece()
             {
                 Plane = Plane,
                 NumBlankPoints = NumBlankPoints,
@@ -65,10 +81,21 @@ namespace GluLamb.Projects
 
                 CleanCut1 = CleanCut1,
                 CleanCut2 = CleanCut2,
+                Sides = new BeamSide[6]
             };
+
+            for (int i = 0; i < Sides.Length; ++i)
+            {
+                for (int j = 0; j < Sides[i].Operations.Count; ++j)
+                {
+                    duplicate.Sides[i].Operations.Add(Sides[i].Operations[j].Clone() as Operation);
+                }
+            }
+
+            return duplicate;
         }
 
-        public void Transform(Transform xform)
+        public new void Transform(Transform xform)
         {
             Plane.Transform(xform);
             BlankCurveInner.Transform(xform);
@@ -84,9 +111,12 @@ namespace GluLamb.Projects
 
             CleanCut1.Transform(xform);
             CleanCut2.Transform(xform);
+
+            for (int i = 0; i < Sides.Length; ++i)
+                Sides[i].Transform(xform);
         }
 
-        private void WriteBlank(StreamWriter writer)
+        public void WriteBlank(StreamWriter writer)
         {
             double[] tt;
 
@@ -123,53 +153,30 @@ namespace GluLamb.Projects
             writer.WriteLine($"{Indent}BL_E_2_OUT_Y={BlankEnd2.ToY}");
         }
 
-        private void WriteSplines(StreamWriter writer)
+        public void WriteSplines(StreamWriter writer)
         {
             double[] tt;
-            string name;
 
-            name = "TOP_IN";
-            writer.WriteLine($"({name})");
-            tt = InnerTopSpline.DivideByCount(NumSplinePoints, true);
+            var names = new string[] { "TOP_IN", "TOP_OUT", "BOTTOM_IN", "BOTTOM_OUT" };
+            var splines = new Curve[] { InnerTopSpline, OuterTopSpline, InnerBottomSpline, OuterBottomSpline };
 
-            for (int i = 0; i < NumSplinePoints; ++i)
+            for (int i = 0; i < 4; ++i)
             {
-                var point = InnerTopSpline.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_Y={point.Y}");
-            }
+                string name = names[i];
+                var spline = splines[i];
 
-            name = "TOP_OUT";
-            writer.WriteLine($"({name})");
-            tt = OuterTopSpline.DivideByCount(NumSplinePoints, true);
+                writer.WriteLine($"({name})");
+                tt = spline.DivideByCount(NumSplinePoints, true);
 
-            for (int i = 0; i < NumSplinePoints; ++i)
-            {
-                var point = OuterTopSpline.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_Y={point.Y}");
-            }
+                for (int j = 0; j < NumSplinePoints; ++j)
+                {
+                    var point = spline.PointAt(tt[j]);
+                    point.Transform(ToZDown);
 
-            name = "BOTTOM_IN";
-            writer.WriteLine($"({name})");
-            tt = InnerBottomSpline.DivideByCount(NumSplinePoints, true);
-
-            for (int i = 0; i < NumSplinePoints; ++i)
-            {
-                var point = InnerBottomSpline.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_Y={point.Y}");
-            }
-
-            name = "BOTTOM_OUT";
-            writer.WriteLine($"({name})");
-            tt = OuterBottomSpline.DivideByCount(NumSplinePoints, true);
-
-            for (int i = 0; i < NumSplinePoints; ++i)
-            {
-                var point = OuterBottomSpline.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}{name}_SPL_P_{i + 1}_Y={point.Y}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_X={point.X}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Y={point.Y}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Z={point.Z}");
+                }
             }
         }
 
@@ -186,10 +193,9 @@ namespace GluLamb.Projects
             writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_1_Y={CleanCut2.FromY}");
             writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_X={CleanCut2.ToX}");
             writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_Y={CleanCut2.ToY}");
-
         }
 
-        private void WriteHeader(StreamWriter writer)
+        public void WriteHeader(StreamWriter writer)
         {
             var dt = System.DateTime.Now;
             var datestring = $"{dt.Year:0000}-{dt.Month:00}-{dt.Day:00}";
@@ -200,14 +206,20 @@ namespace GluLamb.Projects
             writer.WriteLine($"BEGIN PUBLICVARS");
         }
 
-        private void WriteFooter(StreamWriter writer)
+        public void WriteFooter(StreamWriter writer)
         {
             writer.WriteLine($"END PUBLICVARS");
         }
 
-        public void Write(StreamWriter writer)
+        public void WriteOperations(StreamWriter writer, string prefix = "")
         {
 
+            for (int i = 0; i < Sides.Length; ++i)
+                Sides[i].ToCix(writer, prefix);
+        }
+
+        public void Write(StreamWriter writer)
+        {
             var cix = Duplicate();
             cix.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane, Plane.WorldXY));
 
@@ -217,10 +229,10 @@ namespace GluLamb.Projects
             WriteSplines(writer);
             WriteCleanCuts(writer);
             //WriteEndCuts(writer);
+            WriteOperations(writer, "");
 
             WriteFooter(writer);
         }
-
     }
 
     /*

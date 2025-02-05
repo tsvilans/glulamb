@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 using Rhino;
 using Rhino.Geometry;
-using static GluLamb.Projects.CixFactory;
+//using static GluLamb.Projects.CixFactory;
 
 namespace GluLamb.Projects.HHDAC22
 {
@@ -32,7 +33,8 @@ namespace GluLamb.Projects.HHDAC22
         void ToCix(List<string> cix, string prefix = "");
     }
 
-    public class Drill2d : ITransformable, IHasGeometry
+
+    public class Drill2d : ITransformable, IHasGeometry, ICloneable
     {
         public Point3d Position;
         public double Diameter;
@@ -45,6 +47,11 @@ namespace GluLamb.Projects.HHDAC22
             Depth = depth;
         }
 
+        public object Clone()
+        {
+            return new Drill2d(Position, Diameter, Depth);
+        }
+
         public List<object> GetObjects()
         {
             return new List<object> { Position };
@@ -54,9 +61,11 @@ namespace GluLamb.Projects.HHDAC22
         {
             Position.Transform(xform);
         }
+
+        
     }
 
-    public abstract class Operation : ITransformable, ICix, IHasGeometry
+    public abstract class Operation : ITransformable, ICix, IHasGeometry, ICloneable
     {
         public string Name = "Operation";
         public int Id = 0;
@@ -65,13 +74,40 @@ namespace GluLamb.Projects.HHDAC22
         public abstract void Transform(Transform xform);
 
         public abstract List<object> GetObjects();
+
+        public abstract object Clone();
     }
 
+    /// <summary>
+    /// A flank cut from the side, to shave off the end of a beam.
+    /// Used in the 4-way joint, to cut the split ends. Two SKRAA
+    /// cuts were used from either side.
+    /// 
+    /// This could also be represented by a 3d rectangle, where the 
+    /// tool starts at one edge and follows the plane of the rectangle
+    /// to the opposite edge (length). The perpendicular dimension (width) would 
+    /// be the depth of the cut.
+    /// </summary>
     public class LineMachining : Operation
     {
+        /// <summary>
+        /// The path of the tool down the slope while cutting 
+        /// the flank.
+        /// </summary>
         public Line Path;
+        /// <summary>
+        /// The line at the top of the cut, defining the full "flank"
+        /// of the flank cut. This is flat/planar to the top of the material.
+        /// </summary>
         public Line PlaneX;
+        /// <summary>
+        /// The inclination of the tool against the top of the material (angle 
+        /// between tool and PlaneX line).
+        /// </summary>
         public double Tilt;
+        /// <summary>
+        /// Depth of the cut, how deep the tool will go.
+        /// </summary>
         public double Depth;
         public Plane CheckPlane;
 
@@ -80,6 +116,18 @@ namespace GluLamb.Projects.HHDAC22
         public LineMachining(string name="LineMachining")
         {
             Name = name;
+        }
+
+        public override object Clone()
+        {
+            return new LineMachining(Name) { 
+                Path = Path, 
+                PlaneX = PlaneX, 
+                Tilt = Tilt, 
+                Depth = Depth, 
+                CheckPlane = CheckPlane, 
+                OperationName = OperationName
+            };
         }
 
         public override List<object> GetObjects()
@@ -121,7 +169,17 @@ namespace GluLamb.Projects.HHDAC22
 
 
     /// <summary>
-    /// This is a little bit complicated.
+    /// A slot machining operation for cutting slots for plates.
+    /// 
+    /// There are 2 methods here: 
+    /// - If OverridePlane is true, then the slot plane and tool angle 
+    /// are calculated from the provided plane.
+    /// - If OverridePlane is false, then the XLine and Angle parameters
+    /// determine the plane X-axis and tilt of the tool relative to the 
+    /// normal of the XLine (i.e., 0 is pointing perpendicular to the XLine
+    /// relative to the Z-axis, 90 is down, 180 is pointing the other way).
+    /// 
+    /// This operation covers 
     /// </summary>
     public class SlotMachining : Operation
     {
@@ -144,6 +202,22 @@ namespace GluLamb.Projects.HHDAC22
             Rough = rough;
             OperationName = "SLIDS_LODRET";
             LongSlot = false;
+        }
+        public override object Clone()
+        {
+            return new SlotMachining(Name, Rough)
+            {
+                XLine = XLine,
+                Angle = Angle,
+                OverridePlane = OverridePlane,
+                Plane=Plane,
+                Outline = Outline.Duplicate(),
+                Radius = Radius,
+                Depth = Depth,
+                Depth0 = Depth0,
+                OperationName = OperationName,
+                LongSlot = LongSlot
+            };
         }
 
         public override List<object> GetObjects()
@@ -225,6 +299,60 @@ namespace GluLamb.Projects.HHDAC22
         {
             Plane.Transform(xform);
             Outline.Transform(xform);
+            XLine.Transform(xform);
+        }
+    }
+
+    /// <summary>
+    /// Operation for machining a slot from the side, with
+    /// a slot-cutting tool (thick saw blade).
+    /// </summary>
+    public class SlotCut : Operation
+    {
+        public Line Path;
+        public double Depth;
+        public string OperationName = "SLOT_CUT";
+
+        public SlotCut(string name = "SlotCut")
+        {
+            Name = name;
+            Path = Line.Unset;
+        }
+
+        public override object Clone()
+        {
+            return new SlotCut(Name)
+            {
+                Path = Path,
+                Depth = Depth,
+                OperationName = OperationName
+            };
+        }
+
+        public override List<object> GetObjects()
+        {
+            return new List<object> { Path };
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}{1}_{2}=1", prefix, OperationName, Id));
+
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_X={3:0.###}", prefix, OperationName, Id, Path.From.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Y={3:0.###}", prefix, OperationName, Id, Path.From.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Z={3:0.###}", prefix, OperationName, Id, -Path.From.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_X={3:0.###}", prefix, OperationName, Id, Path.To.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Y={3:0.###}", prefix, OperationName, Id, Path.To.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Z={3:0.###}", prefix, OperationName, Id, -Path.To.Z));
+
+            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
+            cix.Add(string.Format("{0}{1}_{2}_ALPHA={3:0.###}", prefix, OperationName, Id, 0));
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Path.Transform(xform);
         }
     }
 
@@ -246,7 +374,21 @@ namespace GluLamb.Projects.HHDAC22
             Name = name;
             OperationName = "TAP";
         }
-
+        public override object Clone()
+        {
+            return new TenonMachining(Name)
+            {
+                XLine = XLine,
+                Angle = Angle,
+                OverridePlane = OverridePlane,
+                Plane = Plane,
+                Outline = Outline.Duplicate(),
+                Radius = Radius,
+                Depth = Depth,
+                Depth0 = Depth0,
+                OperationName = OperationName,
+            };
+        }
         public override List<object> GetObjects()
         {
             return new List<object> { Plane, Outline };
@@ -337,6 +479,15 @@ namespace GluLamb.Projects.HHDAC22
             Plane = Plane.Unset;
         }
 
+        public override object Clone()
+        {
+            return new SideDrillGroup(Name)
+            {
+                Plane = Plane,
+                Drillings = Drillings.Select(x => x.Clone() as Drill2d).ToList()
+            };
+        }
+
         public override List<object> GetObjects()
         {
             var things = new List<object> { Plane };
@@ -406,6 +557,15 @@ namespace GluLamb.Projects.HHDAC22
             Plane = Plane.Unset;
         }
 
+        public override object Clone()
+        {
+            return new DrillGroup(Name)
+            {
+                Plane = Plane,
+                Drillings = Drillings.Select(x => x.Clone() as Drill2d).ToList()
+            };
+        }
+
         public override List<object> GetObjects()
         {
             var things = new List<object> { Plane };
@@ -463,6 +623,90 @@ namespace GluLamb.Projects.HHDAC22
         }
     }
 
+    public class DrillGroup2 : Operation
+    {
+        public Plane Plane;
+        public List<Drill2d> Drillings;
+
+        public DrillGroup2(string name = "DrillGroup2")
+        {
+            Name = name;
+            Drillings = new List<Drill2d>();
+            Plane = Plane.Unset;
+        }
+
+        public override object Clone()
+        {
+            return new DrillGroup2(Name)
+            {
+                Plane = Plane,
+                Drillings = Drillings.Select(x => x.Clone() as Drill2d).ToList()
+            };
+        }
+
+        public override List<object> GetObjects()
+        {
+            var things = new List<object> { Plane };
+            for (int i = 0; i < Drillings.Count; ++i)
+            {
+                things.AddRange(Drillings[i].GetObjects());
+            }
+            return things;
+        }
+
+        public override void ToCix(List<string> cix, string prefix = "")
+        {
+            cix.Add(string.Format("{0}HUL_{1}=1", prefix, Id));
+
+            // Sort out plane transformation here
+            //var normal = Plane.ZAxis;
+            //var xaxis = Vector3d.CrossProduct(normal, Vector3d.ZAxis);
+            var xaxis = Plane.XAxis;
+            //var yaxis = Vector3d.CrossProduct(normal, xaxis);
+            var origin = Plane.Origin;
+            var xpoint = origin + xaxis * 100;
+
+            //var sign = Vector3d.ZAxis * Plane.ZAxis < 0 ? 1 : -1;
+            //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
+            //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
+
+            Plane plane;
+            double angle;
+            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
+
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, -origin.Z));
+
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, -xpoint.Z));
+            cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
+
+            cix.Add(string.Format("{0}HUL_{1}_N={2}", prefix, Id, Drillings.Count));
+
+            for (int i = 0; i < Drillings.Count; ++i)
+            {
+                var d = Drillings[i];
+                Point3d pp;
+                plane.RemapToPlaneSpace(d.Position, out pp);
+                cix.Add(string.Format("\t(Drill_{0}_{1})", Id, i + 1));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_X={3:0.###}", prefix, Id, i + 1, pp.X));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_Y={3:0.###}", prefix, Id, i + 1, pp.Y));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_DIA={3:0.###}", prefix, Id, i + 1, d.Diameter));
+                cix.Add(string.Format("{0}HUL_{1}_{2}_DYBDE={3:0.###}", prefix, Id, i + 1, d.Depth));
+            }
+
+        }
+
+        public override void Transform(Transform xform)
+        {
+            Plane.Transform(xform);
+            for (int i = 0; i < Drillings.Count; ++i)
+                Drillings[i].Transform(xform);
+        }
+    }
+
     public class EndCut : Operation
     {
         public Plane Plane;
@@ -474,6 +718,15 @@ namespace GluLamb.Projects.HHDAC22
             Plane = Plane.Unset;
             CutLine = Line.Unset;
             ExtraDepth = 10;
+        }
+        public override object Clone()
+        {
+            return new EndCut(Name)
+            {
+                Plane = Plane,
+                CutLine = CutLine,
+                ExtraDepth = ExtraDepth
+            };
         }
 
         public override List<object> GetObjects()
@@ -536,6 +789,19 @@ namespace GluLamb.Projects.HHDAC22
             Plane = Plane.Unset;
             Outline = new Polyline();
             MaxSpan = Line.Unset;
+        }
+
+        public override object Clone()
+        {
+            return new CrossJointCutout(Name)
+            {
+                Outline = Outline.Duplicate(),
+                Plane = Plane,
+                SideLines = new Line[] { SideLines[0], SideLines[1] },
+                Depth = Depth,
+                Alpha = Alpha,
+                MaxSpan = MaxSpan,
+            };
         }
 
         public override List<object> GetObjects()
@@ -602,6 +868,14 @@ namespace GluLamb.Projects.HHDAC22
 
         }
 
+        public override object Clone()
+        {
+            return new CleanCut(Name)
+            {
+                CutLine = CutLine,
+            };
+        }
+
         public override List<object> GetObjects()
         {
             return new List<object> { CutLine };
@@ -644,6 +918,17 @@ namespace GluLamb.Projects.HHDAC22
             Operations = new List<Operation>();
         }
 
+        public void ToCix(StreamWriter writer, string prefix)
+        {
+            var cix = new List<string>();
+            ToCix(cix, prefix);
+
+            foreach (var line in cix)
+            {
+                writer.WriteLine(line);
+            }
+        }
+
         public void ToCix(List<string> cix, string prefix="")
         {
             switch(SideType)
@@ -681,7 +966,7 @@ namespace GluLamb.Projects.HHDAC22
         }
     }
 
-    public class Workpiece : ITransformable, ICix
+    public class CixWorkpiece : ITransformable, ICix
     {
         //public List<BeamSide> Sides;
         public string Name;
@@ -695,7 +980,7 @@ namespace GluLamb.Projects.HHDAC22
         public BeamSide Inside { get { return Sides[4]; } }
         public BeamSide Outside { get { return Sides[5]; } }
 
-        public Workpiece(string name = "Workpiece")
+        public CixWorkpiece(string name = "Workpiece")
         {
             Name = name;
             Sides = new BeamSide[]
@@ -742,7 +1027,7 @@ namespace GluLamb.Projects.HHDAC22
             return Sides.SelectMany(x => x.Operations).ToList();
         }
 
-        public static void OrganizeOperations(Workpiece wp)
+        public static void OrganizeOperations(CixWorkpiece wp)
         {
             foreach (var side in wp.Sides)
             {
