@@ -47,7 +47,28 @@ namespace GluLamb.Joints
                 new List<JointPartX>
                 {
                     new JointPartX() {Case = s0, ElementIndex = id0, JointIndex = joint_id, Parameter = t0, Direction = v0 },
-                        new JointPartX() {Case = s1, ElementIndex = id1, JointIndex = joint_id, Parameter = t1, Direction = v1 },
+                    new JointPartX() {Case = s1, ElementIndex = id1, JointIndex = joint_id, Parameter = t1, Direction = v1 },
+                },
+                (p0 + p1) * 0.5
+                );
+
+            return jc;
+        }
+
+        public static JointX ForceConnect(Curve c0, int id0, Curve c1, int id1, int joint_id = -1, double endTolerance = 50)
+        {
+            c0.ClosestPoints(c1, out Point3d p0, out Point3d p1);
+            c0.ClosestPoint(p0, out double t0);
+            c1.ClosestPoint(p1, out double t1);
+
+            ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
+            ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
+
+            var jc = new JointX(
+                new List<JointPartX>
+                {
+                    new JointPartX() {Case = s0, ElementIndex = id0, JointIndex = joint_id, Parameter = t0, Direction = v0 },
+                    new JointPartX() {Case = s1, ElementIndex = id1, JointIndex = joint_id, Parameter = t1, Direction = v1 },
                 },
                 (p0 + p1) * 0.5
                 );

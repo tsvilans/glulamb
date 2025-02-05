@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Rhino;
 using Rhino.Geometry;
+using static GluLamb.Projects.CixFactory;
 
 namespace GluLamb.Projects.HHDAC22
 {
@@ -573,6 +574,7 @@ namespace GluLamb.Projects.HHDAC22
 
             cix.Add(string.Format("{0}HAK_{1}_DYBDE={2:0.###}", prefix, Id, Depth));
             cix.Add(string.Format("{0}HAK_{1}_ALFA={2:0.###}", prefix, Id, Alpha));
+
         }
 
         public override void Transform(Transform xform)
@@ -738,6 +740,72 @@ namespace GluLamb.Projects.HHDAC22
         public List<Operation> GetAllOperations()
         {
             return Sides.SelectMany(x => x.Operations).ToList();
+        }
+
+        public static void OrganizeOperations(Workpiece wp)
+        {
+            foreach (var side in wp.Sides)
+            {
+                int endCutId = 1;
+                int drillGroupId = 1;
+                int drillGroup2Id = 1;
+                int cleanCutId = 1;
+                int plateDowelId = 1;
+                int slotId = 1;
+                int slotRoughId = 1;
+                int lineMachId = 1;
+                int slotCutId = 1;
+                int cutoutId = 1;
+
+                for (int i = 0; i < side.Operations.Count; ++i)
+                {
+                    var op = side.Operations[i];
+
+                    if (op is EndCut)
+                    {
+                        op.Id = endCutId; endCutId++;
+                    }
+                    else if (op is DrillGroup)
+                    {
+                        op.Id = drillGroupId; drillGroupId++;
+                    }
+                    else if (op is DrillGroup2)
+                    {
+                        op.Id = drillGroup2Id; drillGroup2Id++;
+                    }
+                    else if (op is CleanCut)
+                    {
+                        op.Id = cleanCutId; cleanCutId++;
+                    }
+                    else if (op is SlotMachining)
+                    {
+                        if ((op as SlotMachining).Rough)
+                        {
+                            op.Id = slotRoughId; slotRoughId++;
+                        }
+                        else
+                        {
+                            op.Id = slotId; slotId++;
+                        }
+                    }
+                    else if (op is SideDrillGroup)
+                    {
+                        op.Id = plateDowelId; plateDowelId++;
+                    }
+                    else if (op is LineMachining)
+                    {
+                        op.Id = lineMachId; lineMachId++;
+                    }
+                    else if (op is SlotCut)
+                    {
+                        op.Id = slotCutId; slotCutId++;
+                    }
+                    else if (op is CrossJointCutout)
+                    {
+                        op.Id = cutoutId; cutoutId++;
+                    }
+                }
+            }
         }
     }
 

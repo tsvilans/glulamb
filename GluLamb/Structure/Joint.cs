@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Rhino;
 using Rhino.Geometry;
 
@@ -119,9 +120,9 @@ namespace GluLamb
 
         public virtual JointX DuplicateJoint()
         {
-            return new JointX() { 
-                Position = Position, 
-                Parts = Parts.Select(x => x.DuplicateJointPart()).ToList() 
+            return new JointX() {
+                Position = Position,
+                Parts = Parts.Select(x => x.DuplicateJointPart()).ToList()
             };
         }
 
@@ -131,11 +132,11 @@ namespace GluLamb
             Parts = Parts.Distinct().ToList();
         }
 
-        public static string ClassifyJoint(JointX joint, double perpendicularThreshold=Math.PI * 0.25)
+        public static string ClassifyJoint(JointX joint, double perpendicularThreshold = Math.PI * 0.25)
         {
             string type = "null";
 
-            switch(joint.Parts.Count)
+            switch (joint.Parts.Count)
             {
                 case 0: // Joint has no parts! Invalid.
                     type = "null";
@@ -225,6 +226,11 @@ namespace GluLamb
 
         public virtual void Configure(Dictionary<string, double> values)
         {
+        }
+
+        public virtual int Construct(Beam[] beams, List<Brep>[] geometries)
+        {
+            throw new NotImplementedException();
         }
 
         public virtual List<object> GetDebugList() { return null; }
