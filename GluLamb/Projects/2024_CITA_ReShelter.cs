@@ -13,6 +13,7 @@ using Rhino.Geometry;
 
 namespace GluLamb.Projects
 {
+    /*
     public class CixCurvedWorkpiece : CixWorkpiece
     {
         internal string Indent = "    ";
@@ -126,8 +127,8 @@ namespace GluLamb.Projects
             for (int i = 0; i < NumBlankPoints; ++i)
             {
                 var point = BlankCurveInner.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}BL_IN_CURVE_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}BL_IN_CURVE_P_{i + 1}_Y={point.Y}");
+                writer.WriteLine($"{Indent}BL_IN_CURVE_P_{i + 1}_X={point.X:0.###}");
+                writer.WriteLine($"{Indent}BL_IN_CURVE_P_{i + 1}_Y={point.Y:0.###}");
             }
 
             writer.WriteLine($"(BL_OUT_CURVE)");
@@ -136,21 +137,21 @@ namespace GluLamb.Projects
             for (int i = 0; i < NumBlankPoints; ++i)
             {
                 var point = BlankCurveOuter.PointAt(tt[i]);
-                writer.WriteLine($"{Indent}BL_OUT_CURVE_P_{i + 1}_X={point.X}");
-                writer.WriteLine($"{Indent}BL_OUT_CURVE_P_{i + 1}_Y={point.Y}");
+                writer.WriteLine($"{Indent}BL_OUT_CURVE_P_{i + 1}_X={point.X:0.###}");
+                writer.WriteLine($"{Indent}BL_OUT_CURVE_P_{i + 1}_Y={point.Y:0.###}");
             }
 
             writer.WriteLine($"(BL_E_1)");
-            writer.WriteLine($"{Indent}BL_E_1_IN_X={BlankEnd1.FromX}");
-            writer.WriteLine($"{Indent}BL_E_1_IN_Y={BlankEnd1.FromY}");
-            writer.WriteLine($"{Indent}BL_E_1_OUT_X={BlankEnd1.ToX}");
-            writer.WriteLine($"{Indent}BL_E_1_OUT_Y={BlankEnd1.ToY}");
+            writer.WriteLine($"{Indent}BL_E_1_IN_X={BlankEnd1.FromX:0.###}");
+            writer.WriteLine($"{Indent}BL_E_1_IN_Y={BlankEnd1.FromY:0.###}");
+            writer.WriteLine($"{Indent}BL_E_1_OUT_X={BlankEnd1.ToX:0.###}");
+            writer.WriteLine($"{Indent}BL_E_1_OUT_Y={BlankEnd1.ToY:0.###}");
 
             writer.WriteLine($"(BL_E_2)");
-            writer.WriteLine($"{Indent}BL_E_2_IN_X={BlankEnd2.FromX}");
-            writer.WriteLine($"{Indent}BL_E_2_IN_Y={BlankEnd2.FromY}");
-            writer.WriteLine($"{Indent}BL_E_2_OUT_X={BlankEnd2.ToX}");
-            writer.WriteLine($"{Indent}BL_E_2_OUT_Y={BlankEnd2.ToY}");
+            writer.WriteLine($"{Indent}BL_E_2_IN_X={BlankEnd2.FromX:0.###}");
+            writer.WriteLine($"{Indent}BL_E_2_IN_Y={BlankEnd2.FromY:0.###}");
+            writer.WriteLine($"{Indent}BL_E_2_OUT_X={BlankEnd2.ToX:0.###}");
+            writer.WriteLine($"{Indent}BL_E_2_OUT_Y={BlankEnd2.ToY:0.###}");
         }
 
         public void WriteSplines(StreamWriter writer)
@@ -173,9 +174,9 @@ namespace GluLamb.Projects
                     var point = spline.PointAt(tt[j]);
                     point.Transform(ToZDown);
 
-                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_X={point.X}");
-                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Y={point.Y}");
-                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Z={point.Z}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_X={point.X:0.###}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Y={point.Y:0.###}");
+                    writer.WriteLine($"{Indent}{name}_SPL_P_{j + 1}_Z={point.Z:0.###}");
                 }
             }
         }
@@ -183,16 +184,16 @@ namespace GluLamb.Projects
         public void WriteCleanCuts(StreamWriter writer)
         {
             writer.WriteLine($"(Clean_Cut_E1)");
-            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_1_X={CleanCut1.FromX}");
-            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_1_Y={CleanCut1.FromY}");
-            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_2_X={CleanCut1.ToX}");
-            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_2_Y={CleanCut1.ToY}");
+            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_1_X={CleanCut1.FromX:0.###}");
+            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_1_Y={CleanCut1.FromY:0.###}");
+            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_2_X={CleanCut1.ToX:0.###}");
+            writer.WriteLine($"{Indent}E_1_RENSKAER_PKT_2_Y={CleanCut1.ToY:0.###}");
 
             writer.WriteLine($"(Clean_Cut_E2)");
-            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_1_X={CleanCut2.FromX}");
-            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_1_Y={CleanCut2.FromY}");
-            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_X={CleanCut2.ToX}");
-            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_Y={CleanCut2.ToY}");
+            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_1_X={CleanCut2.FromX:0.###}");
+            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_1_Y={CleanCut2.FromY:0.###}");
+            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_X={CleanCut2.ToX:0.###}");
+            writer.WriteLine($"{Indent}E_2_RENSKAER_PKT_2_Y={CleanCut2.ToY:0.###}");
         }
 
         public void WriteHeader(StreamWriter writer)
@@ -208,6 +209,7 @@ namespace GluLamb.Projects
 
         public void WriteFooter(StreamWriter writer)
         {
+            writer.WriteLine($"(Generated with GluLamb by Tom Svilans)");
             writer.WriteLine($"END PUBLICVARS");
         }
 
@@ -234,62 +236,5 @@ namespace GluLamb.Projects
             WriteFooter(writer);
         }
     }
-
-    /*
-    public abstract class CixOperation
-    {
-        public string Name;
-        public abstract void ToCix(StreamWriter writer, Transform transform, string prefix = "");
-    }
-
-    public class CleanCut : CixOperation
-    {
-        public int EndId;
-        public Line Cut;
-
-        public CleanCut(int endId, Line cut)
-        {
-            EndId = endId;
-            Cut = cut;
-        }
-
-        public override void ToCix(StreamWriter writer, Transform transform, string prefix = "")
-        {
-            writer.WriteLine($"({Name})");
-            var start = Cut.From;
-            start.Transform(transform);
-
-            var end = Cut.To;
-            end.Transform(transform);
-
-            writer.WriteLine($"{prefix}E_{EndId}_RENSKAER_PKT_1_X={start.X}");
-            writer.WriteLine($"{prefix}E_{EndId}_RENSKAER_PKT_1_Y={start.Y}");
-            writer.WriteLine($"{prefix}E_{EndId}_RENSKAER_PKT_2_X={end.X}");
-            writer.WriteLine($"{prefix}E_{EndId}_RENSKAER_PKT_2_Y={end.Y}");
-        }
-    }
-
-    public class CrossCut : CixOperation
-    {
-        public int EndId;
-        public Plane CutPlane;
-        public Line Cut;
-
-        public CrossCut(int endid, Plane cutPlane, Line cut)
-        {
-            EndId = endid;
-            CutPlane = cutPlane;
-            Cut = cut;
-        }
-
-
-        public override void ToCix(StreamWriter writer, Transform transform, string prefix = "")
-        {
-            writer.WriteLine($"({Name})");
-
-
-        }
-    }
     */
-
 }
