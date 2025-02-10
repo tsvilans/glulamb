@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Net.NetworkInformation;
 
 namespace GluLamb.Cix.Operations
 {
@@ -76,6 +77,35 @@ namespace GluLamb.Cix.Operations
         {
             Plane.Transform(xform);
             CutLine.Transform(xform);
+        }
+
+        public static EndCut FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
+        {
+            var name = $"{prefix}CUT_{id}";
+
+            if (!cix.ContainsKey(name) || cix[name] < 1)
+                return null;
+
+            var endCut = new EndCut(name);
+
+            endCut.CutLine.FromX = cix[$"{name}_LINE_PKT_1_X"];
+            endCut.CutLine.FromY = cix[$"{name}_LINE_PKT_1_Y"];
+            endCut.CutLine.FromZ = cix[$"{name}_LINE_PKT_1_Z"];
+
+            endCut.CutLine.ToX = cix[$"{name}_LINE_PKT_2_X"];
+            endCut.CutLine.ToY = cix[$"{name}_LINE_PKT_2_Y"];
+            endCut.CutLine.ToZ = cix[$"{name}_LINE_PKT_2_Z"];
+
+            endCut.ExtraDepth = cix[$"{name}_DYBDE_EKSTRA"];
+
+            var alpha = RhinoMath.ToRadians(cix[$"{name}_ALFA"]);
+
+            var yaxis = -Vector3d.ZAxis;
+            yaxis.Transform(Rhino.Geometry.Transform.Rotation(-alpha, endCut.CutLine.Direction, endCut.CutLine.From));
+
+            endCut.Plane = new Plane(endCut.CutLine.From, endCut.CutLine.Direction, yaxis);
+
+            return endCut;
         }
     }
 }

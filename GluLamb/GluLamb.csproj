@@ -90,6 +90,7 @@
     <Compile Include="Cix\Operations\Tenon.cs" />
     <Compile Include="Cix\Operations\TenonMachining.cs" />
     <Compile Include="Cix\Operations\TenonOutline.cs" />
+    <Compile Include="Cix\Reader.cs" />
     <Compile Include="Cix\Shape.cs" />
     <Compile Include="Cix\Workpiece.cs" />
     <Compile Include="Globals.cs" />

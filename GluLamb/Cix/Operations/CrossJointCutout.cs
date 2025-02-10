@@ -1,5 +1,6 @@
 ﻿using GH_IO.Serialization;
 using GluLamb.Projects.HHDAC22;
+using Rhino;
 using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
@@ -34,7 +35,7 @@ namespace GluLamb.Cix.Operations
             {
                 Outline = Outline.Duplicate(),
                 Plane = Plane,
-                SideLines = new Line[] { SideLines[0], SideLines[1] },
+                SideLines = new Line[] { SideLines[0], SideLines[1], SideLines[2], SideLines[3] },
                 Depth = Depth,
                 Alpha = Alpha,
                 MaxSpan = MaxSpan,
@@ -43,7 +44,7 @@ namespace GluLamb.Cix.Operations
 
         public override List<object> GetObjects()
         {
-            return new List<object> { Plane, Outline, MaxSpan, SideLines[0], SideLines[1] };
+            return new List<object> { Plane, Outline, MaxSpan, SideLines[0], SideLines[1], SideLines[2], SideLines[3] };
         }
 
         public override void ToCix(List<string> cix, string prefix = "")
@@ -93,6 +94,81 @@ namespace GluLamb.Cix.Operations
             {
                 SideLines[i].Transform(xform);
             }
+        }
+
+        public static CrossJointCutout FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
+        {
+            var name = $"{prefix}HAK_{id}";
+
+            if (!cix.ContainsKey(name) || cix[name] < 1)
+                return null;
+
+            var cutout = new CrossJointCutout(name);
+
+            cutout.MaxSpan = new Line(
+                new Point3d(
+                    cix[$"{name}_PL_PKT_1_X"],
+                    cix[$"{name}_PL_PKT_1_Y"],
+                    0
+                    ),
+                new Point3d(
+                    cix[$"{name}_PL_PKT_2_X"],
+                    cix[$"{name}_PL_PKT_2_Y"],
+                    0
+                    )
+                );
+
+            cutout.Alpha = RhinoMath.ToRadians(cix[$"{name}_ALFA"]);
+            cutout.Depth = cix[$"{name}_DYBDE"];
+
+            var yaxis = -Vector3d.ZAxis;
+            yaxis.Transform(Rhino.Geometry.Transform.Rotation(-cutout.Alpha, cutout.MaxSpan.Direction, cutout.MaxSpan.From));
+
+            cutout.Plane = new Plane(cutout.MaxSpan.From, cutout.MaxSpan.Direction, yaxis);
+
+            cutout.Outline = new Polyline();
+            for (int i = 1; i <= 7; ++i)
+            {
+                cutout.Outline.Add(
+                    new Point3d(
+                        cix[$"{name}_PKT_{i}_X"],
+                        cix[$"{name}_PKT_{i}_Y"],
+                        0
+                        ));
+            }
+
+            for (int i = 0; i < 2; ++i)
+            {
+                cutout.SideLines[i] = new Line(
+                    cutout.Plane.PointAt(
+                        cix[$"{name}_LINE_{i+1}_PKT_1_X"],
+                        cix[$"{name}_LINE_{i + 1}_PKT_1_Y"]
+                        ),
+                    cutout.Plane.PointAt(
+                        cix[$"{name}_LINE_{i + 1}_PKT_2_X"],
+                        cix[$"{name}_LINE_{i + 1}_PKT_2_Y"]
+                        )
+                    );
+            }
+
+            for (int i = 2; i < 4; ++i)
+            {
+                cutout.SideLines[i] = new Line(
+                    new Point3d(
+                        cix[$"{name}_LINE_{i + 1}_PKT_1_X"],
+                        cix[$"{name}_LINE_{i + 1}_PKT_1_Y"],
+                        0
+                        ),
+                    new Point3d(
+                        cix[$"{name}_LINE_{i + 1}_PKT_2_X"],
+                        cix[$"{name}_LINE_{i + 1}_PKT_2_Y"],
+                        0
+                        )
+                    );
+            }
+
+
+            return cutout;
         }
     }
 }
