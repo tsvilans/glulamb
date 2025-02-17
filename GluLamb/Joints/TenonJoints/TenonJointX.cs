@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -162,10 +161,10 @@ namespace GluLamb.Joints
             TenonSidePlanes[0].Origin = centre.ProjectToPlane(TenonSidePlanes[0]);
             TenonSidePlanes[1].Origin = centre.ProjectToPlane(TenonSidePlanes[1]);
 
-            debug.Add(new GH_Plane(TenonFacePlane));
-            debug.Add(new GH_Plane(TenonBackPlane));
-            debug.Add(new GH_Plane(TenonSidePlanes[0]));
-            debug.Add(new GH_Plane(TenonSidePlanes[1]));
+            debug.Add((TenonFacePlane));
+            debug.Add((TenonBackPlane));
+            debug.Add((TenonSidePlanes[0]));
+            debug.Add((TenonSidePlanes[1]));
 
             var TenonFacePlaneOffset = new Plane(
                 TenonFacePlane.Origin - TenonFacePlane.ZAxis * Added,
@@ -208,9 +207,9 @@ namespace GluLamb.Joints
                 TenonFacePlane.ZAxis
                 );
 
-            debug.Add(new GH_Plane(TopPlane));
-            debug.Add(new GH_Plane(MiddlePlane));
-            debug.Add(new GH_Plane(BottomPlane));
+            debug.Add(TopPlane);
+            debug.Add(MiddlePlane);
+            debug.Add(BottomPlane);
 
             var tenonPoints = new Point3d[8];
 

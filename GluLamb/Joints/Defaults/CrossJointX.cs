@@ -1,9 +1,7 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -71,17 +69,17 @@ namespace GluLamb.Joints
             // if (Normal * UnderPlane.YAxis < 0)
             //     Normal.Reverse();
 
-            debug.Add(new GH_Plane(UnderPlane));
-            debug.Add(new GH_Plane(OverPlane));
-            debug.Add(new GH_Vector(underDirection));
-            debug.Add(new GH_Vector(overDirection));
+            debug.Add(UnderPlane);
+            debug.Add(OverPlane);
+            debug.Add(underDirection);
+            debug.Add(overDirection);
             // Over is a slave to Under
 
             var underSideDirection = Utility.ClosestAxis(UnderPlane, overDirection);
             var overSideDirection = Utility.ClosestAxis(OverPlane, underDirection);
 
-            debug.Add(new GH_Vector(underSideDirection));
-            debug.Add(new GH_Vector(overSideDirection));
+            debug.Add(underSideDirection);
+            debug.Add(overSideDirection);
 
             double underWidth, underHeight;
             if (Math.Abs(overDirection * UnderPlane.XAxis) > Math.Abs(overDirection * UnderPlane.YAxis))
@@ -126,11 +124,11 @@ namespace GluLamb.Joints
             debug.Add(OverSide1Plane);
 
             Normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
-            debug.Add(new GH_Vector(Normal));
+            debug.Add(Normal);
 
             var LapOrigin = Interpolation.Lerp(UnderPlane.Origin, OverPlane.Origin,
             (underHeight) / (overHeight + underHeight));
-            debug.Add(new GH_Point(LapOrigin));
+            debug.Add(LapOrigin);
 
             LapPlane = new Plane(LapOrigin, underSideDirection, overSideDirection);
 
@@ -201,17 +199,17 @@ namespace GluLamb.Joints
             // if (Normal * UnderPlane.YAxis < 0)
             //     Normal.Reverse();
 
-            debug.Add(new GH_Plane(UnderPlane));
-            debug.Add(new GH_Plane(OverPlane));
-            debug.Add(new GH_Vector(underDirection));
-            debug.Add(new GH_Vector(overDirection));
+            debug.Add(UnderPlane);
+            debug.Add(OverPlane);
+            debug.Add(underDirection);
+            debug.Add(overDirection);
             // Over is a slave to Under
 
             var underSideDirection = Utility.ClosestAxis(UnderPlane, overDirection);
             var overSideDirection = Utility.ClosestAxis(OverPlane, underDirection);
 
-            debug.Add(new GH_Vector(underSideDirection));
-            debug.Add(new GH_Vector(overSideDirection));
+            debug.Add(underSideDirection);
+            debug.Add(overSideDirection);
 
             double underWidth, underHeight;
             if (Math.Abs(overDirection * UnderPlane.XAxis) > Math.Abs(overDirection * UnderPlane.YAxis))
@@ -256,11 +254,11 @@ namespace GluLamb.Joints
             debug.Add(OverSide1Plane);
 
             Normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
-            debug.Add(new GH_Vector(Normal));
+            debug.Add(Normal);
 
             var LapOrigin = Interpolation.Lerp(UnderPlane.Origin, OverPlane.Origin,
             (underHeight) / (overHeight + underHeight));
-            debug.Add(new GH_Point(LapOrigin));
+            debug.Add(LapOrigin);
 
             LapPlane = new Plane(LapOrigin, underSideDirection, overSideDirection);
 

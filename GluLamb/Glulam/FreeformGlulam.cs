@@ -23,7 +23,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Eto.Forms;
-using Grasshopper.Kernel.Geometry.Delaunay;
 using Rhino;
 using Rhino.Geometry;
 

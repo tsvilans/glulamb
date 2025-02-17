@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -75,8 +74,8 @@ namespace GluLamb.Joints
             var beam0SideDirection = Utility.ClosestAxis(Beam0Plane, beam1Direction);
             var beam1SideDirection = Utility.ClosestAxis(Beam1Plane, beam0Direction);
 
-            debug.Add(new GH_Vector(beam0SideDirection));
-            debug.Add(new GH_Vector(beam1SideDirection));
+            debug.Add(beam0SideDirection);
+            debug.Add(beam1SideDirection);
 
             double beam0Width, beam0Height;
             if (Math.Abs(beam1Direction * Beam0Plane.XAxis) > Math.Abs(beam1Direction * Beam0Plane.YAxis))
@@ -122,11 +121,11 @@ namespace GluLamb.Joints
 
             Normal = Vector3d.CrossProduct(beam0SideDirection, beam1SideDirection);
             Normal.Unitize();
-            debug.Add(new GH_Vector(Normal));
+            debug.Add(Normal);
 
             var LapOrigin = Interpolation.Lerp(Beam0Plane.Origin, Beam1Plane.Origin,
             (beam0Height) / (beam1Height + beam0Height));
-            debug.Add(new GH_Point(LapOrigin));
+            debug.Add(LapOrigin);
 
             LapPlane = new Plane(LapOrigin, beam0SideDirection, beam1SideDirection);
 

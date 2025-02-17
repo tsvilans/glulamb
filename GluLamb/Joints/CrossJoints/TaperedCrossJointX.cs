@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -97,7 +96,7 @@ namespace GluLamb.Joints
             Normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
             Normal.Unitize();
 
-            debug.Add(new GH_Vector(Normal));
+            //debug.Add(new GH_Vector(Normal));
 
             var LapOrigin = Interpolation.Lerp(UnderPlane.Origin, OverPlane.Origin,
                 (underHeight) / (overHeight + underHeight));
@@ -130,7 +129,7 @@ namespace GluLamb.Joints
             OverSideInset1Plane = new Plane(OverPlane.Origin - overSideDirection * (overWidth * 0.5 - Inset - OffsetY), -overSideDirection);
 
 
-            debug.Add(new GH_Point(LapOrigin));
+            //debug.Add(new GH_Point(LapOrigin));
 
             LapPlane = new Plane(LapOrigin, underSideDirection, overSideDirection);
             var UnderLapPlane = new Plane(LapOrigin + Normal * (lapHeight + AddedUp), LapPlane.XAxis, LapPlane.YAxis);
@@ -142,7 +141,7 @@ namespace GluLamb.Joints
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(LapPlane, UnderSideInset1Plane, OverSideInset1Plane, out points[2]);
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(LapPlane, OverSideInset1Plane, UnderSideInset0Plane, out points[3]);
 
-            debug.AddRange(points.Select(x => new GH_Point(x)));
+            //debug.AddRange(points.Select(x => new GH_Point(x)));
 
             var geometry = new List<Brep>();
 
@@ -159,7 +158,7 @@ namespace GluLamb.Joints
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(UnderLapPlane, UnderSide1Plane, OverSide1Plane, out underPoints[2]);
             Rhino.Geometry.Intersect.Intersection.PlanePlanePlane(UnderLapPlane, OverSide1Plane, UnderSide0Plane, out underPoints[3]);
 
-            debug.AddRange(underPoints.Select(x => new GH_Point(x)));
+            //debug.AddRange(underPoints.Select(x => new GH_Point(x)));
 
             var underGeo = new Brep[2];
             underGeo[0] = Brep.CreateFromCornerPoints(points[0], points[1], underPoints[1], underPoints[0], 0.001);

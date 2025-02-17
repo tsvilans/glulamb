@@ -25,7 +25,6 @@ using System.Collections.Generic;
 using Rhino.Display;
 using System.Drawing;
 using Rhino.Geometry;
-using Grasshopper.Kernel;
 using System.ComponentModel;
 using System.Collections;
 

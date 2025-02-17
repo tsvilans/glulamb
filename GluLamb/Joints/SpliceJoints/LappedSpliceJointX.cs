@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -114,9 +113,9 @@ namespace GluLamb.Joints
             End0Plane = new Plane(End0Plane.Origin, SplicePlane.XAxis, End0Plane.YAxis);
             End1Plane = new Plane(End1Plane.Origin, SplicePlane.XAxis, End1Plane.YAxis);
 
-            debug.Add(new GH_Plane(End0Plane));
-            debug.Add(new GH_Plane(End1Plane));
-            debug.Add(new GH_Plane(SplicePlane));
+            debug.Add((End0Plane));
+            debug.Add((End1Plane));
+            debug.Add((SplicePlane));
 
             double width = Math.Max(beam0Width, beam1Width);
             double height = Math.Max(beam0Height, beam1Height);

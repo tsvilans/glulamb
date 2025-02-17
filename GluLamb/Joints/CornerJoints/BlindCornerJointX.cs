@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -134,7 +133,7 @@ namespace GluLamb.Joints
             var LapOrigin = Interpolation.Lerp(Beam0Plane.Origin, Beam1Plane.Origin,
             (beam0Height) / (beam1Height + beam0Height));
 
-            debug.Add(new GH_Point(LapOrigin));
+            debug.Add(LapOrigin);
 
             LapPlane = new Plane(LapOrigin, beam0SideDirection, beam1SideDirection);
 

@@ -13,6 +13,8 @@
 		<AssemblyVersion>1.0.*</AssemblyVersion>
 		<FileVersion>1.0.*</FileVersion>
 		<Title>GluLamb.Raw.GH</Title>
+		<Company>Tom Svilans</Company>
+		<Copyright>Copyright (c) 2025</Copyright>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 		<OutputPath>..\bin</OutputPath>
 	</PropertyGroup>
@@ -26,8 +28,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Grasshopper" Version="8.4.24044.15001" />
-	  <PackageReference Include="System.Drawing.Common" Version="8.0.4" />
+	  <PackageReference Include="Grasshopper" Version="8.10.24226.13001" />
 	</ItemGroup>	
 
 	<ItemGroup>

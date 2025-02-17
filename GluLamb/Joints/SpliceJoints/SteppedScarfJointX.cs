@@ -1,5 +1,4 @@
-﻿using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
+﻿using Rhino.Geometry;
 using Rhino;
 using System;
 using System.Collections.Generic;
@@ -170,8 +169,8 @@ namespace GluLamb.Joints
             RX.PlanePlanePlane(Side1Plane, SpliceOffset0Plane, SpliceEnd1Plane, out pointsLow[6]);
             RX.PlanePlanePlane(Side1Plane, SpliceEnd1Plane, TopPlane, out pointsLow[7]);
 
-            debug.AddRange(points.Select(x => new GH_Point(x)));
-            debug.AddRange(pointsLow.Select(x => new GH_Point(x)));
+            //debug.AddRange(points.Select(x => new GH_Point(x)));
+            //debug.AddRange(pointsLow.Select(x => new GH_Point(x)));
 
             double tolerance = 0.001;
 
