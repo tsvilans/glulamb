@@ -51,7 +51,7 @@ namespace GluLamb.Cix
             double[] tt;
 
             cix.Add($"(BL_IN_CURVE)");
-            tt = CurveInner.DivideByCount(NumPoints, true);
+            tt = CurveInner.DivideByCount(NumPoints - 1, true);
 
             for (int i = 0; i < NumPoints; ++i)
             {

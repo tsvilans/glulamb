@@ -30,7 +30,7 @@ namespace GluLamb.Cix
                 var spline = splines[i];
 
                 cix.Add($"({name})");
-                tt = spline.DivideByCount(NumSplinePoints, true);
+                tt = spline.DivideByCount(NumSplinePoints - 1, true);
 
                 for (int j = 0; j < NumSplinePoints; ++j)
                 {

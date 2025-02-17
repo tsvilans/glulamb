@@ -11,6 +11,11 @@ using System.Xml.Linq;
 
 namespace GluLamb.Cix.Operations
 {
+    /// <summary>
+    /// Group of holes. If they are on the sides (IN or OUT),
+    /// there is no alpha value for the plane - it is
+    /// vertical.
+    /// </summary>
     public class DrillGroup2 : Operation
     {
         public Plane Plane;
@@ -94,6 +99,58 @@ namespace GluLamb.Cix.Operations
             Plane.Transform(xform);
             for (int i = 0; i < Drillings.Count; ++i)
                 Drillings[i].Transform(xform);
+        }
+
+        public static DrillGroup2 FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
+        {
+            var name = $"{prefix}HUL_{id}";
+
+            if (!cix.ContainsKey(name) || cix[name] < 1)
+                return null;
+
+            var drillGroup = new DrillGroup2(name);
+
+            var p0 = new Point3d(
+                cix[$"{name}_PL_PKT_1_X"],
+                cix[$"{name}_PL_PKT_1_Y"],
+                0
+                );
+
+            var p1 = new Point3d(
+                cix[$"{name}_PL_PKT_2_X"],
+                cix[$"{name}_PL_PKT_2_Y"],
+                0
+                );
+
+            var xaxis = p1 - p0;
+
+            cix.TryGetValue($"{name}_PL_ALFA", out double angle);
+            angle = RhinoMath.ToRadians(angle);
+            var yaxis = -Vector3d.ZAxis;
+            yaxis.Transform(Rhino.Geometry.Transform.Rotation(-angle, xaxis, p0));
+
+            drillGroup.Plane = new Plane(p0, xaxis, yaxis);
+
+
+            var numDrillings = (int)(cix[$"{name}_N"]);
+
+            for (int i = 1; i <= numDrillings; ++i)
+            {
+                var position = new Point3d(
+                    cix[$"{name}_{i}_X"],
+                    cix[$"{name}_{i}_Y"],
+                    0
+                );
+
+                var diameter = cix[$"{name}_{i}_DIA"];
+                var depth = cix[$"{name}_{i}_DYBDE"];
+
+                var drill2d = new Drill2d(position, diameter, depth);
+                drillGroup.Drillings.Add(drill2d);
+            }
+
+            return drillGroup;
+
         }
     }
 }

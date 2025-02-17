@@ -11,6 +11,9 @@ using System.Xml.Linq;
 
 namespace GluLamb.Cix.Operations
 {
+    /// <summary>
+    /// Seems to be a replication of SlotMachining, can probably retire this one.
+    /// </summary>
     public class TenonMachining : Operation
     {
         public Line XLine;

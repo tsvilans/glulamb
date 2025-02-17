@@ -146,5 +146,59 @@ namespace GluLamb.Cix.Operations
             Outline.Transform(xform);
             XLine.Transform(xform);
         }
+
+        /// <summary>
+        /// Reconstruct operation from CIX variables.
+        /// </summary>
+        /// <param name="cix">Dictionary of CIX variables.</param>
+        /// <param name="prefix">The operation prefix (IN, OUT, E_1, etc.).</param>
+        /// <param name="id">The number of the operation.</param>
+        /// <param name="operationName">The name of the operation in the CIX file. Is usually SLIDS_LODRET but also applies to TAPHUL and SLIDS.</param>
+        /// <returns></returns>
+        public static SlotMachining FromCix(Dictionary<string, double> cix, string prefix = "", string id = "", string operationName = "SLIDS_LODRET")
+        {
+            var name = string.IsNullOrEmpty(id) ? $"{prefix}{operationName}" : $"{prefix}{operationName}_{id}";
+
+            if (!cix.ContainsKey(name) || cix[name] < 1)
+                return null;
+
+            var slot = new SlotMachining(name);
+
+            slot.XLine = new Line(
+                cix[$"{name}_PL_PKT_1_X"],
+                cix[$"{name}_PL_PKT_1_Y"],
+                -cix[$"{name}_PL_PKT_1_Z"],
+                cix[$"{name}_PL_PKT_2_X"],
+                cix[$"{name}_PL_PKT_2_Y"],
+                -cix[$"{name}_PL_PKT_2_Z"]
+                );
+
+            slot.Outline = new Polyline();
+            for (int i = 1; i <= 9; ++i)
+            {
+                slot.Outline.Add(
+                    new Point3d(
+                        cix[$"{name}_PKT_{i}_X"],
+                        cix[$"{name}_PKT_{i}_Y"],
+                        0
+                ));
+            }
+
+            slot.Depth = cix[$"{name}_DYBDE"];
+
+            cix.TryGetValue($"{name}_DYBDE_0", out slot.Depth0);
+
+            slot.Angle = RhinoMath.ToRadians(cix[$"{name}_PL_ALFA"]);
+
+            var yaxis = -Vector3d.ZAxis;
+            yaxis.Transform(Rhino.Geometry.Transform.Rotation(-slot.Angle, slot.XLine.Direction, slot.XLine.From));
+
+            slot.Plane = new Plane(slot.XLine.From, slot.XLine.Direction, yaxis);
+
+            slot.Outline.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, slot.Plane));
+
+
+            return slot;
+        }
     }
 }

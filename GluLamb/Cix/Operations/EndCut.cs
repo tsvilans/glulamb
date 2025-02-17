@@ -96,7 +96,8 @@ namespace GluLamb.Cix.Operations
             endCut.CutLine.ToY = cix[$"{name}_LINE_PKT_2_Y"];
             endCut.CutLine.ToZ = cix[$"{name}_LINE_PKT_2_Z"];
 
-            endCut.ExtraDepth = cix[$"{name}_DYBDE_EKSTRA"];
+            // This fails on some older files, so let's make it optional.
+            cix.TryGetValue($"{name}_DYBDE_EKSTRA", out endCut.ExtraDepth);
 
             var alpha = RhinoMath.ToRadians(cix[$"{name}_ALFA"]);
 

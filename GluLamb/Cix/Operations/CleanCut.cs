@@ -1,4 +1,5 @@
 ﻿using GluLamb.Projects.HHDAC22;
+using Rhino;
 using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
@@ -44,6 +45,28 @@ namespace GluLamb.Cix.Operations
         public override void Transform(Transform xform)
         {
             CutLine.Transform(xform);
+        }
+
+
+        public static CleanCut FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
+        {
+            var name = $"{prefix}RENSKAER";
+
+            if (!cix.ContainsKey($"{name}_PKT_1_X"))
+                return null;
+
+            var cleanCut = new CleanCut(name);
+
+            cleanCut.CutLine = new Line(
+                cix[$"{name}_PKT_1_X"],
+                cix[$"{name}_PKT_1_Y"],
+                0,
+                cix[$"{name}_PKT_2_X"],
+                cix[$"{name}_PKT_2_Y"],
+                0
+                );
+
+            return cleanCut;
         }
     }
 }
