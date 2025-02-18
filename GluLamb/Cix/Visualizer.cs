@@ -168,6 +168,7 @@ namespace GluLamb.Cix
         public BoundingBox Bounds = BoundingBox.Empty;
         public Curve[] Splines = new Curve[4];
         public Curve[] BlankCurves = new Curve[2];
+        private Rhino.Display.DisplayPen Pen = new Rhino.Display.DisplayPen() { Color = Color.Red };
 
 
         public readonly int numSplinePoints = 25;
@@ -535,7 +536,185 @@ namespace GluLamb.Cix
 
             return tenon;
         }
+        public void DrawViewportWires(DisplayPipeline display)
+        {
 
-        
+            display.Draw2dText(CixPath, System.Drawing.Color.White, new Point2d(20, 30), false, 15);
+
+            Pen.SetPattern(new float[] { 20, 6, 3, 6 });
+            Pen.Color = Color.Orange;
+            Pen.Thickness = 2;
+            Pen.PatternLengthInWorldUnits = false;
+            Pen.ThicknessSpace = Rhino.DocObjects.CoordinateSystem.Screen;
+
+            for (int i = 0; i < Splines.Length; ++i)
+            {
+                if (Splines[i] == null) continue;
+                display.DrawPoint(Splines[i].PointAtStart,
+                    Rhino.Display.PointStyle.X, 4, Color.Orange);
+                display.DrawCurve(Splines[i], Pen);
+                display.DrawArrowHead(Splines[i].PointAtEnd, Splines[i].TangentAtEnd, Color.Orange, 0, 30);
+                display.Draw2dText(splineNames[i], Color.Orange,
+                    Splines[i].PointAtEnd + Vector3d.ZAxis * 10, false);
+            }
+
+            Pen.SetPattern(new float[] { 10, 10 });
+            Pen.Color = Color.White;
+            Pen.Thickness = 3;
+
+            for (int i = 0; i < BlankCurves.Length; ++i)
+            {
+                if (BlankCurves[i] == null) continue;
+                display.DrawPoint(BlankCurves[i].PointAtStart,
+                    Rhino.Display.PointStyle.X, 4, Color.White);
+                display.DrawCurve(BlankCurves[i], Pen);
+                display.DrawArrowHead(BlankCurves[i].PointAtEnd, BlankCurves[i].TangentAtEnd, Color.White, 0, 30);
+                display.Draw2dText(blankCurveNames[i], Color.White,
+                    BlankCurves[i].PointAtEnd + Vector3d.ZAxis * 10, false);
+            }
+
+            Pen.SetPattern(new float[] { 0 });
+
+            foreach (var operation in Operations)
+            {
+                switch (operation)
+                {
+                    case EndCut endcut:
+                        display.Draw2dText(endcut.Name, Color.Yellow, endcut.Plane.Origin, false);
+                        display.DrawArrow(
+                            new Line(
+                                endcut.Plane.Origin,
+                                endcut.Plane.ZAxis,
+                                100), Color.Yellow);
+                        display.DrawLine(endcut.CutLine, Color.Yellow);
+                        display.DrawCircle(
+                            new Circle(
+                                endcut.Plane, 200
+                            ), Color.Yellow
+                        );
+                        break;
+
+                    case CrossJointCutout cutout:
+                        display.DrawPoint(cutout.Plane.Origin,
+                            Rhino.Display.PointStyle.X, 4, Color.Blue);
+                        display.Draw2dText(cutout.Name, Color.Blue,
+                            cutout.Plane.Origin + Vector3d.ZAxis * 10, false);
+                        display.DrawPolyline(cutout.Outline, Color.Blue);
+                        display.DrawLines(cutout.SideLines, Color.Blue);
+                        display.DrawLine(cutout.MaxSpan, Color.Blue);
+                        display.DrawArrow(
+                            new Line(cutout.Plane.Origin, cutout.Plane.ZAxis, 100), Color.Blue
+                        );
+
+                        break;
+
+                    case SlotMachining slot:
+                        double textOffset = 10;
+                        Pen.SetPattern(new float[] { 2, 2 });
+                        Pen.Color = Color.Cyan;
+                        Pen.Thickness = 1;
+                        Color slotColor = Color.Cyan;
+
+                        if (slot.Name.EndsWith("EXTRA"))
+                        {
+                            textOffset = 20;
+                            Pen.Color = Color.DodgerBlue;
+                            slotColor = Color.DodgerBlue;
+                        }
+
+                        var depthOutline = slot.Outline.Duplicate();
+                        depthOutline.Transform(Transform.Translation(slot.Plane.ZAxis * slot.Depth));
+                        display.DrawCurve(depthOutline.ToNurbsCurve(), Pen);
+
+                        display.DrawPoint(slot.Plane.Origin,
+                            Rhino.Display.PointStyle.X, 4, slotColor);
+                        display.Draw2dText(slot.Name, slotColor,
+                            slot.Plane.Origin + Vector3d.ZAxis * textOffset, false);
+                        display.DrawPolyline(slot.Outline, slotColor);
+                        display.DrawArrow(
+                            new Line(slot.Plane.Origin, slot.Plane.ZAxis, slot.Depth), slotColor
+                        );
+                        break;
+
+                    case CleanCut cleancut:
+                        display.DrawPoint(cleancut.CutLine.From,
+                            Rhino.Display.PointStyle.X, 4, Color.Magenta);
+                        display.Draw2dText(cleancut.Name, Color.Magenta, cleancut.CutLine.From + Vector3d.ZAxis * 10, false);
+                        display.DrawLine(cleancut.CutLine, Color.Magenta);
+
+                        break;
+
+                    case DrillGroup2 drillgrp:
+                        display.DrawPoint(drillgrp.Plane.Origin,
+                            Rhino.Display.PointStyle.X, 4, Color.LimeGreen);
+                        display.Draw2dText(drillgrp.Name, Color.LimeGreen, drillgrp.Plane.Origin, false);
+
+                        foreach (var drill in drillgrp.Drillings)
+                        {
+                            display.DrawArrow(
+                                new Line(
+                                    drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
+                                    drillgrp.Plane.ZAxis,
+                                    drill.Depth), Color.LimeGreen);
+
+                            display.DrawCircle(
+                                new Circle(
+                                    new Plane(
+                                        drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
+                                        drillgrp.Plane.ZAxis),
+                                    drill.Diameter * 0.5), Color.LimeGreen
+                            );
+                        }
+                        break;
+
+                    case SlotCut slotcut:
+                        display.DrawPoint(slotcut.Path.From,
+                            Rhino.Display.PointStyle.X, 4, Color.LightBlue);
+                        display.Draw2dText(slotcut.Name, Color.LightBlue,
+                            slotcut.Path.From + Vector3d.ZAxis * 10, false);
+                        display.DrawLine(slotcut.Path, Color.LightBlue);
+                        break;
+
+                    case Tenon tenon:
+                        var tenonPlane = new Plane(tenon.PlaneLine.From, tenon.PlaneLine.Direction, -Vector3d.ZAxis);
+
+                        display.DrawPoint(tenon.PlaneLine.From,
+                            Rhino.Display.PointStyle.X, 4, Color.Chartreuse);
+                        display.Draw2dText(tenon.Name, Color.Chartreuse,
+                            tenon.PlaneLine.From + Vector3d.ZAxis * 10, false);
+
+                        display.DrawLine(tenon.PlaneLine, Color.Chartreuse);
+                        display.DrawDottedLine(tenon.SawLine, Color.Chartreuse);
+
+                        var localSawline = tenon.LocalSawLine;
+                        localSawline.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, tenonPlane));
+                        display.DrawDottedLine(localSawline, Color.Chartreuse);
+
+                        var outline = tenon.Outline.Duplicate();
+                        outline.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, tenonPlane));
+
+                        display.DrawPolyline(outline, Color.Chartreuse);
+
+                        outline.Transform(Rhino.Geometry.Transform.Translation(tenonPlane.ZAxis * tenon.Depth));
+                        display.DrawDottedPolyline(outline, Color.Chartreuse, true);
+
+                        // for (int i = 0; i < 2; ++i)
+                        // {
+                        //     args.Display.DrawLine(new Line(
+                        //         tenonPlane.PointAt(tenon.SideCuts[i][0].X, tenon.SideCuts[i][0].Y),
+                        //         tenonPlane.PointAt(tenon.SideCuts[i][1].X, tenon.SideCuts[i][1].Y)
+                        //     ), Color.Chartreuse);
+                        // }
+                        break;
+
+                    // case TenonOutline tenonOutline:
+                    //     args.Display.DrawPolyline(tenonOutline.Outline, Color.YellowGreen);
+                    //     break;
+                    default:
+                        break;
+                }
+            }
+
+        }
     }
 }
