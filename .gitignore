@@ -3,6 +3,7 @@ bin
 .vs
 GluLamb/obj
 GluLamb.GH/obj
+Cix.GH/obj
 GluLamb.Raw/obj/
 GluLamb.Raw.GH/obj/
 GluLamb.Raw.Test/obj/
