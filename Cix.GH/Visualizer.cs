@@ -26,8 +26,9 @@ using Rhino.Geometry;
 
 using GluLamb.Cix;
 using GluLamb.Cix.Operations;
+using Cix.GH.Properties;
 
-namespace GluLamb.GH.Components
+namespace Cix.GH.Components
 {
     public class Cmpt_LoadCix : GH_Component
     {
@@ -38,7 +39,7 @@ namespace GluLamb.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => null;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.Cix;
         public override Guid ComponentGuid => new Guid("52AF0824-BAF9-4A0B-BF8E-1C6B722BFFB5");
         public override GH_Exposure Exposure => GH_Exposure.primary;
         public override bool IsPreviewCapable => true;
