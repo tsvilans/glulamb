@@ -6,11 +6,34 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Intersect = Rhino.Geometry.Intersect.Intersection;
+using Intersections = Rhino.Geometry.Intersect.CurveIntersections;
+
 namespace GluLamb.Cix
 {
+
+    public enum BlankEdge
+    {
+        Inner,
+        Outer
+    }
+
     public class CixBlank : ITransformable, ICix
     {
         public double Length, Width, Height;
+        public Plane Plane = Plane.WorldXY;
+
+        public CixBlank()
+        {
+        }
+
+        public CixBlank(Plane plane, double length, double width, double height)
+        {
+            Length = length;
+            Width = width;
+            Height = height;
+            Plane = plane;
+        }
 
         public virtual void ToCix(List<string> cix, string prefix = "")
         {
@@ -20,7 +43,29 @@ namespace GluLamb.Cix
 
         public virtual void Transform(Transform xform)
         {
+            Plane.Transform(xform);
+        }
 
+        public virtual Point3d IntersectBlankEdge(Plane plane, BlankEdge edge)
+        {
+            var InnerPlane = new Plane(plane.Origin, plane.XAxis, plane.ZAxis);
+            var OuterPlane = new Plane(plane.Origin + plane.YAxis * Width, -plane.XAxis, plane.ZAxis);
+
+            Point3d point = Point3d.Unset;
+
+            switch (edge)
+            {
+                case(BlankEdge.Inner):
+                    Intersect.PlanePlanePlane(plane, InnerPlane, Plane, out point);
+                    break;
+                case(BlankEdge.Outer):
+                    Intersect.PlanePlanePlane(plane, OuterPlane, Plane, out point);
+                    break;
+                default:
+                    break;
+            }
+
+            return point;
         }
     }
 
@@ -32,6 +77,22 @@ namespace GluLamb.Cix
 
         public Line End1;
         public Line End2;
+
+        public CixCurvedBlank() : base()
+        {
+            CurveInner = null;
+            CurveOuter = null;
+            End1 = Line.Unset;
+            End2 = Line.Unset;
+        }
+
+        public CixCurvedBlank(Plane plane, Curve curveInner, Curve curveOuter, double height) : base(plane, 0, 0, height)
+        {
+            CurveInner = curveInner;
+            CurveOuter = curveOuter;
+            End1 = new Line(CurveInner.PointAtStart, CurveOuter.PointAtStart);
+            End2 = new Line(CurveInner.PointAtEnd, CurveOuter.PointAtEnd); ;
+        }
 
         public override void ToCix(List<string> cix, string prefix = "")
         {
@@ -99,6 +160,29 @@ namespace GluLamb.Cix
 
             End1.Transform(xform);
             End2.Transform(xform);
+        }
+
+        public override Point3d IntersectBlankEdge(Plane plane, BlankEdge edge)
+        {
+            Intersections intersections;
+
+            switch (edge)
+            {
+                case (BlankEdge.Inner):
+                    intersections = Intersect.CurvePlane(CurveInner, Plane, 1e-6);
+                    if (intersections.Count > 0)
+                        return intersections[0].PointA;
+                    break;
+                case (BlankEdge.Outer):
+                    intersections = Intersect.CurvePlane(CurveOuter, Plane, 1e-6);
+                    if (intersections.Count > 0)
+                        return intersections[0].PointA;
+                    break;
+                default:
+                    break;
+            }
+
+            return Point3d.Unset;
         }
     }
 }
