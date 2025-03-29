@@ -23,27 +23,58 @@ namespace GluLamb.Cix
         public double Length, Width, Height;
         public Plane Plane = Plane.WorldXY;
 
+        public Line End1;
+        public Line End2;
+
+        public Point3d Origin;
+
         public CixBlank()
         {
+            Origin = Point3d.Origin;
+            End1 = Line.Unset;
+            End2 = Line.Unset;
         }
 
         public CixBlank(Plane plane, double length, double width, double height)
         {
+            Origin = plane.Origin;
+
             Length = length;
             Width = width;
             Height = height;
             Plane = plane;
+
+            End1 = new Line(Plane.PointAt(0, 0, 0), Plane.PointAt(0, Width, 0));
+            End2 = new Line(Plane.PointAt(Length, Width, 0), Plane.PointAt(Length, 0, 0));
         }
 
         public virtual void ToCix(List<string> cix, string prefix = "")
         {
+            cix.Add($"{prefix}ORIGO_X={Origin.X:0.###}");
+            cix.Add($"{prefix}ORIGO_Y={Origin.Y:0.###}");
+
             cix.Add($"{prefix}BL_L={Length:0.###}");
             cix.Add($"{prefix}BL_W={Width:0.###}");
+
+            cix.Add($"(BL_E_1)");
+            cix.Add($"{prefix}BL_E_1_IN_X={End1.FromX:0.###}");
+            cix.Add($"{prefix}BL_E_1_IN_Y={End1.FromY:0.###}");
+            cix.Add($"{prefix}BL_E_1_OUT_X={End1.ToX:0.###}");
+            cix.Add($"{prefix}BL_E_1_OUT_Y={End1.ToY:0.###}");
+
+            cix.Add($"(BL_E_2)");
+            cix.Add($"{prefix}BL_E_2_IN_X={End2.FromX:0.###}");
+            cix.Add($"{prefix}BL_E_2_IN_Y={End2.FromY:0.###}");
+            cix.Add($"{prefix}BL_E_2_OUT_X={End2.ToX:0.###}");
+            cix.Add($"{prefix}BL_E_2_OUT_Y={End2.ToY:0.###}");
         }
 
         public virtual void Transform(Transform xform)
         {
             Plane.Transform(xform);
+            End1.Transform(xform);
+            End2.Transform(xform);
+            Origin.Transform(xform);
         }
 
         public virtual Point3d IntersectBlankEdge(Plane plane, BlankEdge edge)
@@ -75,18 +106,14 @@ namespace GluLamb.Cix
         public Curve CurveInner;
         public Curve CurveOuter;
 
-        public Line End1;
-        public Line End2;
 
         public CixCurvedBlank() : base()
         {
             CurveInner = null;
             CurveOuter = null;
-            End1 = Line.Unset;
-            End2 = Line.Unset;
         }
 
-        public CixCurvedBlank(Plane plane, Curve curveInner, Curve curveOuter, double height) : base(plane, 0, 0, height)
+        public CixCurvedBlank(Plane plane, Curve curveInner, Curve curveOuter, double length, double width, double height) : base(plane, length, width, height)
         {
             CurveInner = curveInner;
             CurveOuter = curveOuter;
@@ -131,17 +158,6 @@ namespace GluLamb.Cix
                 cix.Add($"{prefix}BL_OUT_CURVE_P_{i + 1}_Y={point.Y:0.###}");
             }
 
-            cix.Add($"(BL_E_1)");
-            cix.Add($"{prefix}BL_E_1_IN_X={End1.FromX:0.###}");
-            cix.Add($"{prefix}BL_E_1_IN_Y={End1.FromY:0.###}");
-            cix.Add($"{prefix}BL_E_1_OUT_X={End1.ToX:0.###}");
-            cix.Add($"{prefix}BL_E_1_OUT_Y={End1.ToY:0.###}");
-
-            cix.Add($"(BL_E_2)");
-            cix.Add($"{prefix}BL_E_2_IN_X={End2.FromX:0.###}");
-            cix.Add($"{prefix}BL_E_2_IN_Y={End2.FromY:0.###}");
-            cix.Add($"{prefix}BL_E_2_OUT_X={End2.ToX:0.###}");
-            cix.Add($"{prefix}BL_E_2_OUT_Y={End2.ToY:0.###}");
 
             // For segmented blank ONLY - TODO: Implemented segments, possibly in another blank class
             for (int i = 0; i < 16; ++i)
@@ -158,8 +174,8 @@ namespace GluLamb.Cix
             CurveInner.Transform(xform);
             CurveOuter.Transform(xform);
 
-            End1.Transform(xform);
-            End2.Transform(xform);
+            base.Transform(xform);
+
         }
 
         public override Point3d IntersectBlankEdge(Plane plane, BlankEdge edge)
