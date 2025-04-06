@@ -501,7 +501,14 @@ namespace GluLamb
                 xsections.Add(rec);
             }
 
-            var loft = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false)[0];
+            var lofts = Brep.CreateFromLoft(xsections, Point3d.Unset, Point3d.Unset, LoftType.Normal, false);
+
+            if (lofts == null || lofts.Length < 1)
+            {
+                return null;
+            }
+
+            var loft = lofts[0];
             loft.Flip();
 
             var capped = loft.CapPlanarHoles(0.01);
