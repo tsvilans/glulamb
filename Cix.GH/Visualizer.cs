@@ -57,6 +57,8 @@ namespace Cix.GH.Components
         {
             string cixPath = string.Empty;
             DA.GetData("Filepath", ref cixPath);
+
+            Cix = null;
                 
             if (!System.IO.Path.Exists(cixPath))
             {
@@ -75,8 +77,8 @@ namespace Cix.GH.Components
 
         public override void DrawViewportWires(IGH_PreviewArgs args)
         {
-            if (Cix == null) return;
-            Cix.DrawViewportWires(args.Display);
+            if (Cix != null)
+                Cix.DrawViewportWires(args.Display);
         }
     }
 }

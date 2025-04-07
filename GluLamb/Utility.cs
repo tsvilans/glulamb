@@ -798,9 +798,9 @@ namespace GluLamb
             Vector3d xaxis, yaxis;
             // Handle case where the vector is pointing straight up or down
             double dot = Vector3d.ZAxis * v;
-            if (dot == 1)
+            if (dot >= 1)
                 xaxis = Vector3d.XAxis;
-            else if (dot == -1)
+            else if (dot <= -1)
                 xaxis = -Vector3d.XAxis;
             else
                 xaxis = Vector3d.CrossProduct(Vector3d.ZAxis, v);

@@ -26,18 +26,18 @@ namespace GluLamb.Cix
         public Line End1;
         public Line End2;
 
-        public Point3d Origin;
+        // public Point3d Origin;
 
         public CixBlank()
         {
-            Origin = Point3d.Origin;
+            // Origin = Point3d.Origin;
             End1 = Line.Unset;
             End2 = Line.Unset;
         }
 
         public CixBlank(Plane plane, double length, double width, double height)
         {
-            Origin = plane.Origin;
+            // Origin = plane.Origin;
 
             Length = length;
             Width = width;
@@ -50,8 +50,8 @@ namespace GluLamb.Cix
 
         public virtual void ToCix(List<string> cix, string prefix = "")
         {
-            cix.Add($"{prefix}ORIGO_X={Origin.X:0.###}");
-            cix.Add($"{prefix}ORIGO_Y={Origin.Y:0.###}");
+            // cix.Add($"{prefix}ORIGO_X={Origin.X:0.###}");
+            // cix.Add($"{prefix}ORIGO_Y={Origin.Y:0.###}");
 
             cix.Add($"{prefix}BL_L={Length:0.###}");
             cix.Add($"{prefix}BL_W={Width:0.###}");
@@ -74,7 +74,7 @@ namespace GluLamb.Cix
             Plane.Transform(xform);
             End1.Transform(xform);
             End2.Transform(xform);
-            Origin.Transform(xform);
+            // Origin.Transform(xform);
         }
 
         public virtual Point3d IntersectBlankEdge(Plane plane, BlankEdge edge)

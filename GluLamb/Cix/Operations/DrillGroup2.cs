@@ -52,25 +52,12 @@ namespace GluLamb.Cix.Operations
 
             if (!Enabled) return;
 
-            // Sort out plane transformation here
-            //var normal = Plane.ZAxis;
-            //var xaxis = Vector3d.CrossProduct(normal, Vector3d.ZAxis);
-            var xaxis = Plane.XAxis;
-            //var yaxis = Vector3d.CrossProduct(normal, xaxis);
-            var origin = Plane.Origin;
-            var xpoint = origin + xaxis * 100;
+            var plane = Cix.ToCixPlane(Plane, out double angle, Plane.WorldXY);
+            var xpoint = plane.Origin + plane.XAxis * 100;
 
-            //var sign = Vector3d.ZAxis * Plane.ZAxis < 0 ? 1 : -1;
-            //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
-            //var angle = Vector3d.VectorAngle(-Vector3d.ZAxis, Plane.YAxis) * sign;
-
-            Plane plane;
-            double angle;
-            GluLamb.Utility.AlignedPlane(origin, Plane.ZAxis, out plane, out angle);
-
-            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, origin.X));
-            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, origin.Y));
-            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, -origin.Z));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, plane.Origin.X));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, plane.Origin.Y));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, -plane.Origin.Z));
 
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
@@ -112,13 +99,15 @@ namespace GluLamb.Cix.Operations
             var p0 = new Point3d(
                 cix[$"{name}_PL_PKT_1_X"],
                 cix[$"{name}_PL_PKT_1_Y"],
-                0
+                cix[$"{name}_PL_PKT_1_Z"]
+                //0
                 );
 
             var p1 = new Point3d(
                 cix[$"{name}_PL_PKT_2_X"],
                 cix[$"{name}_PL_PKT_2_Y"],
-                0
+                cix[$"{name}_PL_PKT_2_Z"]
+                //0
                 );
 
             var xaxis = p1 - p0;
@@ -144,7 +133,7 @@ namespace GluLamb.Cix.Operations
                 var diameter = cix[$"{name}_{i}_DIA"];
                 var depth = cix[$"{name}_{i}_DYBDE"];
 
-                var drill2d = new Drill2d(position, diameter, depth);
+                var drill2d = new Drill2d(drillGroup.Plane.PointAt(position.X, position.Y, position.Z), diameter, depth);
                 drillGroup.Drillings.Add(drill2d);
             }
 

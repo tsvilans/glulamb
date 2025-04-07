@@ -24,5 +24,26 @@ namespace GluLamb.Cix
         }
 
         private static Transform _toZDown = Transform.Unset;
+
+        public static Plane ToCixPlane(Plane plane, out double angle, Plane? reference = null)
+        {
+            Plane _ref = Plane.WorldXY;
+            if (reference.HasValue)
+                _ref = reference.Value;
+
+
+            // In case normal is parallel to reference normal
+            var dot = plane.ZAxis * _ref.ZAxis;
+            var xaxis = dot >= 1.0 ? _ref.XAxis : dot <= -1 ? -_ref.XAxis : Vector3d.CrossProduct(plane.ZAxis, _ref.ZAxis);
+
+            var projected = new Vector3d(plane.Normal - (_ref.Normal * Vector3d.Multiply(_ref.Normal, plane.Normal)));
+
+            angle = Vector3d.VectorAngle(projected, plane.Normal);
+
+            var yaxis = Vector3d.CrossProduct(xaxis, plane.ZAxis);
+
+            return new Plane(plane.Origin, xaxis, yaxis);
+        }
     }
+
 }

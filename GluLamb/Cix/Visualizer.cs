@@ -132,6 +132,8 @@ namespace GluLamb.Cix
 
             FindCleanCuts(sides["E1"], "E1");
             FindCleanCuts(sides["E2"], "E2");
+            FindCleanCuts(sides["IN"], "IN");
+            FindCleanCuts(sides["OUT"], "OUT");
 
             foreach (var kvp in sides["E1"])
             {
@@ -573,6 +575,28 @@ namespace GluLamb.Cix
                     BlankCurves[i].PointAtEnd + Vector3d.ZAxis * 10, false);
             }
 
+            // Draw bounds
+            Pen.SetPattern(new float[] { 5, 5 });
+            Pen.Color = Color.LightGray;
+            Pen.Thickness = 2;
+
+            display.DrawLine(
+                new Line(
+                    new Point3d(Bounds.Min.X, Bounds.Min.Y, 0),
+                    new Point3d(Bounds.Min.X, Bounds.Max.Y, 0)), Pen);
+            display.DrawLine(
+                new Line(
+                    new Point3d(Bounds.Min.X, Bounds.Max.Y, 0),
+                    new Point3d(Bounds.Max.X, Bounds.Max.Y, 0)), Pen);
+            display.DrawLine(
+                new Line(
+                    new Point3d(Bounds.Max.X, Bounds.Max.Y, 0),
+                    new Point3d(Bounds.Max.X, Bounds.Min.Y, 0)), Pen);
+            display.DrawLine(
+                new Line(
+                    new Point3d(Bounds.Max.X, Bounds.Min.Y, 0),
+                    new Point3d(Bounds.Min.X, Bounds.Min.Y, 0)), Pen);
+
             Pen.SetPattern(new float[] { 0 });
 
             foreach (var operation in Operations)
@@ -646,23 +670,27 @@ namespace GluLamb.Cix
 
                     case DrillGroup2 drillgrp:
                         display.DrawPoint(drillgrp.Plane.Origin,
-                            Rhino.Display.PointStyle.X, 4, Color.LimeGreen);
-                        display.Draw2dText(drillgrp.Name, Color.LimeGreen, drillgrp.Plane.Origin, false);
+                            Rhino.Display.PointStyle.X, 4, Color.Lime);
+                        display.Draw2dText(drillgrp.Name, Color.Lime, drillgrp.Plane.Origin, false);
+                        display.DrawLine(new Line(drillgrp.Plane.Origin, drillgrp.Plane.XAxis, 50), Color.Red);
+                        display.DrawLine(new Line(drillgrp.Plane.Origin, drillgrp.Plane.YAxis, 50), Color.Lime);
 
                         foreach (var drill in drillgrp.Drillings)
                         {
                             display.DrawArrow(
                                 new Line(
-                                    drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
+                                    drill.Position,
+                                    //drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
                                     drillgrp.Plane.ZAxis,
-                                    drill.Depth), Color.LimeGreen);
+                                    drill.Depth), Color.Lime);
 
                             display.DrawCircle(
                                 new Circle(
                                     new Plane(
-                                        drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
+                                        drill.Position,
+                                        //drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
                                         drillgrp.Plane.ZAxis),
-                                    drill.Diameter * 0.5), Color.LimeGreen
+                                    drill.Diameter * 0.5), Color.Lime
                             );
                         }
                         break;
