@@ -599,6 +599,8 @@ namespace GluLamb.Cix
 
             Pen.SetPattern(new float[] { 0 });
 
+            display.DrawBox(Bounds, Color.LightGray, 1);
+
             foreach (var operation in Operations)
             {
                 switch (operation)

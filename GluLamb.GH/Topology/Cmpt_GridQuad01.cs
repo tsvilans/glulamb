@@ -145,14 +145,28 @@ namespace GluLamb.GH.Components
                 for (int j = 0; j < loop.Trims.Count; ++j)
                 {
                     var trim = loop.Trims[j];
-
                     if (trim.Edge != null)
                     {
                         var edge = trim.Edge;
 
-                        beams.Add(new GH_Curve(edge.ToNurbsCurve()), path);
-                        groups.Add(path.Indices[0], new GH_Path(2));
-                        path = path.Increment(0);
+                        if (edge.IsClosed)
+                        {
+                            var edge_parts = edge.Split(edge.Domain.Mid);
+                            beams.Add(new GH_Curve(edge_parts[0].ToNurbsCurve()), path);
+                            groups.Add(path.Indices[0], new GH_Path(3));
+                            path = path.Increment(0);
+
+                            beams.Add(new GH_Curve(edge_parts[1].ToNurbsCurve()), path);
+                            groups.Add(path.Indices[0], new GH_Path(3));
+                            path = path.Increment(0);
+                        }
+                        else
+                        {
+
+                            beams.Add(new GH_Curve(edge.ToNurbsCurve()), path);
+                            groups.Add(path.Indices[0], new GH_Path(3));
+                            path = path.Increment(0);
+                        }
                     }
                 }
             }

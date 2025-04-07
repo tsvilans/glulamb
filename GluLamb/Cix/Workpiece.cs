@@ -20,7 +20,7 @@ namespace GluLamb.Cix
         /// <summary>
         /// Optional comments to add to top of CIX file.
         /// </summary>
-        public string Comments;
+        public List<string> Comments;
 
         /// <summary>
         /// The world-space coordinate system of the workpiece.
@@ -81,9 +81,13 @@ namespace GluLamb.Cix
             var dt = System.DateTime.Now;
 
             cix.Add($"({Name})");
-            if (!string.IsNullOrEmpty(Comments))
+            if (Comments != null)
             {
-                cix.Add($"({Comments})");
+                foreach (var comment in Comments)
+                {
+                    if (!string.IsNullOrEmpty(comment))
+                        cix.Add($"({Comments})");
+                }
             }
 
             cix.Add($"({dt.Year:0000}-{dt.Month:00}-{dt.Day:00} {dt.Hour:00}:{dt.Minute:00}:{dt.Second:00})");
