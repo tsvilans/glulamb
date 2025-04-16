@@ -432,7 +432,7 @@ namespace GluLamb
                 largest = brep;
                 //largest = pieces[0];
 
-            var diff = Brep.CreateBooleanDifference(new Brep[] { largest }, solids, 0.1);
+            var diff = Brep.CreateBooleanDifference(new Brep[] { largest }, solids, tolerance);
 
             if (diff == null || diff.Length < 1)
                 return largest;

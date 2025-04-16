@@ -34,13 +34,15 @@ namespace GluLamb.Cix
                 {"ORIGO_X", 0},
                 {"ORIGO_Y", 0},
                 {"BL_L", 0},
-                {"BL_W", 0},
+                {"BL_B", 0},
+                {"BL_T", 0},
                 {"V_START", 0},
             };
 
             var lines = System.IO.File.ReadAllLines(CixPath);
             Operations = new List<Operation>();
             Bounds = BoundingBox.Empty;
+
 
             bool publicVars = false;
 
@@ -118,10 +120,11 @@ namespace GluLamb.Cix
                 }
             }
 
+            FindShape(shapeData);
+            FindBlank(blankData);
+
             foreach (var side in sides)
             {
-                FindShape(shapeData);
-                FindBlank(blankData);
                 FindHaks(side.Value, side.Key);
                 FindEndCuts(side.Value, side.Key);
                 FindSlotCuts(side.Value, side.Key);
@@ -140,7 +143,9 @@ namespace GluLamb.Cix
                 // Console.WriteLine(kvp.Key);
             }
 
+            Bounds = new BoundingBox(new Point3d(0, 0, -parameters["BL_T"]), new Point3d(parameters["BL_L"], parameters["BL_B"], 0));
 
+            /*
             foreach (var operation in Operations)
             {
                 var objects = operation.GetObjects();
@@ -163,6 +168,7 @@ namespace GluLamb.Cix
                     }
                 }
             }
+            */
         }
 
         public string CixPath = string.Empty;
@@ -171,6 +177,7 @@ namespace GluLamb.Cix
         public Curve[] Splines = new Curve[4];
         public Curve[] BlankCurves = new Curve[2];
         private Rhino.Display.DisplayPen Pen = new Rhino.Display.DisplayPen() { Color = Color.Red };
+        public Plane Plane = Plane.WorldXY;
 
 
         public readonly int numSplinePoints = 25;
@@ -540,8 +547,9 @@ namespace GluLamb.Cix
         }
         public void DrawViewportWires(DisplayPipeline display)
         {
-
             display.Draw2dText(CixPath, System.Drawing.Color.White, new Point2d(20, 30), false, 15);
+            
+            display.PushModelTransform(Transform.PlaneToPlane(Plane.WorldXY, Plane));
 
             Pen.SetPattern(new float[] { 20, 6, 3, 6 });
             Pen.Color = Color.Orange;
@@ -677,6 +685,8 @@ namespace GluLamb.Cix
                         display.DrawLine(new Line(drillgrp.Plane.Origin, drillgrp.Plane.XAxis, 50), Color.Red);
                         display.DrawLine(new Line(drillgrp.Plane.Origin, drillgrp.Plane.YAxis, 50), Color.Lime);
 
+                        bool overallDiameter = drillgrp.Diameter > 0, overallDepth = drillgrp.Depth > 0;
+
                         foreach (var drill in drillgrp.Drillings)
                         {
                             display.DrawArrow(
@@ -684,7 +694,7 @@ namespace GluLamb.Cix
                                     drill.Position,
                                     //drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
                                     drillgrp.Plane.ZAxis,
-                                    drill.Depth), Color.Lime);
+                                    overallDepth ? drillgrp.Depth : drill.Depth), Color.Lime);
 
                             display.DrawCircle(
                                 new Circle(
@@ -692,7 +702,7 @@ namespace GluLamb.Cix
                                         drill.Position,
                                         //drillgrp.Plane.PointAt(drill.Position.X, drill.Position.Y),
                                         drillgrp.Plane.ZAxis),
-                                    drill.Diameter * 0.5), Color.Lime
+                                    overallDiameter ? drillgrp.Diameter * 0.5 : drill.Diameter * 0.5), Color.Lime
                             );
                         }
                         break;
@@ -745,6 +755,7 @@ namespace GluLamb.Cix
                 }
             }
 
+            display.PopModelTransform();
         }
     }
 }

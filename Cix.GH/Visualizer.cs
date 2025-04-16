@@ -47,6 +47,8 @@ namespace Cix.GH.Components
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddTextParameter("Filepath", "F", "Path to .cix file.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Plane", "P", "Plane for displaying the CIX data.", GH_ParamAccess.item, Plane.WorldXY);
+            pManager[1].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -56,7 +58,9 @@ namespace Cix.GH.Components
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             string cixPath = string.Empty;
+            Plane plane = Plane.WorldXY;
             DA.GetData("Filepath", ref cixPath);
+            DA.GetData("Plane", ref plane);
 
             Cix = null;
                 
@@ -69,6 +73,7 @@ namespace Cix.GH.Components
             Message = System.IO.Path.GetFileNameWithoutExtension(cixPath);
 
             Cix = new Visualizer(cixPath);
+            Cix.Plane = plane;
         }
 
         private Visualizer Cix = null;

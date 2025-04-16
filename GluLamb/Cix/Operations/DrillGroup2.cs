@@ -19,12 +19,16 @@ namespace GluLamb.Cix.Operations
     {
         public Plane Plane;
         public List<Drill2d> Drillings;
+        public double Diameter;
+        public double Depth;
 
         public DrillGroup2(string name = "DrillGroup2")
         {
             Name = name;
             Drillings = new List<Drill2d>();
             Plane = Plane.Unset;
+            Diameter = 0;
+            Depth = 0;
         }
 
         public override object Clone()
@@ -32,7 +36,9 @@ namespace GluLamb.Cix.Operations
             return new DrillGroup2(Name)
             {
                 Plane = Plane,
-                Drillings = Drillings.Select(x => x.Clone() as Drill2d).ToList()
+                Drillings = Drillings.Select(x => x.Clone() as Drill2d).ToList(),
+                Diameter = Diameter,
+                Depth = Depth
             };
         }
 
@@ -64,6 +70,20 @@ namespace GluLamb.Cix.Operations
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, -xpoint.Z));
             cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
 
+            var OverallDiameter = false;
+            if (Diameter > 0)
+            {
+                OverallDiameter = true;
+                cix.Add(string.Format("{0}HUL_{1}_DIA={2:0.###}", prefix, Id, Diameter));
+            }
+
+            var OverallDepth = false;
+            if (Depth > 0)
+            {
+                OverallDepth = true;
+                cix.Add(string.Format("{0}HUL_{1}_DYBDE={2:0.###}", prefix, Id, Depth));
+            }
+
             cix.Add(string.Format("{0}HUL_{1}_N={2}", prefix, Id, Drillings.Count));
 
             for (int i = 0; i < Drillings.Count; ++i)
@@ -74,8 +94,10 @@ namespace GluLamb.Cix.Operations
                 cix.Add(string.Format("\t(Drill_{0}_{1})", Id, i + 1));
                 cix.Add(string.Format("{0}HUL_{1}_{2}_X={3:0.###}", prefix, Id, i + 1, pp.X));
                 cix.Add(string.Format("{0}HUL_{1}_{2}_Y={3:0.###}", prefix, Id, i + 1, pp.Y));
-                cix.Add(string.Format("{0}HUL_{1}_{2}_DIA={3:0.###}", prefix, Id, i + 1, d.Diameter));
-                cix.Add(string.Format("{0}HUL_{1}_{2}_DYBDE={3:0.###}", prefix, Id, i + 1, d.Depth));
+                if (OverallDiameter)
+                    cix.Add(string.Format("{0}HUL_{1}_{2}_DIA={3:0.###}", prefix, Id, i + 1, d.Diameter));
+                if (OverallDepth)
+                    cix.Add(string.Format("{0}HUL_{1}_{2}_DYBDE={3:0.###}", prefix, Id, i + 1, d.Depth));
             }
 
         }
@@ -119,6 +141,16 @@ namespace GluLamb.Cix.Operations
 
             drillGroup.Plane = new Plane(p0, xaxis, yaxis);
 
+            double diameter = 0, depth = 0;
+
+            if (cix.ContainsKey($"{name}_DIA"))
+                diameter = cix[$"{name}_DIA"];
+
+            if (cix.ContainsKey($"{name}_DYBDE"))
+                depth = cix[$"{name}_DYBDE"];
+
+            drillGroup.Diameter = diameter;
+            drillGroup.Depth = depth;
 
             var numDrillings = (int)(cix[$"{name}_N"]);
 
@@ -130,8 +162,11 @@ namespace GluLamb.Cix.Operations
                     0
                 );
 
-                var diameter = cix[$"{name}_{i}_DIA"];
-                var depth = cix[$"{name}_{i}_DYBDE"];
+                if (cix.ContainsKey($"{name}_{i}_DIA"))
+                    diameter = cix[$"{name}_{i}_DIA"];
+
+                if (cix.ContainsKey($"{name}_{i}_DYBDE"))
+                    depth = cix[$"{name}_{i}_DYBDE"];
 
                 var drill2d = new Drill2d(drillGroup.Plane.PointAt(position.X, position.Y, position.Z), diameter, depth);
                 drillGroup.Drillings.Add(drill2d);

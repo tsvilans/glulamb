@@ -20,7 +20,7 @@ namespace GluLamb.Cix
 
     public class CixBlank : ITransformable, ICix
     {
-        public double Length, Width, Height;
+        public double Length, Width, Height, OverInside, OverOutside;
         public Plane Plane = Plane.WorldXY;
 
         public Line End1;
@@ -54,7 +54,11 @@ namespace GluLamb.Cix
             // cix.Add($"{prefix}ORIGO_Y={Origin.Y:0.###}");
 
             cix.Add($"{prefix}BL_L={Length:0.###}");
-            cix.Add($"{prefix}BL_W={Width:0.###}");
+            cix.Add($"{prefix}BL_B={Width:0.###}");
+            cix.Add($"{prefix}BL_T={Height:0.###}");
+
+            cix.Add($"{prefix}OM_IN={OverInside:0.###}");
+            cix.Add($"{prefix}OM_OUT={OverOutside:0.###}");
 
             cix.Add($"(BL_E_1)");
             cix.Add($"{prefix}BL_E_1_IN_X={End1.FromX:0.###}");
