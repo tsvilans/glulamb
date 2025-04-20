@@ -36,6 +36,7 @@ namespace GluLamb.Cix
 
         public void ToCix(List<string> cix, string prefix = "")
         {
+            cix.Add($"(FIXATION)");
             cix.Add($"{prefix}BEAM_N={BeamPositions.Count}");
             for (int i = 0; i < BeamPositions.Count; ++i)
             {

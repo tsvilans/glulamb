@@ -87,7 +87,13 @@ namespace GluLamb.Cix.Operations
                     CutLine.From.DistanceTo(other.CutLine.From) < epsilon &&
                     CutLine.To.DistanceTo(other.CutLine.To) < epsilon;
             }
-            return false;
+            else if (op is CleanCut cc)
+            {
+                return
+                    CutLine.From.DistanceTo(cc.CutLine.From) < epsilon &&
+                    CutLine.To.DistanceTo(cc.CutLine.To) < epsilon;
+            }
+                return false;
         }
 
         public static EndCut FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
