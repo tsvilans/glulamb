@@ -93,6 +93,14 @@ namespace GluLamb.Cix.Operations
             Path.Transform(xform);
         }
 
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is SlotCut other)
+            {
+                return true;
+            }
+            return false;
+        }
 
         public static SlotCut FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
         {
@@ -115,6 +123,11 @@ namespace GluLamb.Cix.Operations
             slotcut.Depth = cix[$"{name}_DYBDE"];
 
             return slotcut;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -96,5 +96,18 @@ namespace GluLamb.Cix.Operations
             for (int i = 0; i < Drillings.Count; ++i)
                 Drillings[i].Transform(xform);
         }
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is SideDrillGroup)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

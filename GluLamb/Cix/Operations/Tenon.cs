@@ -100,5 +100,18 @@ namespace GluLamb.Cix.Operations
         {
             throw new NotImplementedException();
         }
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is Tenon other)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -17,6 +17,17 @@ namespace GluLamb.Cix
         public Curve OuterTopSpline;
         public Curve OuterBottomSpline;
 
+        public CixShape Duplicate()
+        {
+            return new CixShape()
+            {
+                InnerTopSpline = InnerTopSpline.DuplicateCurve(),
+                InnerBottomSpline = InnerBottomSpline.DuplicateCurve(),
+                OuterTopSpline = OuterTopSpline.DuplicateCurve(),
+                OuterBottomSpline = OuterBottomSpline.DuplicateCurve(),
+            };
+        }
+
         public void ToCix(List<string> cix, string prefix = "")
         {
             double[] tt;

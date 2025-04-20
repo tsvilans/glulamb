@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Drawing;
 
 namespace GluLamb.Cix.Operations
 {
@@ -102,6 +103,53 @@ namespace GluLamb.Cix.Operations
 
         }
 
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is DrillGroup2 other)
+            {
+                if (
+                    Math.Abs(Depth - other.Depth) > epsilon || 
+                    Math.Abs(Diameter - other.Diameter) > epsilon ||
+                    Drillings.Count != other.Drillings.Count
+                    )
+                    return false;
+
+                var allocated = new bool[Drillings.Count];
+
+                for (int i = 0; i < Drillings.Count; ++i)
+                {
+                    var dThis = Drillings[i];
+
+                    for (int j = 0; j < Drillings.Count; ++j)
+                    {
+                        var dThat = other.Drillings[j];
+
+                        var distance = this.Plane.PointAt(dThis.Position.X, dThis.Position.Y, dThis.Position.Z).DistanceTo(
+                                other.Plane.PointAt(dThat.Position.X, dThat.Position.Y, dThat.Position.Z));
+                        distance = dThis.Position.DistanceTo(dThat.Position);
+
+                        if (
+                            Math.Abs(dThis.Depth - dThat.Depth) < epsilon &&
+                            Math.Abs(dThis.Diameter - dThat.Diameter) < epsilon &&
+                             distance < epsilon
+                            )
+                        {
+                            allocated[i] = true;
+                            break;
+                        }
+                    }
+                }
+
+                foreach (var alloc in allocated)
+                {
+                    if (!alloc) return false;
+                }
+
+                return true;
+            }
+            return false;
+        }
+
         public override void Transform(Transform xform)
         {
             Plane.Transform(xform);
@@ -174,6 +222,21 @@ namespace GluLamb.Cix.Operations
 
             return drillGroup;
 
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            var bb = BoundingBox.Empty;
+            var xform = Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, plane);
+            foreach (var drilling in Drillings)
+            {
+                var copy = drilling.Position;
+                copy.Transform(xform);
+                bb.Union(copy);
+            }
+            bb.Inflate(Diameter * 0.5);
+
+            return bb;
         }
     }
 }

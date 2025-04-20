@@ -145,6 +145,14 @@ namespace GluLamb.Cix.Operations
             Outline.Transform(xform);
             XLine.Transform(xform);
         }
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is SlotMachining other)
+            {
+                return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Reconstruct operation from CIX variables.
@@ -198,6 +206,11 @@ namespace GluLamb.Cix.Operations
 
 
             return slot;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
         }
     }
 }

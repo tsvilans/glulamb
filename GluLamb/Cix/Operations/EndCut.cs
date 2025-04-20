@@ -78,6 +78,18 @@ namespace GluLamb.Cix.Operations
             CutLine.Transform(xform);
         }
 
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is EndCut other)
+            {
+                return 
+                    Vector3d.VectorAngle(Plane.Normal, other.Plane.Normal) < epsilon &&
+                    CutLine.From.DistanceTo(other.CutLine.From) < epsilon &&
+                    CutLine.To.DistanceTo(other.CutLine.To) < epsilon;
+            }
+            return false;
+        }
+
         public static EndCut FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
         {
             var name = $"{prefix}CUT_{id}";
@@ -106,6 +118,14 @@ namespace GluLamb.Cix.Operations
             endCut.Plane = new Plane(endCut.CutLine.From, endCut.CutLine.Direction, yaxis);
 
             return endCut;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            var copy = CutLine;
+            copy.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, plane));
+
+            return copy.BoundingBox;
         }
     }
 }

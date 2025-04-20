@@ -20,5 +20,9 @@ namespace GluLamb.Cix
         public abstract List<object> GetObjects();
 
         public abstract object Clone();
+
+        public abstract bool SimilarTo(Operation op, double epsilon);
+
+        public abstract BoundingBox Extents(Plane plane);
     }
 }

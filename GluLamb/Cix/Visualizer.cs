@@ -28,6 +28,7 @@ namespace GluLamb.Cix
 
             var shapeData = new Dictionary<string, double>();
             var blankData = new Dictionary<string, double>();
+            var fixationData = new Dictionary<string, double>();
 
             var parameters = new Dictionary<string, double>()
             {
@@ -114,17 +115,29 @@ namespace GluLamb.Cix
                         break;
                     case ("SEC"):
                         break;
+                    case ("BEAM"):
+                        fixationData[key] = double.Parse(value);
+                        break;
                     default:
                         Console.WriteLine($"Found unknown parameter '{tok[0]}'.");
                         break;
                 }
             }
 
+            Bounds = new BoundingBox(new Point3d(0, 0, -parameters["BL_T"]), new Point3d(parameters["BL_L"], parameters["BL_B"], 0));
+
             FindShape(shapeData);
             FindBlank(blankData);
+            FindFixation(fixationData);
+
+            if (Fixation != null)
+            {
+                Fixation.Y = parameters["BL_B"] * 0.5;
+            }
 
             foreach (var side in sides)
             {
+                FindSimpleCutouts(side.Value, side.Key);
                 FindHaks(side.Value, side.Key);
                 FindEndCuts(side.Value, side.Key);
                 FindSlotCuts(side.Value, side.Key);
@@ -143,7 +156,6 @@ namespace GluLamb.Cix
                 // Console.WriteLine(kvp.Key);
             }
 
-            Bounds = new BoundingBox(new Point3d(0, 0, -parameters["BL_T"]), new Point3d(parameters["BL_L"], parameters["BL_B"], 0));
 
             /*
             foreach (var operation in Operations)
@@ -178,7 +190,7 @@ namespace GluLamb.Cix
         public Curve[] BlankCurves = new Curve[2];
         private Rhino.Display.DisplayPen Pen = new Rhino.Display.DisplayPen() { Color = Color.Red };
         public Plane Plane = Plane.WorldXY;
-
+        public CixFixation Fixation = null;
 
         public readonly int numSplinePoints = 25;
         public readonly string[] splineNames = new string[]
@@ -218,6 +230,25 @@ namespace GluLamb.Cix
                 {
                     Console.WriteLine($"Splines: Failed to parse points for {splineNames[i]}");
                 }
+            }
+        }
+
+        public void FindFixation(Dictionary<string, double> fixationData)
+        {
+            if (fixationData.ContainsKey("BEAM_N"))
+            {
+                Fixation = new CixFixation();
+            }
+            else
+            {
+                return;
+            }
+
+            var nBeams = (int)fixationData["BEAM_N"];
+
+            for (int i = 0; i < nBeams; ++i)
+            {
+                Fixation.BeamPositions.Add(fixationData[$"BEAM_{i + 1}"]);
             }
         }
 
@@ -268,13 +299,40 @@ namespace GluLamb.Cix
 
         public void FindHaks(Dictionary<string, double> cix, string prefix = "")
         {
-            for (int i = 1; i < 10; ++i)
+            for (int i = 1; i <= 10; ++i)
             {
                 if (cix.ContainsKey($"HAK_{i}"))
                 {
                     try
                     {
                         var cutout = CrossJointCutout.FromCix(cix, "", $"{i}");
+                        if (cutout != null)
+                        {
+                            cutout.Name = $"{prefix}_{cutout.Name}";
+                            Operations.Add(cutout);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"ERROR: {e.Message}");
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        public void FindSimpleCutouts(Dictionary<string, double> cix, string prefix = "")
+        {
+            for (int i = 1; i <= 10; ++i)
+            {
+                if (cix.ContainsKey($"OSS_{i}"))
+                {
+                    try
+                    {
+                        var cutout = SimpleCutout.FromCix(cix, "", $"{i}");
                         if (cutout != null)
                         {
                             cutout.Name = $"{prefix}_{cutout.Name}";
@@ -609,6 +667,25 @@ namespace GluLamb.Cix
 
             display.DrawBox(Bounds, Color.LightGray, 1);
 
+            if (Fixation != null)
+            {
+                for (int i = 0; i < Fixation.BeamPositions.Count; ++i)
+                {
+                    var fixationPlane = new Plane(
+                        new Point3d(Fixation.BeamPositions[i], Fixation.Y, 0), 
+                        Vector3d.XAxis, 
+                        Vector3d.YAxis
+                        );
+                    var rect = new Rectangle3d(
+                        fixationPlane, 
+                        new Interval(-Fixation.Length * 0.5, Fixation.Length * 0.5),
+                        new Interval(-Fixation.Width * 0.5, Fixation.Width * 0.5)
+                        );
+                    display.DrawPolyline(rect.ToPolyline(), Color.Gray);
+                    display.Draw2dText($"BEAM_{i + 1}", Color.Gray, fixationPlane.Origin, false);
+                }
+            }
+
             foreach (var operation in Operations)
             {
                 switch (operation)
@@ -750,6 +827,13 @@ namespace GluLamb.Cix
                     // case TenonOutline tenonOutline:
                     //     args.Display.DrawPolyline(tenonOutline.Outline, Color.YellowGreen);
                     //     break;
+
+                    case SimpleCutout cutoutSimple:
+
+                        display.DrawArrow(cutoutSimple.Span, Color.Lime);
+                        display.Draw2dText(cutoutSimple.Name, Color.Lime,
+                            cutoutSimple.Span.From + Vector3d.ZAxis * 10, false);
+                        break;
                     default:
                         break;
                 }

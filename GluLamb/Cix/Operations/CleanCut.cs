@@ -35,6 +35,10 @@ namespace GluLamb.Cix.Operations
 
         public override void ToCix(List<string> cix, string prefix = "")
         {
+            // Turn on joint
+            cix.Add(string.Format("{0}RENSKAER={1}", prefix, Enabled ? 1 : 0));
+            if (!Enabled) return;
+
             cix.Add(string.Format("{0}RENSKAER_PKT_1_X={1:0.###}", prefix, CutLine.From.X));
             cix.Add(string.Format("{0}RENSKAER_PKT_1_Y={1:0.###}", prefix, CutLine.From.Y));
 
@@ -45,6 +49,16 @@ namespace GluLamb.Cix.Operations
         public override void Transform(Transform xform)
         {
             CutLine.Transform(xform);
+        }
+
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is CleanCut other)
+            {
+                return CutLine.From.DistanceTo(other.CutLine.From) < epsilon &&
+                    CutLine.To.DistanceTo(other.CutLine.To) < epsilon;
+            }
+            return false;
         }
 
 
@@ -67,6 +81,14 @@ namespace GluLamb.Cix.Operations
                 );
 
             return cleanCut;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            var copy = CutLine;
+            copy.Transform(Rhino.Geometry.Transform.PlaneToPlane(Plane.WorldXY, plane));
+
+            return copy.BoundingBox;
         }
     }
 }

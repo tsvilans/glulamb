@@ -43,6 +43,12 @@ namespace GluLamb.Cix
         public CixShape Shape = null;
 
         /// <summary>
+        /// The fixation variables for the workpiece.
+        /// </summary>
+        public CixFixation Fixation = null;
+
+
+        /// <summary>
         /// The workpiece sides for organizing operations.
         /// </summary>
         public BeamSide[] Sides;
@@ -67,7 +73,28 @@ namespace GluLamb.Cix
                 new BeamSide(BeamSideType.Inside),
                 new BeamSide(BeamSideType.Outside)
             };
+            Comments = new List<string>();
+        }
 
+        public CixWorkpiece Duplicate()
+        {
+            var workpiece = new CixWorkpiece();
+            workpiece.E1.Operations.AddRange(E1.Operations.Select(x => x.Clone() as Operation));
+            workpiece.E2.Operations.AddRange(E2.Operations.Select(x => x.Clone() as Operation));
+            workpiece.Top.Operations.AddRange(Top.Operations.Select(x => x.Clone() as Operation));
+            workpiece.Bottom.Operations.AddRange(Bottom.Operations.Select(x => x.Clone() as Operation));
+            workpiece.Inside.Operations.AddRange(Inside.Operations.Select(x => x.Clone() as Operation));
+            workpiece.Outside.Operations.AddRange(Outside.Operations.Select(x => x.Clone() as Operation));
+
+            workpiece.Name = Name;
+            workpiece.Plane = Plane;
+            if (Shape != null)
+                workpiece.Shape = Shape.Duplicate();
+            if (Blank != null)
+                workpiece.Blank = Blank.Duplicate();
+            workpiece.LocalOrigin = LocalOrigin;
+            workpiece.Comments = Comments;
+            return workpiece;
         }
 
         /// <summary>
@@ -103,6 +130,9 @@ namespace GluLamb.Cix
             // Write shape
             if (Shape != null)
                 Shape.ToCix(cix, prefix);
+
+            if (Fixation != null)
+                Fixation.ToCix(cix, prefix);
 
             // Write operations
             for (int i = 0; i < Sides.Length; ++i)
@@ -175,53 +205,53 @@ namespace GluLamb.Cix
                 int lineMachId = 1;
                 int slotCutId = 1;
                 int cutoutId = 1;
+                int cutoutSimpleId = 1;
 
                 for (int i = 0; i < side.Operations.Count; ++i)
                 {
                     var op = side.Operations[i];
 
-                    if (op is EndCut)
+                    switch(op)
                     {
-                        op.Id = endCutId; endCutId++;
-                    }
-                    else if (op is DrillGroup)
-                    {
-                        op.Id = drillGroupId; drillGroupId++;
-                    }
-                    else if (op is DrillGroup2)
-                    {
-                        op.Id = drillGroup2Id; drillGroup2Id++;
-                    }
-                    else if (op is CleanCut)
-                    {
-                        op.Id = cleanCutId; cleanCutId++;
-                    }
-                    else if (op is SlotMachining)
-                    {
-                        if ((op as SlotMachining).Rough)
-                        {
-                            op.Id = slotRoughId; slotRoughId++;
-                        }
-                        else
-                        {
-                            op.Id = slotId; slotId++;
-                        }
-                    }
-                    else if (op is SideDrillGroup)
-                    {
-                        op.Id = plateDowelId; plateDowelId++;
-                    }
-                    else if (op is LineMachining)
-                    {
-                        op.Id = lineMachId; lineMachId++;
-                    }
-                    else if (op is SlotCut)
-                    {
-                        op.Id = slotCutId; slotCutId++;
-                    }
-                    else if (op is CrossJointCutout)
-                    {
-                        op.Id = cutoutId; cutoutId++;
+                        case EndCut:
+                            op.Id = endCutId; endCutId++;
+                            break;
+                        case DrillGroup:
+                            op.Id = drillGroupId; drillGroupId++;
+                            break;
+                        case DrillGroup2:
+                            op.Id = drillGroup2Id; drillGroup2Id++;
+                            break;
+                        case CleanCut:
+                            op.Id = cleanCutId; cleanCutId++;
+                            break;
+                        case SlotMachining:
+                            if ((op as SlotMachining).Rough)
+                            {
+                                op.Id = slotRoughId; slotRoughId++;
+                            }
+                            else
+                            {
+                                op.Id = slotId; slotId++;
+                            }
+                            break;
+                        case SideDrillGroup:
+                            op.Id = plateDowelId; plateDowelId++;
+                            break;
+                        case LineMachining:
+                            op.Id = lineMachId; lineMachId++;
+                            break;
+                        case SlotCut:
+                            op.Id = slotCutId; slotCutId++;
+                            break;
+                        case CrossJointCutout:
+                            op.Id = cutoutId; cutoutId++;
+                            break;
+                        case SimpleCutout:
+                            op.Id = cutoutSimpleId; cutoutSimpleId++;
+                            break;
+                        default:
+                            break;
                     }
                 }
             }

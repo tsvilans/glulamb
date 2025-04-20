@@ -44,8 +44,23 @@ namespace GluLamb.Cix
             Height = height;
             Plane = plane;
 
-            End1 = new Line(Plane.PointAt(0, 0, 0), Plane.PointAt(0, Width, 0));
-            End2 = new Line(Plane.PointAt(Length, Width, 0), Plane.PointAt(Length, 0, 0));
+            End1 = new Line(Plane.PointAt(0, Width, 0), Plane.PointAt(0, 0, 0));
+            End2 = new Line(Plane.PointAt(Length, 0, 0), Plane.PointAt(Length, Width, 0));
+        }
+
+        public virtual CixBlank Duplicate()
+        {
+            return new CixBlank()
+            {
+                Length = Length,
+                Width = Width,
+                Height = Height,
+                Plane = Plane,
+                End1 = End1,
+                End2 = End2,
+                OverInside = OverInside,
+                OverOutside = OverOutside
+            };
         }
 
         public virtual void ToCix(List<string> cix, string prefix = "")
@@ -115,6 +130,23 @@ namespace GluLamb.Cix
         {
             CurveInner = null;
             CurveOuter = null;
+        }
+
+        public override CixBlank Duplicate()
+        {
+            return new CixCurvedBlank()
+            {
+                Length = Length,
+                Width = Width,
+                Height = Height,
+                Plane = Plane,
+                End1 = End1,
+                End2 = End2,
+                OverInside = OverInside,
+                OverOutside = OverOutside,
+                CurveInner = CurveInner.DuplicateCurve(),
+                CurveOuter = CurveOuter.DuplicateCurve(),
+            };
         }
 
         public CixCurvedBlank(Plane plane, Curve curveInner, Curve curveOuter, double length, double width, double height) : base(plane, length, width, height)

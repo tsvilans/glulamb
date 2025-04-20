@@ -117,5 +117,19 @@ namespace GluLamb.Cix.Operations
             Plane.Transform(xform);
             Outline.Transform(xform);
         }
+
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is EndSlotMachining)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

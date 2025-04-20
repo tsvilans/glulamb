@@ -94,6 +94,14 @@ namespace GluLamb.Cix.Operations
                 SideLines[i].Transform(xform);
             }
         }
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is CrossJointCutout)
+            {
+                return true;
+            }
+            return false;
+        }
 
         public static CrossJointCutout FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
         {
@@ -168,6 +176,11 @@ namespace GluLamb.Cix.Operations
 
 
             return cutout;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
         }
     }
 }

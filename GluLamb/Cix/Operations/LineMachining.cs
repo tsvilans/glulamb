@@ -100,5 +100,18 @@ namespace GluLamb.Cix.Operations
         {
             Path.Transform(xform);
         }
+        public override bool SimilarTo(Operation op, double epsilon)
+        {
+            if (op is LineMachining)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override BoundingBox Extents(Plane plane)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
