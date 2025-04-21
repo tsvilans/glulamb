@@ -10,21 +10,24 @@ namespace GluLamb.Cix.Operations
     public class SimpleCutout : Operation
     {
         public Line Span;
+        public Point3d Origin;
         public string OperationName = "OSS";
 
         public SimpleCutout(string name = "Simple cutout")
         {
             Name = name;
+            Origin = Point3d.Unset;
         }
 
         public override void Transform(Transform xform)
         {
             Span.Transform(xform);
+            Origin.Transform(xform);
         }
 
         public override List<object> GetObjects()
         {
-            return new List<object> { Span };
+            return new List<object> { Span, Origin };
         }
 
         public override void ToCix(List<string> cix, string prefix = "")
@@ -42,7 +45,8 @@ namespace GluLamb.Cix.Operations
         {
             return new SimpleCutout(Name)
             {
-                Span = Span
+                Span = Span,
+                Origin = Origin
             };
         }
 
@@ -50,7 +54,9 @@ namespace GluLamb.Cix.Operations
         {
             if (op is SimpleCutout other)
             {
-                return Span.From.DistanceTo(other.Span.From) < epsilon && Span.To.DistanceTo(other.Span.To) < epsilon;
+                return Span.From.DistanceTo(other.Span.From) < epsilon && 
+                    Span.To.DistanceTo(other.Span.To) < epsilon &&
+                    Origin.DistanceTo(other.Origin) < epsilon;
             }
             return false;
         }
