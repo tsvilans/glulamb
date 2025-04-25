@@ -207,6 +207,13 @@ namespace GluLamb.Cix
                 int cutoutId = 1;
                 int cutoutSimpleId = 1;
 
+                //var simpleCutouts = side.Operations.OfType<SimpleCutout>().OrderByDescending(x => x.Origin.DistanceTo(x.Span.ClosestPoint(x.Origin, false)));
+                //foreach (var simpleCutout in simpleCutouts)
+                //{
+                //    simpleCutout.Id = cutoutSimpleId;
+                //    cutoutSimpleId++;
+                //}
+
                 for (int i = 0; i < side.Operations.Count; ++i)
                 {
                     var op = side.Operations[i];
