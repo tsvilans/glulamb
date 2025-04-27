@@ -144,6 +144,7 @@ namespace GluLamb.Cix
                 FindSlotMachinings(side.Value, side.Key);
                 FindDrillings(side.Value, side.Key);
                 FindTaps(side.Value, side.Key);
+                FindRebates(side.Value, side.Key);
             }
 
             FindCleanCuts(sides["E1"], "E1");
@@ -377,7 +378,32 @@ namespace GluLamb.Cix
                 }
             }
         }
-
+        public void FindRebates(Dictionary<string, double> cix, string prefix = "")
+        {
+            for (int i = 1; i < 10; ++i)
+            {
+                if (cix.ContainsKey($"FALS_{i}"))
+                {
+                    try
+                    {
+                        var rebate = Rebate.FromCix(cix, "", $"{i}");
+                        if (rebate != null)
+                        {
+                            rebate.Name = $"{prefix}_{rebate.Name}";
+                            Operations.Add(rebate);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"ERROR: {e.Message}");
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
         public void FindSlotCuts(Dictionary<string, double> cix, string prefix = "")
         {
             for (int i = 1; i < 10; ++i)
@@ -690,6 +716,30 @@ namespace GluLamb.Cix
             {
                 switch (operation)
                 {
+                    case Rebate rebate:
+                        var rebatePlane = Plane.Unset;
+                        if (rebate.SideType == BeamSideType.End1)
+                        {
+                            rebatePlane = Plane.WorldXY;
+                        }
+                        else if (rebate.SideType == BeamSideType.End2)
+                        {
+                            rebatePlane = new Plane(
+                                new Point3d(Bounds.Max.X, Bounds.Max.Y, 0), -Vector3d.XAxis, -Vector3d.YAxis);
+                        }
+                        else
+                        {
+                            continue;
+                        }
+
+                        display.Draw2dText(rebate.Name, Color.BlanchedAlmond, rebatePlane.Origin, false);
+
+                        if (rebate.Top)
+                            display.DrawPolygon(new Rectangle3d(rebatePlane, rebate.TopDepth, Bounds.Max.Y - Bounds.Min.Y).ToPolyline(), Color.BlanchedAlmond, true);
+                        if (rebate.Bottom)
+                            display.DrawPolygon(new Rectangle3d(rebatePlane, rebate.TopDepth, Bounds.Max.Y - Bounds.Min.Y).ToPolyline(), Color.SaddleBrown, true);
+
+                        break;
                     case EndCut endcut:
                         display.Draw2dText(endcut.Name, Color.Yellow, endcut.Plane.Origin, false);
                         display.DrawArrow(
