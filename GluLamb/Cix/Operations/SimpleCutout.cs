@@ -35,10 +35,10 @@ namespace GluLamb.Cix.Operations
             cix.Add(string.Format("{0}{1}_{2}={3}", prefix, OperationName, Id, Enabled ? 1 : 0));
             if (!Enabled) return;
 
-            cix.Add(string.Format("{0}{1}_{2}_PKT_1_X={3:0.000}", prefix, OperationName, Id, Span.From.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Y={3:0.000}", prefix, OperationName, Id, Span.From.Y));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_2_X={3:0.000}", prefix, OperationName, Id, Span.To.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Y={3:0.000}", prefix, OperationName, Id, Span.To.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_X={3:0.0}", prefix, OperationName, Id, Span.From.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_1_Y={3:0.0}", prefix, OperationName, Id, Span.From.Y));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_X={3:0.0}", prefix, OperationName, Id, Span.To.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_2_Y={3:0.0}", prefix, OperationName, Id, Span.To.Y));
         }
 
         public override object Clone()

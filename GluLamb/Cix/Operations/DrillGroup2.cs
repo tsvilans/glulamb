@@ -64,11 +64,11 @@ namespace GluLamb.Cix.Operations
 
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_X={2:0.###}", prefix, Id, plane.Origin.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Y={2:0.###}", prefix, Id, plane.Origin.Y));
-            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, -plane.Origin.Z));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_1_Z={2:0.###}", prefix, Id, plane.Origin.Z));
 
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_X={2:0.###}", prefix, Id, xpoint.X));
             cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Y={2:0.###}", prefix, Id, xpoint.Y));
-            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, -xpoint.Z));
+            cix.Add(string.Format("{0}HUL_{1}_PL_PKT_2_Z={2:0.###}", prefix, Id, xpoint.Z));
             cix.Add(string.Format("{0}HUL_{1}_PL_ALFA={2:0.###}", prefix, Id, RhinoMath.ToDegrees(angle)));
 
             var OverallDiameter = false;
@@ -169,14 +169,14 @@ namespace GluLamb.Cix.Operations
             var p0 = new Point3d(
                 cix[$"{name}_PL_PKT_1_X"],
                 cix[$"{name}_PL_PKT_1_Y"],
-                cix[$"{name}_PL_PKT_1_Z"]
+                -cix[$"{name}_PL_PKT_1_Z"]
                 //0
                 );
 
             var p1 = new Point3d(
                 cix[$"{name}_PL_PKT_2_X"],
                 cix[$"{name}_PL_PKT_2_Y"],
-                cix[$"{name}_PL_PKT_2_Z"]
+                -cix[$"{name}_PL_PKT_2_Z"]
                 //0
                 );
 

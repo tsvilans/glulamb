@@ -60,6 +60,57 @@ namespace GluLamb.Cix
         public BeamSide Inside { get { return Sides[4]; } }
         public BeamSide Outside { get { return Sides[5]; } }
 
+        public static Vector3d[] SideNormals()
+        {
+            return new Vector3d[] {
+                -Vector3d.XAxis,
+                Vector3d.XAxis,
+                Vector3d.ZAxis,
+                -Vector3d.ZAxis,
+                -Vector3d.YAxis,
+                Vector3d.YAxis };
+        }
+
+        /// <summary>
+        /// Get the plane that corresponds to the specified blank side. The Z-axis/normal of the plane
+        /// will point outwards from the blank.
+        /// </summary>
+        /// <param name="sideType">Side to get beam for.</param>
+        /// <returns></returns>
+        public Plane GetPlane(BeamSideType sideType)
+        {
+            switch (sideType)
+            {
+                case (BeamSideType.End1):
+                    return new Plane(new Point3d(0, Blank.Width, 0), -Vector3d.YAxis, Vector3d.ZAxis);
+                case (BeamSideType.End2):
+                    return new Plane(new Point3d(Blank.Length, 0, 0), Vector3d.YAxis, Vector3d.ZAxis);
+                case (BeamSideType.Top):
+                    return new Plane(new Point3d(0, 0, Blank.Height), Vector3d.XAxis, Vector3d.YAxis);
+                case (BeamSideType.Bottom):
+                    return new Plane(new Point3d(Blank.Length, 0, 0), -Vector3d.XAxis, Vector3d.YAxis);
+                case (BeamSideType.Inside):
+                    return new Plane(new Point3d(0, 0, 0), Vector3d.XAxis, Vector3d.ZAxis);
+                case (BeamSideType.Outside):
+                    return new Plane(new Point3d(Blank.Length, Blank.Width, 0), -Vector3d.XAxis, Vector3d.ZAxis);
+                default:
+                    return Plane.Unset;
+            }
+        }
+
+        public Plane[] GetAllPlanes()
+        {
+            return new Plane[]
+            {
+                new Plane(new Point3d(0, Blank.Width, 0), -Vector3d.YAxis, Vector3d.ZAxis),
+                new Plane(new Point3d(Blank.Length, 0, 0), Vector3d.YAxis, Vector3d.ZAxis),
+                new Plane(new Point3d(0, 0, Blank.Height), Vector3d.XAxis, Vector3d.YAxis),
+                new Plane(new Point3d(Blank.Length, 0, 0), -Vector3d.XAxis, Vector3d.YAxis),
+                new Plane(new Point3d(0, 0, 0), Vector3d.XAxis, Vector3d.ZAxis),
+                new Plane(new Point3d(Blank.Length, Blank.Width, 0), -Vector3d.XAxis, Vector3d.ZAxis)
+            };
+        }
+
         public CixWorkpiece(string name = "Workpiece", Plane plane = default)
         {
             Name = name;
@@ -174,6 +225,26 @@ namespace GluLamb.Cix
 
             Sides[0].SideType = BeamSideType.End1;
             Sides[1].SideType = BeamSideType.End2;
+            Sides[2].SideType = BeamSideType.Top;
+            Sides[3].SideType = BeamSideType.Bottom;
+        }
+
+        /// <summary>
+        /// Flip workpiece sides around X-axis.
+        /// </summary>
+        public void FlipY()
+        {
+            var temp_sides = new BeamSide[6];
+            Array.Copy(Sides, temp_sides, 6);
+
+            Sides[4] = temp_sides[4];
+            Sides[5] = temp_sides[5];
+
+            Sides[2] = temp_sides[3];
+            Sides[3] = temp_sides[2];
+
+            Sides[4].SideType = BeamSideType.Inside;
+            Sides[5].SideType = BeamSideType.Outside;
             Sides[2].SideType = BeamSideType.Top;
             Sides[3].SideType = BeamSideType.Bottom;
         }
