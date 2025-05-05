@@ -44,5 +44,19 @@ namespace GluLamb.Cix
             }
 
         }
+
+        public CixFixation Duplicate()
+        {
+            var fixation = new CixFixation()
+            {
+                Length = Length,
+                Width = Width,
+                Safety = Safety,
+                Y = Y
+            };
+            fixation.BeamPositions.AddRange(BeamPositions);
+
+            return fixation;
+        }
     }
 }

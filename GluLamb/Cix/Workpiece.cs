@@ -143,6 +143,9 @@ namespace GluLamb.Cix
                 workpiece.Shape = Shape.Duplicate();
             if (Blank != null)
                 workpiece.Blank = Blank.Duplicate();
+            if (Fixation != null)
+                workpiece.Fixation = Fixation.Duplicate();
+
             workpiece.LocalOrigin = LocalOrigin;
             workpiece.Comments = Comments;
             return workpiece;
@@ -277,6 +280,7 @@ namespace GluLamb.Cix
                 int slotCutId = 1;
                 int cutoutId = 1;
                 int cutoutSimpleId = 1;
+                int pocketSimpleId = 1;
 
                 //var simpleCutouts = side.Operations.OfType<SimpleCutout>().OrderByDescending(x => x.Origin.DistanceTo(x.Span.ClosestPoint(x.Origin, false)));
                 //foreach (var simpleCutout in simpleCutouts)
@@ -303,14 +307,14 @@ namespace GluLamb.Cix
                         case CleanCut:
                             op.Id = cleanCutId; cleanCutId++;
                             break;
-                        case SlotMachining:
-                            if ((op as SlotMachining).Rough)
+                        case SlotMachining slot_machining:
+                            if (slot_machining.Rough)
                             {
-                                op.Id = slotRoughId; slotRoughId++;
+                                slot_machining.Id = slotRoughId; slotRoughId++;
                             }
                             else
                             {
-                                op.Id = slotId; slotId++;
+                                slot_machining.Id = slotId; slotId++;
                             }
                             break;
                         case SideDrillGroup:
@@ -327,6 +331,9 @@ namespace GluLamb.Cix
                             break;
                         case SimpleCutout:
                             op.Id = cutoutSimpleId; cutoutSimpleId++;
+                            break;
+                        case SimplePocket:
+                            op.Id = pocketSimpleId; pocketSimpleId++;
                             break;
                         default:
                             break;

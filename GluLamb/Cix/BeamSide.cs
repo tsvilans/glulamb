@@ -46,6 +46,7 @@ namespace GluLamb.Cix
             switch (SideType)
             {
                 case (BeamSideType.Bottom):
+                    prefix = prefix + "BOTTOM_";
                     break;
                 case (BeamSideType.Top):
                     prefix = prefix + "TOP_";

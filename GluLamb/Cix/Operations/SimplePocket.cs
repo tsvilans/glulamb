@@ -1,4 +1,5 @@
-﻿using Rhino.Geometry;
+﻿using Rhino;
+using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,24 +13,24 @@ namespace GluLamb.Cix.Operations
     /// </summary>
     public class SimplePocket : Operation
     {
-        public Point3d Origin;
+        public Plane Plane;
         public double Length, Width, Depth;
         public string OperationName = "POC";
 
         public SimplePocket(string name = "Simple pocket")
         {
             Name = name;
-            Origin = Point3d.Unset;
+            Plane = Plane.Unset;
         }
 
         public override void Transform(Transform xform)
         {
-            Origin.Transform(xform);
+            Plane.Transform(xform);
         }
 
         public override List<object> GetObjects()
         {
-            return new List<object> { Origin };
+            return new List<object> { new Box(Plane, new Interval(0, Length), new Interval (0, Width), new Interval(0, -Depth)) };
         }
 
         public override void ToCix(List<string> cix, string prefix = "")
@@ -37,11 +38,20 @@ namespace GluLamb.Cix.Operations
             cix.Add(string.Format("{0}{1}_{2}={3}", prefix, OperationName, Id, Enabled ? 1 : 0));
             if (!Enabled) return;
 
-            cix.Add(string.Format("{0}{1}_{2}_PKT_X={3:0.0}", prefix, OperationName, Id, Origin));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.0}", prefix, OperationName, Id, Origin));
+            // def clockwise_angle(vec, ref):
+            // angle = np.arctan2(vec[1], vec[0]) - np.arctan2(ref [1], ref [0])
+            // return (2 * np.pi - angle) % (2 * np.pi)
+
+
+            var alpha = Math.Atan2(Plane.XAxis.X, Plane.XAxis.Y) - Math.Atan2(1, 0);
+            alpha = (2 * Math.PI - alpha) % (2 * Math.PI);
+
+            cix.Add(string.Format("{0}{1}_{2}_PKT_X={3:0.0}", prefix, OperationName, Id, Plane.Origin.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.0}", prefix, OperationName, Id, Plane.Origin.Y));
             cix.Add(string.Format("{0}{1}_{2}_PKT_L={3:0.0}", prefix, OperationName, Id, Length));
             cix.Add(string.Format("{0}{1}_{2}_PKT_B={3:0.0}", prefix, OperationName, Id, Width));
             cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.0}", prefix, OperationName, Id, Depth));
+            cix.Add(string.Format("{0}{1}_{2}_ALFA={3:0.0}", prefix, OperationName, Id, RhinoMath.ToDegrees(alpha)));
 
         }
 
@@ -49,7 +59,7 @@ namespace GluLamb.Cix.Operations
         {
             return new SimplePocket(Name)
             {
-                Origin = Origin,
+                Plane = Plane,
                 Depth = Depth,
                 Length = Length,
                 Width = Width
@@ -63,7 +73,8 @@ namespace GluLamb.Cix.Operations
                 return Math.Abs(Depth - other.Depth) < epsilon &&
                     Math.Abs(Width - other.Width) < epsilon &&
                     Math.Abs(Length - other.Length) < epsilon &&
-                    Origin.DistanceTo(other.Origin) < epsilon;                
+                    Plane.Origin.DistanceTo(other.Plane.Origin) < epsilon &&
+                    Vector3d.VectorAngle(Plane.XAxis, other.Plane.XAxis) < epsilon;
             }
 
             return false;
@@ -75,14 +86,18 @@ namespace GluLamb.Cix.Operations
 
             if (!cix.ContainsKey(name) || cix[name] < 1)
                 return null;
+            var alpha = cix[$"{name}_ALFA"];
 
             var pocket = new SimplePocket(name);
 
-            pocket.Origin = new Point3d(
+            pocket.Plane = new Plane(
+                new Point3d(
                     cix[$"{name}_PKT_X"],
                     cix[$"{name}_PKT_Y"],
                     0
-                    );
+                    ), Vector3d.XAxis, Vector3d.YAxis);
+
+            pocket.Plane.Transform(Rhino.Geometry.Transform.Rotation(alpha, pocket.Plane.Origin));
             pocket.Length = cix[$"{name}_L"];
             pocket.Width = cix[$"{name}_B"];
             pocket.Depth = cix[$"{name}_DYBDE"];
