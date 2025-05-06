@@ -42,16 +42,15 @@ namespace GluLamb.Cix.Operations
             // angle = np.arctan2(vec[1], vec[0]) - np.arctan2(ref [1], ref [0])
             // return (2 * np.pi - angle) % (2 * np.pi)
 
-
             var alpha = Math.Atan2(Plane.XAxis.X, Plane.XAxis.Y) - Math.Atan2(1, 0);
             alpha = (2 * Math.PI - alpha) % (2 * Math.PI);
 
-            cix.Add(string.Format("{0}{1}_{2}_PKT_X={3:0.0}", prefix, OperationName, Id, Plane.Origin.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.0}", prefix, OperationName, Id, Plane.Origin.Y));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_L={3:0.0}", prefix, OperationName, Id, Length));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_B={3:0.0}", prefix, OperationName, Id, Width));
-            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.0}", prefix, OperationName, Id, Depth));
-            cix.Add(string.Format("{0}{1}_{2}_ALFA={3:0.0}", prefix, OperationName, Id, RhinoMath.ToDegrees(alpha)));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_X={3:0.###}", prefix, OperationName, Id, Plane.Origin.X));
+            cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.###}", prefix, OperationName, Id, Plane.Origin.Y));
+            cix.Add(string.Format("{0}{1}_{2}_L={3:0.###}", prefix, OperationName, Id, Length));
+            cix.Add(string.Format("{0}{1}_{2}_B={3:0.###}", prefix, OperationName, Id, Width));
+            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
+            cix.Add(string.Format("{0}{1}_{2}_ALFA={3:0.###}", prefix, OperationName, Id, RhinoMath.ToDegrees(alpha)));
 
         }
 
@@ -86,7 +85,7 @@ namespace GluLamb.Cix.Operations
 
             if (!cix.ContainsKey(name) || cix[name] < 1)
                 return null;
-            var alpha = cix[$"{name}_ALFA"];
+            var alpha = RhinoMath.ToRadians(cix[$"{name}_ALFA"]);
 
             var pocket = new SimplePocket(name);
 

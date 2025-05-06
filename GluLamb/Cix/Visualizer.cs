@@ -147,6 +147,8 @@ namespace GluLamb.Cix
                 FindRebates(side.Value, side.Key);
             }
 
+            FindSimplePockets(sides["TOP"], "TOP");
+
             FindCleanCuts(sides["E1"], "E1");
             FindCleanCuts(sides["E2"], "E2");
             FindCleanCuts(sides["IN"], "IN");
@@ -307,6 +309,33 @@ namespace GluLamb.Cix
                     try
                     {
                         var cutout = CrossJointCutout.FromCix(cix, "", $"{i}");
+                        if (cutout != null)
+                        {
+                            cutout.Name = $"{prefix}_{cutout.Name}";
+                            Operations.Add(cutout);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"ERROR: {e.Message}");
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        public void FindSimplePockets(Dictionary<string, double> cix, string prefix = "")
+        {
+            for (int i = 1; i <= 20; ++i)
+            {
+                if (cix.ContainsKey($"POC_{i}"))
+                {
+                    try
+                    {
+                        var cutout = SimplePocket.FromCix(cix, "", $"{i}");
                         if (cutout != null)
                         {
                             cutout.Name = $"{prefix}_{cutout.Name}";
@@ -883,6 +912,27 @@ namespace GluLamb.Cix
                         display.DrawArrow(cutoutSimple.Span, Color.Lime);
                         display.Draw2dText(cutoutSimple.Name, Color.Lime,
                             cutoutSimple.Span.From + Vector3d.ZAxis * 10, false);
+                        break;
+
+                    case SimplePocket pocketSimple:
+                        display.DrawArrow(
+                            new Line(
+                                pocketSimple.Plane.Origin, 
+                                -pocketSimple.Plane.ZAxis, 
+                                pocketSimple.Depth), 
+                            Color.Lime);
+
+                        display.DrawPolygon(new Point3d[]
+                        {
+                            pocketSimple.Plane.PointAt(0,0),
+                            pocketSimple.Plane.PointAt(0,pocketSimple.Width),
+                            pocketSimple.Plane.PointAt(pocketSimple.Length, pocketSimple.Width),
+                            pocketSimple.Plane.PointAt(pocketSimple.Length,0),
+                        }, Color.Lime, false);
+
+                        display.Draw2dText(pocketSimple.Name, Color.Lime,
+                            pocketSimple.Plane.Origin+ Vector3d.ZAxis * 10, false);
+
                         break;
                     default:
                         break;
