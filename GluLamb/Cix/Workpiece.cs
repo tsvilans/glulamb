@@ -282,18 +282,38 @@ namespace GluLamb.Cix
                 int cutoutSimpleId = 1;
                 int pocketSimpleId = 1;
 
-                //var simpleCutouts = side.Operations.OfType<SimpleCutout>().OrderByDescending(x => x.Origin.DistanceTo(x.Span.ClosestPoint(x.Origin, false)));
-                //foreach (var simpleCutout in simpleCutouts)
-                //{
-                //    simpleCutout.Id = cutoutSimpleId;
-                //    cutoutSimpleId++;
-                //}
+                var types = new Dictionary<Type, int>()
+                {
+                    {typeof(EndCut), 1},
+                    {typeof(DrillGroup), 1},
+                    {typeof(DrillGroup2), 1},
+                    {typeof(CleanCut), 1},
+                    {typeof(SlotMachining), 1},
+                    {typeof(SideDrillGroup), 1},
+                    {typeof(LineMachining), 1},
+                    {typeof(SlotCut), 1},
+                    {typeof(CrossJointCutout), 1},
+                    {typeof(SimpleCutout), 1},
+                    {typeof(SimplePocket), 1},
+                    {typeof(SimpleTenon), 1},
+                };
+
 
                 for (int i = 0; i < side.Operations.Count; ++i)
                 {
                     var op = side.Operations[i];
+                    var opType = op.GetType();
+                    
+                    if (types.ContainsKey(opType))
+                    {
+                        op.Id = types[opType];
+                        types[opType]++;
+                    }
 
-                    switch(op)
+                    continue;
+
+
+                    switch (op)
                     {
                         case EndCut:
                             op.Id = endCutId; endCutId++;

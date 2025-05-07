@@ -55,11 +55,11 @@ namespace GluLamb.Cix.Operations
             cix.Add(string.Format("{0}{1}_{2}={3}", prefix, OperationName, Id, Enabled ? 1 : 0));
             if (!Enabled) return;
 
-            cix.Add(string.Format("{0}{1}_{2}_B_BAG={3:0.0}", prefix, OperationName, Id, WidthFromOutside));
-            cix.Add(string.Format("{0}{1}_{2}_B={3:0.0}", prefix, OperationName, Id, Width));
-            cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.0}", prefix, OperationName, Id, Depth));
-            cix.Add(string.Format("{0}{1}_{2}_T={3:0.0}", prefix, OperationName, Id, Thickness));
-            cix.Add(string.Format("{0}{1}_{2}_T_U={3:0.0}", prefix, OperationName, Id, UnderThickness));
+            cix.Add(string.Format("{0}{1}_B_BAG={2:0.###}", prefix, OperationName, WidthFromOutside));
+            cix.Add(string.Format("{0}{1}_B={2:0.###}", prefix, OperationName, Width));
+            cix.Add(string.Format("{0}{1}_DYBDE={2:0.###}", prefix, OperationName, Depth));
+            cix.Add(string.Format("{0}{1}_T={2:0.###}", prefix, OperationName, Thickness));
+            cix.Add(string.Format("{0}{1}_T_U={2:0.###}", prefix, OperationName, UnderThickness));
 
         }
 
@@ -100,6 +100,7 @@ namespace GluLamb.Cix.Operations
 
             var tenon = new SimpleTenon(name);
 
+            tenon.Id = int.Parse(id);
             tenon.Thickness = cix[$"{name}_T"];
             tenon.UnderThickness = cix[$"{name}_T_U"];
             tenon.Width = cix[$"{name}_B"];
