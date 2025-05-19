@@ -52,7 +52,7 @@ namespace GluLamb.Cix.Operations
 
         public override void ToCix(List<string> cix, string prefix = "")
         {
-            cix.Add(string.Format("{0}{1}_{2}={3}", prefix, OperationName, Id, Enabled ? 1 : 0));
+            cix.Add(string.Format("{0}{1}={2}", prefix, OperationName, Enabled ? 1 : 0));
             if (!Enabled) return;
 
             cix.Add(string.Format("{0}{1}_B_BAG={2:0.###}", prefix, OperationName, WidthFromOutside));
