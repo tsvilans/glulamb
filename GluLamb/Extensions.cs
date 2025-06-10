@@ -295,6 +295,76 @@ namespace GluLamb
 
             return new Plane(start, XAxis, YAxis);
         }
+
+        /// <summary>
+        /// Over- or under-bend a curve by discretizing it and changing the angle between
+        /// consecutive segments by a factor.
+        /// </summary>
+        /// <param name="curve">Curve to over-/under-bend</param>
+        /// <param name="factor">Bending factor.</param>
+        /// <param name="samples">Discretization resolution.</param>
+        /// <param name="middle">Centre the resulting curve on the original curve. If not, the same starting
+        /// point will be used.</param>
+        /// <returns>New curve.</returns>
+        public static Curve Overbend(this Curve curve, double factor, int samples = 200, bool middle = false)
+        {
+            var tt = curve.DivideByCount(samples, true);
+
+            var vectors = new List<Vector3d>();
+            var xforms = new List<Transform>();
+
+            xforms.Add(Transform.Identity);
+            for (int i = 1; i < tt.Length - 1; ++i)
+            {
+                var p0 = curve.PointAt(tt[i - 1]);
+                var p1 = curve.PointAt(tt[i]);
+                var p2 = curve.PointAt(tt[i + 1]);
+
+                var v1 = p1 - p0;
+                var v2 = p2 - p1;
+
+                var normal = Vector3d.CrossProduct(v1, v2);
+
+                var angle = Vector3d.VectorAngle(v1, v2);
+
+                var xform = Transform.Rotation(angle * factor - 1, normal, p1);
+                xforms.Add(xform);
+            }
+
+            xforms.Add(Transform.Identity);
+
+            var pts = new List<Point3d>();
+
+            for (int i = tt.Length - 1; i >= 0; --i)
+            {
+                var pt = curve.PointAt(tt[i]);
+                for (int j = i; j >= 0; --j)
+                {
+                    pt.Transform(xforms[j]);
+                }
+                pts.Add(pt);
+            }
+            pts.Reverse();
+
+            var overCurve = Curve.CreateInterpolatedCurve(pts, 3);
+            overCurve.Domain = curve.Domain;
+
+            // Transform
+            Plane plane;
+            curve.TryGetPlane(out plane);
+
+            var pointFrom = middle ? (curve.PointAtStart + curve.PointAtEnd) * 0.5 : curve.PointAtStart;
+            var pointTo = middle ? (overCurve.PointAtStart + overCurve.PointAtEnd) * 0.5 : overCurve.PointAtStart;
+
+            var pTo = new Plane(pointFrom, curve.PointAtEnd - curve.PointAtStart, plane.ZAxis);
+            var pFrom = new Plane(pointTo, overCurve.PointAtEnd - overCurve.PointAtStart, plane.ZAxis);
+
+            var orient = Transform.PlaneToPlane(pFrom, pTo);
+
+            overCurve.Transform(orient);
+
+            return overCurve;
+        }
     }
 
     public static class MeshExtensionMethods

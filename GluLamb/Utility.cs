@@ -1158,6 +1158,177 @@ namespace GluLamb
             I2 = avg - ddii;
             theta = Math.Atan2(-Ixy, diff) / 2;
         }
+
+        /// <summary>
+        /// Freeform Press
+        /// Calculate how much the curve should be extended to fully cover a collection
+        /// of geometry. Iteratively projects geometry vertices onto extensions of the curve
+        /// until none lie past its ends.
+        /// </summary>
+        /// <param name="curve"></param>
+        /// <param name="breps"></param>
+        /// <param name="nIterations"></param>
+        /// <param name="threshold"></param>
+        /// <returns></returns>
+        public static Curve ExtendCentreline(Curve curve, List<Brep> breps, int nIterations = 10, double threshold = 0.001)
+        {
+            var temp = curve.DuplicateCurve();
+
+            double extension = 0;
+            bool kill = false;
+            for (int i = 0; i < nIterations; ++i)
+            {
+                extension = 0;
+
+                foreach (var surface in breps)
+                {
+                    foreach (var vertex in surface.Vertices)
+                    {
+                        var vec = vertex.Location - temp.PointAtEnd;
+                        extension = Math.Max(extension, vec * temp.TangentAtEnd);
+                    }
+                }
+                //Console.WriteLine($"Extension: {extension}");
+
+                temp = temp.Extend(CurveEnd.End, extension, CurveExtensionStyle.Smooth);
+
+                if (extension < threshold)
+                {
+                    //Console.WriteLine($"Took {i} iterations to converge to threshold of {threshold}.");
+                    //Console.WriteLine($"Final extension: {extension}");
+                    kill = true;
+                    break;
+                }
+            }
+
+            return temp;
+        }
+
+        /// <summary>
+        /// Freeform Press
+        /// Calculate how much the curve should be offset in both directions to fully encompass
+        /// a collection of geometry. The curve and geometry should be planar, ideally in the 
+        /// world XY plane.
+        /// </summary>
+        /// <param name="curve"></param>
+        /// <param name="breps"></param>
+        /// <param name="widthLeft"></param>
+        /// <param name="widthRight"></param>
+        /// <returns></returns>
+        public static double CalculateEncompassingOffset(Curve curve, List<Brep> breps, out double widthLeft, out double widthRight, Vector3d? zaxis = null)
+        {
+            if (zaxis == null)
+                zaxis = Vector3d.ZAxis;
+
+            widthLeft = 0;
+            widthRight = 0;
+
+            foreach (var surface in breps)
+            {
+                foreach (var vertex in surface.Vertices)
+                {
+                    curve.ClosestPoint(vertex.Location, out double t);
+                    var cp = curve.PointAt(t);
+                    var vec = vertex.Location - cp;
+
+                    var binormal = Vector3d.CrossProduct(curve.TangentAt(t), zaxis.Value);
+                    var dot = binormal * vec;
+                    widthLeft = Math.Max(widthLeft, binormal * vec);
+                    widthRight = Math.Min(widthRight, binormal * vec);
+                }
+            }
+
+            return Math.Max(widthLeft, Math.Abs(widthRight));
+        }
+
+        /// <summary>
+        /// Freeform Press
+        /// From top, middle, and bottom surfaces of a beam, calculate the widest surface that
+        /// encompasses the whole volume when it is unrolled.
+        /// </summary>
+        /// <param name="top"></param>
+        /// <param name="bottom"></param>
+        /// <param name="middle"></param>
+        /// <param name="curve"></param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public static Brep[] GetGlulamBlankSurfaces(Brep top, Brep bottom, Brep middle, Curve curve, double tolerance = 1e-4)
+        {
+            Curve[] unrolledCurves;
+            Point3d[] unrolledPoints;
+            TextDot[] unrolledDots;
+
+            var unrollerMiddle = new Unroller(middle);
+            unrollerMiddle.AddFollowingGeometry(curve);
+            var unrolledMiddle = unrollerMiddle.PerformUnroll(out unrolledCurves, out unrolledPoints, out unrolledDots).FirstOrDefault();
+            var unrolledCentreline = unrolledCurves[0];
+
+            var unrollerTop = new Unroller(top);
+            var unrolledTop = unrollerTop.PerformUnroll(out unrolledCurves, out unrolledPoints, out unrolledDots).FirstOrDefault();
+
+            var unrollerBottom = new Unroller(bottom);
+            var unrolledBottom = unrollerBottom.PerformUnroll(out unrolledCurves, out unrolledPoints, out unrolledDots).FirstOrDefault();
+
+            var layers = new List<Brep> { unrolledTop, unrolledBottom };
+            var extendedCentreline = ExtendCentreline(unrolledCentreline, layers);
+            double offsetLeft, offsetRight;
+
+            var width = CalculateEncompassingOffset(extendedCentreline, layers, out offsetLeft, out offsetRight);
+
+            var edgeLeft = extendedCentreline.Offset(Plane.WorldXY, offsetLeft, tolerance, CurveOffsetCornerStyle.None).FirstOrDefault();
+            var edgeRight = extendedCentreline.Offset(Plane.WorldXY, offsetRight, tolerance, CurveOffsetCornerStyle.None).FirstOrDefault();
+
+            var loft = Brep.CreateFromLoft(new Curve[] { edgeLeft, edgeRight },
+                Point3d.Unset, Point3d.Unset, LoftType.Normal, false).FirstOrDefault();
+
+            if (loft == null)
+            {
+                throw new Exception($"Lofting extended edges failed.");
+            }
+
+            var morphedTop = loft.DuplicateBrep();
+            var morphTop = new Rhino.Geometry.Morphs.SporphSpaceMorph(unrolledTop.Surfaces.First(), top.Surfaces.First(),
+                new Point2d(0, 0), new Point2d(0, 0));
+
+            var morphedBottom = loft.DuplicateBrep();
+            var morphBottom = new Rhino.Geometry.Morphs.SporphSpaceMorph(unrolledBottom.Surfaces.First(), bottom.Surfaces.First(),
+                new Point2d(0, 0), new Point2d(0, 0));
+
+            morphTop.Morph(morphedTop);
+            morphBottom.Morph(morphedBottom);
+
+            return new Brep[] { morphedTop, morphedBottom };
+        }
+
+        /// <summary>
+        /// Freeform Press
+        /// Calculate true shape of top, middle, and bottom surfaces of a 
+        /// beam, if fabricated using the 2-step method (in-plane bending, out-of-plane bending).
+        /// </summary>
+        /// <param name="beam"></param>
+        /// <returns></returns>
+        public static Brep[] GetTrueGlulamBlank(Beam beam, bool flipMiddle=false)
+        {
+            Brep top, bottom, middle;
+
+            if (true)
+            {
+                top = BeamOps.GetFace(beam, Side.Top);
+                bottom = BeamOps.GetFace(beam, Side.Bottom);
+                middle = BeamOps.GetSideSurface(beam, 1, 0, beam.Width);
+                if (flipMiddle)
+                    middle.Flip();
+            }
+            else
+            {
+                top = BeamOps.GetFace(beam, Side.Left);
+                bottom = BeamOps.GetFace(beam, Side.Right);
+                middle = BeamOps.GetSideSurface(beam, 0, 0, beam.Height);
+            }
+
+            return GetGlulamBlankSurfaces(top, bottom, middle, beam.Centreline);
+        }
+
     }
 
     public static class DocUtility
