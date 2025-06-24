@@ -16,6 +16,7 @@ namespace GluLamb.Cix.Operations
         public Plane Plane;
         public double Length, Width, Depth;
         public string OperationName = "POC";
+        public bool Side = false;
 
         public SimplePocket(string name = "Simple pocket")
         {
@@ -46,7 +47,10 @@ namespace GluLamb.Cix.Operations
             alpha = (2 * Math.PI - alpha) % (2 * Math.PI);
 
             cix.Add(string.Format("{0}{1}_{2}_PKT_X={3:0.###}", prefix, OperationName, Id, Plane.Origin.X));
-            cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.###}", prefix, OperationName, Id, Plane.Origin.Y));
+            if (Side)
+                cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.###}", prefix, OperationName, Id, Plane.Origin.Z));
+            else
+                cix.Add(string.Format("{0}{1}_{2}_PKT_Y={3:0.###}", prefix, OperationName, Id, Plane.Origin.Y));
             cix.Add(string.Format("{0}{1}_{2}_L={3:0.###}", prefix, OperationName, Id, Length));
             cix.Add(string.Format("{0}{1}_{2}_B={3:0.###}", prefix, OperationName, Id, Width));
             cix.Add(string.Format("{0}{1}_{2}_DYBDE={3:0.###}", prefix, OperationName, Id, Depth));
