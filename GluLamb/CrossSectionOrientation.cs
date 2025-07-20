@@ -266,6 +266,46 @@ namespace GluLamb
             return "VectorListOrientation";
         }
 
+        public VectorListOrientation(Curve curve, IList<Plane> planes)
+        {
+            m_curve = curve;
+            m_guides = new VectorParameter[planes.Count];
+
+            //Plane[] RMFs = curve.GetPerpendicularFrames(parameters);
+
+            //Plane RMF;
+            int index = 0;
+            for (int i = 0; i < planes.Count; ++i)
+            {
+                curve.ClosestPoint(planes[i].Origin, out double parameter);
+                //RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, parameters[i] })[1];
+                //curve.PerpendicularFrameAt(parameters[i], out RMF);
+                m_guides[index] = new VectorParameter { Direction = planes[i].YAxis, Parameter = parameter, AngularOffset = double.NaN };
+                m_guides[index].CalculateAngularOffset(curve);
+                index++;
+            }
+
+            Array.Resize(ref m_guides, index);
+
+            if (index > 0)
+            {
+                for (int i = 1; i < index; ++i)
+                {
+                    double diff = m_guides[i].AngularOffset - m_guides[i - 1].AngularOffset;
+                    if (Math.Abs(diff) > Math.PI)
+                    {
+                        m_guides[i].AngularOffset -= Constants.Tau * Math.Sign(diff); ;
+                    }
+                }
+            }
+            else
+                throw new Exception("No valid vectors or parameters.");
+
+            Array.Sort(m_guides, (a, b) => a.Parameter.CompareTo(b.Parameter));
+
+            RecalculateVectors();
+        }
+
         public VectorListOrientation(Curve curve, IList<double> parameters, IList<Vector3d> vectors)
         {
             int N = Math.Min(parameters.Count, vectors.Count);
