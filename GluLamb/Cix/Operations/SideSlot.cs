@@ -55,10 +55,10 @@ namespace GluLamb.Cix.Operations
 
             if (Enabled)
             {
-                cix.Add($"  NOT_{pre}={(Enabled ? 1 : 0)}");
-                cix.Add($"  NOT_{pre}_DYBDE={Depth:0.###}");
-                cix.Add($"  NOT_{pre}_DIM={Width:0.###}");
-                cix.Add($"  NOT_{pre}_NEDERST_PLC_REF_BUND={ZDistance:0.###}");
+                cix.Add($"    NOT_{pre}={(Enabled ? 1 : 0)}");
+                cix.Add($"    NOT_{pre}_DYBDE={Depth:0.###}");
+                cix.Add($"    NOT_{pre}_DIM={Width:0.###}");
+                cix.Add($"    NOT_{pre}_NEDERST_PLC_REF_BUND={ZDistance:0.###}");
             }
 
             //if (SlotFront)
