@@ -18,28 +18,15 @@ namespace GluLamb.Cix.Operations
     /// </summary>
     public class SideSlot : Operation
     {
-        public bool SlotBack = false;
         /// <summary>
         /// Depth of rebate (distance from end).
         /// </summary>
-        public double SlotBackWidth = 0;
+        public double Width = 0;
         /// <summary>
         /// Height of rebate from top surface
         /// </summary>
-        public double SlotBackDepth = 0;
-        public double SlotBackZDistance = 0;
-
-        public bool SlotFront = false;
-        /// <summary>
-        /// Depth of rebate (distance from end).
-        /// </summary>
-        public double SlotFrontWidth = 0;
-        /// <summary>
-        /// Height of rebate from top surface
-        /// </summary>
-        public double SlotFrontDepth = 0;
-
-        public double SlotFrontZDistance = 0;
+        public double Depth = 0;
+        public double ZDistance = 0;
 
 
         public SideSlot(string name = "SideSlot/Not")
@@ -50,14 +37,9 @@ namespace GluLamb.Cix.Operations
         {
             return new SideSlot(Name)
             {
-                SlotBack = SlotBack,
-                SlotBackWidth = SlotBackWidth,
-                SlotBackDepth = SlotBackDepth,
-                SlotBackZDistance = SlotBackZDistance,
-                SlotFront = SlotFront,
-                SlotFrontWidth = SlotFrontWidth,
-                SlotFrontDepth = SlotFrontDepth,
-                SlotFrontZDistance = SlotFrontZDistance,
+                Width = Width,
+                Depth = Depth,
+                ZDistance = ZDistance,
             };
         }
 
@@ -68,22 +50,24 @@ namespace GluLamb.Cix.Operations
 
         public override void ToCix(List<string> cix, string prefix = "")
         {
+            var pre = prefix.Trim() == "IN_" ? "FOR" : "BAG";
 
-            if (SlotBack)
+
+            if (Enabled)
             {
-                cix.Add($"NOT_BAG={(Enabled && SlotBack ? 1 : 0)}");
-                cix.Add($"NOT_BAG_DYBDE={SlotBackDepth:0.###}");
-                cix.Add($"NOT_BAG_DIM={SlotBackWidth:0.###}");
-                cix.Add($"NOT_BAG_NEDERST_PLC_REF_BUND={SlotBackZDistance:0.###}");
+                cix.Add($"  NOT_{pre}={(Enabled ? 1 : 0)}");
+                cix.Add($"  NOT_{pre}_DYBDE={Depth:0.###}");
+                cix.Add($"  NOT_{pre}_DIM={Width:0.###}");
+                cix.Add($"  NOT_{pre}_NEDERST_PLC_REF_BUND={ZDistance:0.###}");
             }
 
-            if (SlotFront)
-            {
-                cix.Add($"NOT_FOR={(Enabled && SlotFront ? 1 : 0)}");
-                cix.Add($"NOT_FOR_DYBDE={SlotFrontDepth:0.###}");
-                cix.Add($"NOT_FOR_DIM={SlotFrontWidth:0.###}");
-                cix.Add($"NOT_FOR_NEDERST_PLC_REF_BUND={SlotFrontZDistance:0.###}");
-            }
+            //if (SlotFront)
+            //{
+            //    cix.Add($"NOT_FOR={(Enabled && SlotFront ? 1 : 0)}");
+            //    cix.Add($"NOT_FOR_DYBDE={SlotFrontDepth:0.###}");
+            //    cix.Add($"NOT_FOR_DIM={SlotFrontWidth:0.###}");
+            //    cix.Add($"NOT_FOR_NEDERST_PLC_REF_BUND={SlotFrontZDistance:0.###}");
+            //}
         }
 
         public override void Transform(Transform xform)
@@ -95,30 +79,26 @@ namespace GluLamb.Cix.Operations
             if (op is SideSlot other)
             {
                 return
-                    (SlotBack == other.SlotBack) &&
-                    Math.Abs(SlotBackDepth - other.SlotBackDepth) < epsilon &&
-                    Math.Abs(SlotBackWidth - other.SlotBackWidth) < epsilon &&
-                    Math.Abs(SlotBackZDistance - other.SlotBackZDistance) < epsilon &&
-                    (SlotFront == other.SlotFront) &&
-                    Math.Abs(SlotFrontDepth - other.SlotFrontDepth) < epsilon &&
-                    Math.Abs(SlotFrontWidth - other.SlotFrontWidth) < epsilon &&
-                    Math.Abs(SlotFrontZDistance - other.SlotFrontZDistance) < epsilon;
+                    Math.Abs(Depth - other.Depth) < epsilon &&
+                    Math.Abs(Width - other.Width) < epsilon &&
+                    Math.Abs(ZDistance - other.ZDistance) < epsilon;
             }
             return false;
         }
 
         public static SideSlot FromCix(Dictionary<string, double> cix, string prefix = "", string id = "")
         {
-            var name = $"{prefix}NOT_BAG";
+            var pre = prefix.Trim() == "IN_" ? "FOR" : "BAG";
+            var name = $"{prefix}NOT_{pre}";
 
             var rebate = new SideSlot(name);
 
             if (cix.ContainsKey(name) && cix[name] > 0)
             {
-                rebate.SlotBack = true;
-                rebate.SlotBackWidth = cix[$"{name}_DIM"];
-                rebate.SlotBackDepth = cix[$"{name}_DYBDE"];
-                rebate.SlotBackZDistance = cix[$"{name}_NEDERST_PLC_REF_BUND"];
+                rebate.Enabled = true;
+                rebate.Width = cix[$"{name}_DIM"];
+                rebate.Depth = cix[$"{name}_DYBDE"];
+                rebate.ZDistance = cix[$"{name}_NEDERST_PLC_REF_BUND"];
 
                 //return new Rebate(name)
                 //{
@@ -128,21 +108,6 @@ namespace GluLamb.Cix.Operations
                 //};
             }
 
-            name = $"{prefix}NOT_FOR";
-
-            if (cix.ContainsKey(name) && cix[name] > 0)
-            {
-                rebate.SlotFront = true;
-                rebate.SlotFrontWidth = cix[$"{name}_DIM"];
-                rebate.SlotFrontDepth = cix[$"{name}_DYBDE"];
-                rebate.SlotFrontZDistance = cix[$"{name}_NEDERST_PLC_REF_BUND"];
-                //return new Rebate(name)
-                //{
-                //    Bottom = true,
-                //    BottomDepth = cix[$"{name}_DYBDE"],
-                //    BottomThickness = cix[$"{name}_T"],
-                //};
-            }
             return rebate;
         }
 
@@ -159,30 +124,10 @@ namespace GluLamb.Cix.Operations
         {
             var sideSlot = new SideSlot(Name)
             {
-                SlotBack = SlotBack,
-                SlotBackWidth = SlotBackWidth,
-                SlotBackDepth = SlotBackDepth,
-                SlotBackZDistance = SlotBackZDistance,
-                SlotFront = SlotFront,
-                SlotFrontWidth = SlotFrontWidth,
-                SlotFrontDepth = SlotFrontDepth,
-                SlotFrontZDistance = SlotFrontZDistance
+                Width = Width,
+                Depth = Depth,
+                ZDistance = ZDistance,
             };
-
-            if (!SlotBack && other.SlotBack)
-            {
-                sideSlot.SlotBack = other.SlotBack;
-                sideSlot.SlotBackWidth = other.SlotBackWidth;
-                sideSlot.SlotBackDepth = other.SlotBackDepth;
-                sideSlot.SlotBackZDistance = other.SlotBackZDistance;
-            }
-            if (!SlotFront && other.SlotFront)
-            {
-                sideSlot.SlotFront = other.SlotFront;
-                sideSlot.SlotFrontWidth = other.SlotFrontWidth;
-                sideSlot.SlotFrontDepth = other.SlotFrontDepth;
-                sideSlot.SlotFrontZDistance = other.SlotFrontZDistance;
-            }
 
             return sideSlot;
 
