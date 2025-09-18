@@ -167,7 +167,7 @@ namespace GluLamb.Cix
                 foreach (var comment in Comments)
                 {
                     if (!string.IsNullOrEmpty(comment))
-                        cix.Add($"({Comments})");
+                        cix.Add($"({comment})");
                 }
             }
 

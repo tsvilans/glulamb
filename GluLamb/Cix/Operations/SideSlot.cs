@@ -52,6 +52,12 @@ namespace GluLamb.Cix.Operations
         {
             var pre = prefix.Trim() == "IN_" ? "FOR" : "BAG";
 
+            if (prefix.Trim() != "IN_" && prefix.Trim() != "OUT_")
+            {
+                throw new ArgumentException(@"SideSlot can only be used on IN or OUT sides!");
+                return;
+            }
+
 
             if (Enabled)
             {
