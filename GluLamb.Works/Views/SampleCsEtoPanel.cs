@@ -1,6 +1,7 @@
 ﻿using System;
 using Eto.Drawing;
 using Eto.Forms;
+using Rhino;
 using Rhino.UI;
 
 namespace GluLamb.Views
@@ -23,24 +24,35 @@ namespace GluLamb.Views
     /// </summary>
     public SampleCsEtoPanel(uint documentSerialNumber)
     {
-      m_document_sn = documentSerialNumber;
+        m_document_sn = documentSerialNumber;
 
-      Title = GetType().Name;
+        Title = GetType().Name;
 
-      var hello_button = new Button { Text = "Hello..." };
-      hello_button.Click += (sender, e) => OnHelloButton();
+        var hello_button = new Button { Text = "Hello..." };
+        hello_button.Click += (sender, e) => OnHelloButton();
 
-      var child_button = new Button { Text = "Child Dialog..." };
-      child_button.Click += (sender, e) => OnChildButton();
+        var child_button = new Button { Text = "Child Dialog..." };
+        child_button.Click += (sender, e) => OnChildButton();
 
-      var document_sn_label = new Label() { Text = $"Document serial number: {documentSerialNumber}" };
+        var document_sn_label = new Label() { Text = $"Document serial number: {documentSerialNumber}" };
+        var beam_list = new ListBox { };
 
-      var layout = new DynamicLayout { DefaultSpacing = new Size(5, 5), Padding = new Padding(10) };
-      layout.AddSeparateRow(hello_button, null);
-      layout.AddSeparateRow(child_button, null);
-      layout.AddSeparateRow(document_sn_label, null);
-      layout.Add(null);
-      Content = layout;
+        var filter = new Rhino.DocObjects.ObjectEnumeratorSettings();
+        filter.ClassTypeFilter = typeof(BeamObject);
+        var beams = RhinoDoc.ActiveDoc.Objects.FindByFilter(filter);
+
+        foreach (BeamObject beam in beams)
+        {
+            beam_list.Items.Add($"{beam.m_beam.Width:.1f} x {beam.m_beam.Height:.1f} ({beam.Id})");
+        }
+
+        var layout = new DynamicLayout { DefaultSpacing = new Size(5, 5), Padding = new Padding(10) };
+        layout.AddSeparateRow(hello_button, null);
+        layout.AddSeparateRow(child_button, null);
+        layout.AddSeparateRow(beam_list, null);
+
+        layout.Add(null);
+        Content = layout;
     }
 
 

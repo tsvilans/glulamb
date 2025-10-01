@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using Eto.Drawing;
 using Eto.Forms;
+using Rhino;
+using Rhino.Input.Custom;
 using Rhino.UI;
 
 namespace GluLamb.Views
