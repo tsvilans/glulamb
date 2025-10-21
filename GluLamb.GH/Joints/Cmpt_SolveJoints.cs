@@ -67,10 +67,12 @@ namespace GluLamb.GH.Components
             var beams = new Dictionary<int, Beam>();
             var joints = new Dictionary<int, JointX>();
             var types = new Dictionary<int, string>();
+            object settings = null;
 
             if (!DA.GetDataTree(0, out GH_Structure<IGH_Goo> beamTree)) return;
             if (!DA.GetDataTree(1, out GH_Structure<IGH_Goo> jointTree)) return;
             if (!DA.GetDataTree(2, out GH_Structure<GH_String> typesTree)) return;
+            if (!DA.GetData(3, ref settings))
 
             foreach (var path in beamTree.Paths)
             {
@@ -103,6 +105,11 @@ namespace GluLamb.GH.Components
                 if (type == null) continue;
 
                 types.Add(path.Indices[0], type.Value);
+            }
+
+            if (settings is JointSolver js)
+            {
+                
             }
 
             var keys = new List<int>(joints.Keys);

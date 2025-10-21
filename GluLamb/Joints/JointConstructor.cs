@@ -153,6 +153,34 @@ namespace GluLamb.Joints
             VBeamJoint = typeof(VBeamJoint);
         }
 
+
+        JointX CreateInstance(Type jointType, JointX joint)
+        {
+            var types = new Type[] { typeof(JointX) };
+
+            ConstructorInfo jointConstructor = jointType.GetConstructor(
+              BindingFlags.Instance | BindingFlags.Public, null,
+              CallingConventions.HasThis, types, null);
+
+            var jointInstance = jointConstructor.Invoke(new object[] { joint }) as JointX;
+            return jointInstance;
+        }
+
+
+        JointX CreateInstance(Type jointType, Factory.JointCondition joint_condition)
+        {
+            var types = new Type[] { typeof(Factory.JointCondition) };
+
+            ConstructorInfo jointConstructor = jointType.GetConstructor(
+              BindingFlags.Instance | BindingFlags.Public, null,
+              CallingConventions.HasThis, types, null);
+
+            var jointInstance = jointConstructor.Invoke(new object[] { joint_condition }) as JointX;
+            return jointInstance;
+        }
+
+
+
         public List<Joint> Solve(List<Element> beams, List<Factory.JointCondition> jcs)
         {
             var joints = new List<Joint>();

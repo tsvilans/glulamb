@@ -7,10 +7,18 @@
     <Title>GluLamb.Works</Title>
     <Description>Rhino plug-in for GluLamb.</Description>
     <Company>Tom Svilans</Company>
-    <Copyright>Copyright © 2024, Tom Svilans</Copyright>
+    <Copyright>Copyright © 2025, Tom Svilans</Copyright>
     <TargetExt>.rhp</TargetExt>
     <NoWarn>NU1701</NoWarn>
+    <BaseOutputPath>..\bin</BaseOutputPath>
+    <PackageOutputPath>..\bin\</PackageOutputPath>
+    <OutputPath>..\bin</OutputPath>
+
   </PropertyGroup>
+  
+  <PropertyGroup>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>  
 
   <ItemGroup>
     <None Remove="Resources\BeamCurved.png" />

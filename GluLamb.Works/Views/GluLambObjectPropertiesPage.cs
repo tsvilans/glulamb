@@ -79,7 +79,33 @@ namespace GluLamb.Views
             };
 
             // Create a button to select the beam in the Rhino model
-            var selectButton = new Button { Text = "Select Beam in Model" };
+            var selectButton = new Eto.Forms.Button { Text = "Select Beam in Model" };
+            var svgContents = @"
+                <?xml version=""1.0"" encoding=""UTF-8"" standalone=""no""?>
+                <svg
+                   width=""40mm""
+                   height=""40mm""
+                   viewBox=""0 0 40 40""
+                    version=""1.1""
+                   id=""svg1""
+                   xmlns=""http://www.w3.org/2000/svg""
+                   xmlns:svg=""http://www.w3.org/2000/svg"">
+                  <defs
+                     id=""defs1"" />
+                  <g
+                     id=""layer1"">
+                    <ellipse
+                       style=""opacity:0.615385;fill:#000000;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke markers fill""
+                       id=""path1""
+                       cx=""20""
+                       cy=""20""
+                       rx=""7.5446095""
+                       ry=""6.0724902"" />
+                  </g>
+                </svg>
+                ";
+            selectButton.Image = Rhino.UI.ImageResources.CreateEtoBitmap(svgContents, 50, 50, false);
+
             selectButton.Click += (sender, e) => SelectBeamInModel();
 
             var zoomButton = new Button { Text = "Zoom to Beam" };

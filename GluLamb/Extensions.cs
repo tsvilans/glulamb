@@ -365,6 +365,35 @@ namespace GluLamb
 
             return overCurve;
         }
+
+        public static Curve FilletCurve(this Curve crv, IEnumerable<int> corners, double radius)
+        {
+            var segments = crv.DuplicateSegments();
+            var newSegments = new List<Curve>();
+
+            foreach (var corner in corners)
+            {
+                if (corner < 0 || corner > (segments.Length - 1)) continue;
+
+                var c0 = segments[corner];
+                var c1 = segments[corner + 1];
+
+                var fillet = Curve.CreateFilletCurves(c0, c0.PointAtStart, c1, c1.PointAtEnd, radius, false, true, false, 1e-3, 1e-3);
+
+                if (fillet.Length == 3)
+                {
+                    segments[corner] = fillet[0];
+                    segments[corner + 1] = fillet[1];
+                    newSegments.Add(fillet[2]);
+                }
+            }
+
+            newSegments.AddRange(segments);
+
+            var joined = Curve.JoinCurves(newSegments);
+
+            return joined.FirstOrDefault();
+        }
     }
 
     public static class MeshExtensionMethods

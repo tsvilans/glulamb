@@ -815,6 +815,41 @@ namespace GluLamb
             return true;
         }
 
+        /// <summary>
+        /// Computes the plane that bisects the angle between two input planes.
+        /// </summary>
+        /// <param name="planeA">First plane.</param>
+        /// <param name="planeB">Second plane.</param>
+        /// <param name="bisector">Resulting bisecting plane.</param>
+        /// <returns>True if successful, false if planes are parallel or nearly parallel.</returns>
+        public static bool TryGetBisectingPlane(Plane planeA, Plane planeB, out Plane bisector, bool external = false)
+        {
+            bisector = Plane.Unset;
+
+            // 1. Get unit normals
+            Vector3d nA = planeA.Normal;
+            Vector3d nB = planeB.Normal;
+            nA.Unitize();
+            nB.Unitize();
+
+            // 2. Compute bisector normal (internal or external)
+            Vector3d nBis = external ? nA - nB : nA + nB;
+            if (!nBis.Unitize())
+                return false; // parallel or opposite planes
+
+            // 3. Find intersection line between the two planes
+            if (!Rhino.Geometry.Intersect.Intersection.PlanePlane(planeA, planeB, out Line intersection))
+                return false;
+
+            // 4. Use midpoint of intersection line as the origin
+            Point3d origin = intersection.PointAt(0.5);
+
+            // 5. Construct bisector plane
+            bisector = new Plane(origin, nBis);
+
+            return true;
+        }
+
         public static Plane AdjustPlaneToBrep(Brep brep, Plane plane, double tolerance = 0.01, double threshold = 0.9)
         {
             Vector3d normal = Vector3d.Unset;

@@ -23,6 +23,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Rhino.Geometry;
+using static Rhino.Render.TextureGraphInfo;
 
 namespace GluLamb
 {
@@ -62,6 +63,31 @@ namespace GluLamb
                 OffsetX = OffsetX,
                 OffsetY = OffsetY
             };
+        }
+
+        public static Beam StraightFromGeometry(Brep brep, Vector3d? xaxis = null)
+        {
+            var bplane = GluLamb.Utility.FindBestBasePlane(brep, xaxis.HasValue ? xaxis.Value : Vector3d.Unset);
+
+            var bb = brep.GetBoundingBox(bplane, out Box worldBox);
+
+            var cy = (bb.Min.Y + bb.Max.Y) / 2;
+            var cz = (bb.Min.Z + bb.Max.Z) / 2;
+
+            var start = bplane.PointAt(bb.Min.X, cy, cz);
+            var end = bplane.PointAt(bb.Max.X, cy, cz);
+
+            var centreline = new Line(start, end).ToNurbsCurve();
+
+            var beam = new Beam()
+            {
+                Centreline = centreline,
+                Width = bb.Max.Y - bb.Min.Y,
+                Height = bb.Max.Z - bb.Min.Z,
+                Orientation = new VectorOrientation(bplane.ZAxis)
+            };
+
+            return beam;
         }
 
         public Plane GetPlane(double t) => GetPlane(t, Centreline);

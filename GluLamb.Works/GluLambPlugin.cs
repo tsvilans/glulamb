@@ -56,9 +56,9 @@ namespace GluLamb
         protected override LoadReturnCode OnLoad(ref string errorMessage)
         {
             Rhino.RhinoApp.WriteLine("GluLamb v2.0");
-            Rhino.RhinoApp.WriteLine(this.Name, this.Version);
+            //Rhino.RhinoApp.WriteLine(this.Name, this.Version);
             Panels.RegisterPanel(GluLambPlugin.Instance, typeof(GluLamb.Views.SampleCsEtoPanel), "EmaTimber", GWorks.Properties.Resources.GluLamb);
-            Panels.OpenPanel(typeof(GluLamb.Views.SampleCsEtoPanel).GUID);
+            //Panels.OpenPanel(typeof(GluLamb.Views.SampleCsEtoPanel).GUID);
 
             return base.OnLoad(ref errorMessage);
         }
