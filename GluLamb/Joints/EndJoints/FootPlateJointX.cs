@@ -59,7 +59,7 @@ namespace GluLamb.Joints
             var BeamPlane = beam.GetPlane(Parts[0].Parameter);
             // debug.Add(BeamPlane);
 
-            var Beam2Foot = Position - BeamPlane.Origin;
+            var Beam2Foot = Position.Origin - BeamPlane.Origin;
 
             var axis = GluLamb.Utility.ClosestAxis(BeamPlane, Beam2Foot);
             axis.Unitize();

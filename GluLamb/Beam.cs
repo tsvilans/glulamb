@@ -65,7 +65,7 @@ namespace GluLamb
             };
         }
 
-        public static Beam StraightFromGeometry(Brep brep, Vector3d? xaxis = null)
+        public static Beam StraightFromGeometry(Brep brep, Vector3d? xaxis = null, Vector3d? up = null)
         {
             var bplane = GluLamb.Utility.FindBestBasePlane(brep, xaxis.HasValue ? xaxis.Value : Vector3d.Unset);
 
@@ -79,12 +79,16 @@ namespace GluLamb
 
             var centreline = new Line(start, end).ToNurbsCurve();
 
+            var xplane = new Plane(bplane.Origin, bplane.ZAxis, bplane.YAxis);
+
+            var yaxis = up.HasValue && up.Value.IsValid ? Utility.ClosestAxis(xplane, up.Value) : xplane.YAxis;
+
             var beam = new Beam()
             {
                 Centreline = centreline,
-                Width = bb.Max.Y - bb.Min.Y,
-                Height = bb.Max.Z - bb.Min.Z,
-                Orientation = new VectorOrientation(bplane.ZAxis)
+                Width = bb.Max.Z - bb.Min.Z,
+                Height = bb.Max.Y - bb.Min.Y,
+                Orientation = new VectorOrientation(yaxis)
             };
 
             return beam;

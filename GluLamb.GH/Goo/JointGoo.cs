@@ -141,7 +141,12 @@ return string.Empty;
             if (Value == null) throw new Exception("JointParameter.Value is null.");
             writer.SetString("Type", Value.ToString());
             writer.SetInt32("NumParts", Value.Parts.Count);
-            writer.SetPoint3D("Position", new GH_Point3D(Value.Position.X, Value.Position.Y, Value.Position.Z));
+            //writer.SetPoint3D("Position", new GH_Point3D(Value.Position.X, Value.Position.Y, Value.Position.Z));
+            writer.SetPlane("Position", new GH_IO.Types.GH_Plane(
+                new GH_Point3D(Value.Position.OriginX, Value.Position.OriginZ, Value.Position.OriginZ),
+                new GH_Point3D(Value.Position.XAxis.X, Value.Position.XAxis.Y, Value.Position.XAxis.Z),
+                new GH_Point3D(Value.Position.YAxis.X, Value.Position.YAxis.Y, Value.Position.YAxis.Z)
+                ));
 
             for (int i = 0; i < Value.Parts.Count; ++i)
             {
@@ -168,9 +173,16 @@ return string.Empty;
             int numParts = 0;
             reader.TryGetInt32("NumParts", ref numParts);
 
-            GH_Point3D ghPosition = new GH_Point3D();
-            reader.TryGetPoint3D("Position", ref ghPosition);
-            var position = new Point3d(ghPosition.x, ghPosition.y, ghPosition.z);
+            //GH_Point3D ghPosition = new GH_Point3D();
+            GH_IO.Types.GH_Plane ghPlane = new GH_IO.Types.GH_Plane();
+            reader.TryGetPlane("Position", ref ghPlane);
+            //reader.TryGetPoint3D("Position", ref ghPosition);
+
+            //var position = new Point3d(ghPosition.x, ghPosition.y, ghPosition.z);
+            var plane = new Plane(
+                new Point3d(ghPlane.Origin.x, ghPlane.Origin.y, ghPlane.Origin.z),
+                new Vector3d(ghPlane.XAxis.x, ghPlane.XAxis.y, ghPlane.XAxis.z),
+                new Vector3d(ghPlane.YAxis.x, ghPlane.YAxis.y, ghPlane.YAxis.z));
 
             var parts = new List<JointPartX>();
 
@@ -218,7 +230,7 @@ return string.Empty;
             }
 
             // TO DO: classify joint based on the Type string
-            var joint = new JointX(parts, position);
+            var joint = new JointX(parts, plane);
 
             return base.Read(reader);
         }

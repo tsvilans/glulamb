@@ -51,7 +51,7 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddPointParameter("Position", "P", "Location of joint.", GH_ParamAccess.tree);
+            pManager.AddPlaneParameter("Position", "P", "Location of joint.", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Element IDs", "E", "Indices of the connected beams.", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Cases", "C", "Numbers representing the case of each joint part.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Parameters", "P", "Parameters for each beam at which the joint occurs.", GH_ParamAccess.tree);
@@ -64,7 +64,7 @@ namespace GluLamb.GH.Components
             var elementIndexTree = new DataTree<int>();
             var caseTree = new DataTree<int>();
             var parameterTree = new DataTree<double>();
-            var positionTree = new DataTree<Point3d>();
+            var positionTree = new DataTree<Plane>();
 
             for (int i = 0; i < joints.Paths.Count; ++i)
             {

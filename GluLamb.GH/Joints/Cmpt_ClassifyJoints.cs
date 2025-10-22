@@ -54,7 +54,7 @@ namespace GluLamb.GH.Components
         bool fullName = false;
 
         List<JointCondition> JointConditions = new List<JointCondition>();
-        Dictionary<int, Point3d> JointOrigins = null;
+        Dictionary<int, Plane> JointOrigins = null;
         Dictionary<int, Line> JointLines = null;
         Dictionary<int, string> JointNames = null;
         Dictionary<int, string> JointTypes = null;
@@ -104,7 +104,7 @@ namespace GluLamb.GH.Components
             if (JointOrigins != null)
             foreach (var key in JointOrigins.Keys)
             {
-                var pt = JointOrigins[key];
+                var pt = JointOrigins[key].Origin;
 
                 args.Display.DrawPoint(pt, Rhino.Display.PointStyle.RoundActivePoint, 5, Color.White);
 
@@ -156,7 +156,7 @@ namespace GluLamb.GH.Components
             double csThreshold = JointX.PerpendicularThreshold;
             DA.GetData("Perp threshold", ref csThreshold);
 
-            JointOrigins = new Dictionary<int, Point3d>();
+            JointOrigins = new Dictionary<int, Plane>();
             JointLines = new Dictionary<int, Line>();
             JointNames = new Dictionary<int, string>();
             JointTypes = new Dictionary<int, string>();

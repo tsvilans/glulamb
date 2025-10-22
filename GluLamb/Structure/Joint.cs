@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Rhino;
+using Rhino.Collections;
 using Rhino.Geometry;
 
 namespace GluLamb
@@ -55,10 +56,10 @@ namespace GluLamb
         public Vector3d Direction = Vector3d.Zero;
 
         public List<Brep> Geometry = new List<Brep>();
+        public ArchivableDictionary Data = new ArchivableDictionary();
 
         public JointPartX()
         {
-
         }
 
         public int CompareTo(JointPartX other)
@@ -100,15 +101,20 @@ namespace GluLamb
     {
         public static double PerpendicularThreshold = RhinoMath.ToRadians(45);
 
-        public Point3d Position;
+        public Plane Position;
         public List<JointPartX> Parts;
 
-        public JointX() : this(new List<JointPartX>(), Point3d.Unset) { }
-        public JointX(List<JointPartX> parts) : this(parts, Point3d.Unset) { }
-        public JointX(List<JointPartX> parts, Point3d position)
+        public JointX() : this(new List<JointPartX>(), Plane.Unset) { }
+        public JointX(List<JointPartX> parts) : this(parts, Plane.Unset) { }
+        public JointX(List<JointPartX> parts, Plane position)
         {
             this.Parts = parts;
             this.Position = position;
+        }
+        public JointX(List<JointPartX> parts, Point3d position)
+        {
+            this.Parts = parts;
+            this.Position = new Plane(position, Vector3d.ZAxis);
         }
 
         public override string ToString() => $"Joint ({GetType().Name})";
@@ -204,7 +210,7 @@ namespace GluLamb
 
                 for (int j = i + 1; j < joints.Count; ++j)
                 {
-                    if (joints[i].Position.DistanceTo(joints[j].Position) < merge_distance)
+                    if (joints[i].Position.Origin.DistanceTo(joints[j].Position.Origin) < merge_distance)
                     {
                         flags[j] = true;
                         joints[i].Absorb(joints[j]);
