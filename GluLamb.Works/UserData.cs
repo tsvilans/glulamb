@@ -30,7 +30,7 @@ namespace GluLamb
             //base.OnTransform(transform);
             //return;
 
-            var timberBeam = GluLambPlugin.Instance.Model.Beams.Where(x => x.Id == BeamRef).FirstOrDefault();
+            var timberBeam = GluLambPlugin.Instance.ActiveModel.Beams.Where(x => x.Id == BeamRef).FirstOrDefault();
             if (timberBeam != null)
             {
                 var plane = timberBeam.Plane;

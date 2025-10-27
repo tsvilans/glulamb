@@ -7,11 +7,11 @@ using Rhino.UI;
 
 namespace GluLamb.Views
 {
-  class SampleCsEtoOptionsPage : OptionsDialogPage
+  class OptionsPage : OptionsDialogPage
   {
     private SampleCsEtoOptionsPageControl m_page_control;
 
-    public SampleCsEtoOptionsPage()
+    public OptionsPage()
       : base("GluLamb")
     {
     }

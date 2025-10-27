@@ -26,7 +26,7 @@ namespace GluLamb.Forms
             // Initialize GridView
             gridView = new GridView
             {
-                DataStore = GluLambPlugin.Instance.Model.Beams
+                DataStore = GluLambPlugin.Instance.ActiveModel.Beams
             };
 
             // Add Columns to the GridView
@@ -99,7 +99,7 @@ namespace GluLamb.Forms
         {
             if (selectedBeam != null)
             {
-                GluLambPlugin.Instance.Model.RotateBeam(selectedBeam);
+                GluLambPlugin.Instance.ActiveModel.RotateBeam(selectedBeam);
                 RhinoDoc.ActiveDoc.Views.Redraw();
 
             }
@@ -109,7 +109,7 @@ namespace GluLamb.Forms
         {
             if (selectedBeam != null)
             {
-                GluLambPlugin.Instance.Model.FlipBeam(selectedBeam);
+                GluLambPlugin.Instance.ActiveModel.FlipBeam(selectedBeam);
                 RhinoDoc.ActiveDoc.Views.Redraw();
 
             }
@@ -127,7 +127,7 @@ namespace GluLamb.Forms
                     foreach (var got in getter.Objects())
                     {
                         var obj = got.Object();
-                        GluLambPlugin.Instance.Model.Beams.Remove(new TimberBeam() { Id = obj.Id });
+                        GluLambPlugin.Instance.ActiveModel.Beams.Remove(new TimberBeam() { Id = obj.Id });
                         for (int i = obj.Geometry.UserData.Count - 1; i >= 0; --i)
                         {
                             if (obj.Geometry.UserData[i] is TimberBeamUserData)
@@ -140,7 +140,7 @@ namespace GluLamb.Forms
 
                 }
             }
-            else if (GluLambPlugin.Instance.Model.Beams.Contains(selectedBeam))
+            else if (GluLambPlugin.Instance.ActiveModel.Beams.Contains(selectedBeam))
             {
                 var currentRow = Math.Max(0, gridView.SelectedRow - 1);
                 RhinoApp.WriteLine($"Removing {selectedBeam}...");
@@ -154,7 +154,7 @@ namespace GluLamb.Forms
                         obj.Geometry.UserData.Remove(obj.Geometry.UserData[i]);
                     }
                 }
-                GluLambPlugin.Instance.Model.Beams.Remove(selectedBeam);
+                GluLambPlugin.Instance.ActiveModel.Beams.Remove(selectedBeam);
 
                 gridView.SelectedRow = Math.Min(currentRow, gridView.DataStore.Count() - 1);
 
@@ -236,15 +236,15 @@ namespace GluLamb.Forms
                         Bounds = bb,
                     };
 
-                    int index = GluLambPlugin.Instance.Model.Beams.IndexOf(timberBeam);
+                    int index = GluLambPlugin.Instance.ActiveModel.Beams.IndexOf(timberBeam);
                     if (index >= 0)
                     {
                         RhinoApp.WriteLine($"Updating beam {timberBeam}");
-                        GluLambPlugin.Instance.Model.Beams.RefreshItem(timberBeam);
+                        GluLambPlugin.Instance.ActiveModel.Beams.RefreshItem(timberBeam);
                     }
                     else
                     {
-                        GluLambPlugin.Instance.Model.Beams.Add(timberBeam);
+                        GluLambPlugin.Instance.ActiveModel.Beams.Add(timberBeam);
                     }
 
                     var props = new Rhino.Collections.ArchivableDictionary();
@@ -272,7 +272,7 @@ namespace GluLamb.Forms
 
         private void ClearBeams()
         {
-            GluLambPlugin.Instance.Model.ClearBeams();
+            GluLambPlugin.Instance.ActiveModel.ClearBeams();
             //gridView.DataStore = BeamModel.Beams.Values.ToList();
         }
 

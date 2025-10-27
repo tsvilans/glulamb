@@ -12,7 +12,7 @@ namespace GluLamb.Commands
         {
             Instance = this;
 
-            Panels.RegisterPanel(PlugIn, typeof(SampleCsEtoPanel), LOC.STR("GluLamb"), null);
+            Panels.RegisterPanel(PlugIn, typeof(ModelPanel), LOC.STR("GluLamb"), null);
         }
 
         public static SampleCsWizardPanelCommand Instance
@@ -24,7 +24,7 @@ namespace GluLamb.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            Panels.OpenPanel(typeof(SampleCsEtoPanel).GUID);
+            Panels.OpenPanel(typeof(ModelPanel).GUID);
             return Rhino.Commands.Result.Success;
         }
     }
