@@ -473,6 +473,25 @@ namespace GluLamb
 
         static readonly Random random = new Random();
 
+        public static Matrix MatrixFromColumns(Vector3d c0, Vector3d c1, Vector3d c2)
+        {
+            var matrix = new Matrix(3, 3);
+            matrix[0, 0] = c0.X;
+            matrix[1, 0] = c0.Y;
+            matrix[2, 0] = c0.Z;
+
+            matrix[0, 1] = c1.X;
+            matrix[1, 1] = c1.Y;
+            matrix[2, 1] = c1.Z;
+
+            matrix[0, 2] = c2.X;
+            matrix[1, 2] = c2.Y;
+            matrix[2, 2] = c2.Z;
+
+
+            return matrix;
+        }
+
         public static Mesh Create2dMeshGrid(double width, double length, double resolution = 50.0)
         {
             double w = width;
