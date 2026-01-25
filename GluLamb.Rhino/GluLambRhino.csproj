@@ -57,7 +57,7 @@
   <ItemGroup>
     <ProjectReference Include="..\GluLamb\GluLamb.csproj">
       <Project>{370875BF-239C-464F-970F-0CEB9D412FD8}</Project>
-      <Name>GluLambX</Name>
+      <Name>GluLamb</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

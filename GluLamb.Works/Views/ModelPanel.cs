@@ -1,69 +1,47 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using Eto.Drawing;
 using Eto.Forms;
-using GluLamb;
 using Rhino;
-using Rhino.DocObjects;
 using Rhino.Geometry;
 using Rhino.UI;
 using Rhino.UI.Controls;
 
 namespace GluLamb.Views
 {
-    class GluLambObjectPropertiesPage : ObjectPropertiesPage
+  /// <summary>
+  /// Required class GUID, used as the panel Id
+  /// </summary>
+  [System.Runtime.InteropServices.Guid("0E7780CA-F004-4AE7-B918-19E68BF7C7C9")]
+  public class ModelPanel : Panel, IPanel
+  {
+    readonly uint m_document_sn = 0;
+
+    /// <summary>
+    /// Provide easy access to the SampleCsEtoPanel.GUID
+    /// </summary>
+    public static System.Guid PanelId => typeof(ModelPanel).GUID;
+
+    private GridView gridView;
+    private TimberBeam selectedBeam;
+
+    public Label ActiveObjectLabel;
+
+    /// <summary>
+    /// Required public constructor with NO parameters
+    /// </summary>
+    public ModelPanel(uint documentSerialNumber)
     {
-        private GluLambPropertiesPageControl m_page_control;
+        m_document_sn = documentSerialNumber;
 
-        public override string EnglishPageTitle => "GluLamb";
+        Title = GetType().Name;
 
-        public override System.Drawing.Icon PageIcon(System.Drawing.Size sizeInPixels)
-        {
-            var icon = Rhino.UI.DrawingUtilities.LoadIconWithScaleDown(
-              "GWorks.Properties.Resources.GluLamb.ico",
-              sizeInPixels.Width,
-              GetType().Assembly);
-            return icon;
-            
-        }
-
-        public override object PageControl => m_page_control ?? (m_page_control = new GluLambPropertiesPageControl());
-
-        public override bool ShouldDisplay(ObjectPropertiesPageEventArgs e)
-        {
-            Debug.WriteLine("SampleCsEtoPropertiesPage.ShouldDisplay()");
-            return true;
-        }
-
-        public override void UpdatePage(ObjectPropertiesPageEventArgs e)
-        {
-            var objs = e.GetObjects<BrepObject>();
-            if (objs.Length > 0)
-            {
-                RhinoApp.WriteLine("Got {0} objects", objs.Length);
-            }
-            Debug.WriteLine("GluLambPropertiesPage.UpdatePage()");
-        }
-    }
-
-    //[System.Runtime.InteropServices.Guid("555FF0BE-197A-45C1-80F5-19185693A4C8")]
-    public class GluLambPropertiesPageControl : Panel
-    {
-        //public static Guid PanelId => typeof(GluLambPropertiesPageControl).GUID;
-
-        private GridView gridView;
-        private TimberBeam selectedBeam;
-
-        public GluLambPropertiesPageControl()
-        {
-
+            RhinoApp.WriteLine($"Creating GluLambPropertiesPageControl...");
             //Title = GetType().Name;
 
             gridView = new GridView
             {
-                DataStore = GluLambPlugin.Instance.Model.Beams
+                DataStore = GluLambPlugin.Instance.ActiveModel.Beams
             };
 
             // Add Columns to the GridView
@@ -118,13 +96,22 @@ namespace GluLamb.Views
             removeButton.Click += (sender, e) => RemoveBeam();
 
             var clearButton = new Button { Text = "Clear Beams" };
-            clearButton.Click += (sender, e) => ClearBeams();
+            clearButton.Click += (sender, e) => GluLambPlugin.Instance.ActiveModel.ClearBeams();
 
             var rotateButton = new Button { Text = "Rotate Beam" };
-            rotateButton.Click += (sender, e) => RotateBeam();
+            rotateButton.Click += (sender, e) =>
+            {
+                GluLambPlugin.Instance.ActiveModel.RotateBeam(selectedBeam);
+                RhinoDoc.ActiveDoc.Views.Redraw();
+            };
 
             var flipButton = new Button { Text = "Flip Beam" };
-            flipButton.Click += (sender, e) => FlipBeam();
+            flipButton.Click += (sender, e) => {
+                GluLambPlugin.Instance.ActiveModel.FlipBeam(selectedBeam);
+                RhinoDoc.ActiveDoc.Views.Redraw();
+            };
+
+            ActiveObjectLabel = new Label();
 
             // Arrange layout
             var layout = new DynamicLayout { DefaultSpacing = new Size(5, 5), Padding = new Padding(10) };
@@ -138,30 +125,14 @@ namespace GluLamb.Views
             layout.AddSeparateRow(flipButton, rotateButton, null);
             layout.AddSeparateRow(clearButton, null);
             layout.AddRow(new Divider());
-            layout.AddSeparateRow(new Label { Text = "GluLamb" }, null);
+            layout.AddSeparateRow(ActiveObjectLabel, null);
             layout.Add(null);
             Content = layout;
         }
 
-        //public string Title { get; }
 
-        private void RotateBeam()
-        {
-            if (selectedBeam != null)
-            {
-                GluLambPlugin.Instance.Model.RotateBeam(selectedBeam);
-                RhinoDoc.ActiveDoc.Views.Redraw();
-            }
-        }
-
-        private void FlipBeam()
-        {
-            if (selectedBeam != null)
-            {
-                GluLambPlugin.Instance.Model.FlipBeam(selectedBeam);
-                RhinoDoc.ActiveDoc.Views.Redraw();
-            }
-        }
+    public string Title { get; }
+  
         private void RemoveBeam()
         {
             if (gridView.SelectedRow < 0)
@@ -175,7 +146,7 @@ namespace GluLamb.Views
                     foreach (var got in getter.Objects())
                     {
                         var obj = got.Object();
-                        GluLambPlugin.Instance.Model.Beams.Remove(new TimberBeam() { Id = obj.Id });
+                        GluLambPlugin.Instance.ActiveModel.Beams.Remove(new TimberBeam() { Id = obj.Id });
                         for (int i = obj.Geometry.UserData.Count - 1; i >= 0; --i)
                         {
                             if (obj.Geometry.UserData[i] is TimberBeamUserData)
@@ -187,21 +158,25 @@ namespace GluLamb.Views
                     RhinoDoc.ActiveDoc.Views.Redraw();
                 }
             }
-            else if (GluLambPlugin.Instance.Model.Beams.Contains(selectedBeam))
+            else if (GluLambPlugin.Instance.ActiveModel.Beams.Contains(selectedBeam))
             {
                 var currentRow = Math.Max(0, gridView.SelectedRow - 1);
                 RhinoApp.WriteLine($"Removing {selectedBeam}...");
 
                 var obj = RhinoDoc.ActiveDoc.Objects.FindId(selectedBeam.Id);
-
-                for (int i = obj.Geometry.UserData.Count - 1; i >= 0; --i)
+                if (obj != null)
                 {
-                    if (obj.Geometry.UserData[i] is TimberBeamUserData)
+
+
+                    for (int i = obj.Geometry.UserData.Count - 1; i >= 0; --i)
                     {
-                        obj.Geometry.UserData.Remove(obj.Geometry.UserData[i]);
+                        if (obj.Geometry.UserData[i] is TimberBeamUserData)
+                        {
+                            obj.Geometry.UserData.Remove(obj.Geometry.UserData[i]);
+                        }
                     }
+                    GluLambPlugin.Instance.ActiveModel.Beams.Remove(selectedBeam);
                 }
-                GluLambPlugin.Instance.Model.Beams.Remove(selectedBeam);
 
                 gridView.SelectedRow = Math.Min(currentRow, gridView.DataStore.Count() - 1);
             }
@@ -279,15 +254,15 @@ namespace GluLamb.Views
                         Bounds = bb,
                     };
 
-                    int index = GluLambPlugin.Instance.Model.Beams.IndexOf(timberBeam);
+                    int index = GluLambPlugin.Instance.ActiveModel.Beams.IndexOf(timberBeam);
                     if (index >= 0)
                     {
                         RhinoApp.WriteLine($"Updating beam {timberBeam}");
-                        GluLambPlugin.Instance.Model.Beams.RefreshItem(timberBeam);
+                        GluLambPlugin.Instance.ActiveModel.Beams.RefreshItem(timberBeam);
                     }
                     else
                     {
-                        GluLambPlugin.Instance.Model.Beams.Add(timberBeam);
+                        GluLambPlugin.Instance.ActiveModel.Beams.Add(timberBeam);
                     }
 
                     var props = new Rhino.Collections.ArchivableDictionary();
@@ -312,10 +287,6 @@ namespace GluLamb.Views
             }
         }
 
-        private void ClearBeams()
-        {
-            GluLambPlugin.Instance.Model.ClearBeams();
-        }
 
         private void ZoomToBeam()
         {
@@ -346,5 +317,28 @@ namespace GluLamb.Views
             Dialogs.ShowMessage("Hello Rhino!", "GluLamb");
         }
 
+        #region IPanel methods
+        public void PanelShown(uint documentSerialNumber, ShowPanelReason reason)
+    {
+      // Called when the panel tab is made visible, in Mac Rhino this will happen
+      // for a document panel when a new document becomes active, the previous
+      // documents panel will get hidden and the new current panel will get shown.
+      //Rhino.RhinoApp.WriteLine($"Panel shown for document {documentSerialNumber}, this serial number {m_document_sn} should be the same");
     }
+
+    public void PanelHidden(uint documentSerialNumber, ShowPanelReason reason)
+    {
+      // Called when the panel tab is hidden, in Mac Rhino this will happen
+      // for a document panel when a new document becomes active, the previous
+      // documents panel will get hidden and the new current panel will get shown.
+      //Rhino.RhinoApp.WriteLine($"Panel hidden for document {documentSerialNumber}, this serial number {m_document_sn} should be the same");
+    }
+
+    public void PanelClosing(uint documentSerialNumber, bool onCloseDocument)
+    {
+      // Called when the document or panel container is closed/destroyed
+      //Rhino.RhinoApp.WriteLine($"Panel closing for document {documentSerialNumber}, this serial number {m_document_sn} should be the same");
+    }
+    #endregion IPanel methods
+  }
 }

@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	  <Deterministic>false</Deterministic>
+	<PackageOutputPath>..\bin\</PackageOutputPath>
+	<AssemblyVersion>2.0.*</AssemblyVersion>
+	<FileVersion>2.0.*</FileVersion>
+    <BaseOutputPath>..\bin</BaseOutputPath>
+	<OutputPath>..\bin</OutputPath>
+	  <Title>G2P Components</Title>
+	  <Company>Tom Svilans</Company>
+	  <Copyright>Copyright (c) 2025</Copyright>
+  </PropertyGroup>
+	
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="RhinoCommon" Version="8.10.24228.13001" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\GluLamb\GluLamb.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+    <Reference Include="D2P_Core">
+      <HintPath>..\..\D2P-Components\D2P_GrasshopperTools\bin\Debug\net7.0-windows\D2P_Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

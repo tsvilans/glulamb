@@ -1383,6 +1383,34 @@ namespace GluLamb
             return GetGlulamBlankSurfaces(top, bottom, middle, beam.Centreline);
         }
 
+        public static List<Interval> SpanSubtract(Interval span, IEnumerable<Interval> holes, double tolerance = 1e-3)
+        {
+            var res = new List<Interval>();
+
+            span.MakeIncreasing();
+
+            foreach (var hole in holes)
+                hole.MakeIncreasing();
+
+            var sorted = holes.OrderBy(x => x.Min);
+
+            double current = span.T0;
+            foreach (var hole in holes)
+            {
+                var sub = new Interval(
+                        Math.Max(span.Min, current),
+                        Math.Min(span.Max, hole.Min)
+                    );
+
+                current = hole.Max;
+
+                if (sub.Length > tolerance)
+                    res.Add(sub);
+            }
+
+            return res;
+        }
+
     }
 
     public static class DocUtility

@@ -1,4 +1,5 @@
-﻿using Rhino.Geometry;
+﻿using Rhino.Collections;
+using Rhino.Geometry;
 using Rhino.Input.Custom;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,13 @@ using RX = Rhino.Geometry.Intersect.Intersection;
 
 namespace GluLamb.Joints.TenonJoints
 {
+    public enum EndProfileType
+    {
+        LapTop,
+        CenterTenon,
+        LapBottom
+    }
+
     public class TJointX : JointX
     {
         public double Added = 10.0;
@@ -17,6 +25,8 @@ namespace GluLamb.Joints.TenonJoints
         public double BlindOffset = 0;
         public double ThicknessOffset = 0;
         public double BackOffset = 10;
+        public double OutInset = 5;
+        public double Radius = 0;
 
         public bool FlipDirection = false;
 
@@ -30,6 +40,8 @@ namespace GluLamb.Joints.TenonJoints
         public Plane TenonBackPlane = Plane.Unset;
         public Plane TenonBackOffsetPlane = Plane.Unset;
         public Plane TenonFrontPlane = Plane.Unset;
+        public Plane TenonFrontRadiusPlane = Plane.Unset;
+        public Plane JointSidePlane = Plane.Unset;
 
         public Plane[] TenonSidePlanes;
         public Plane[] MortiseSidePlanes;
@@ -62,6 +74,11 @@ namespace GluLamb.Joints.TenonJoints
             if (values.TryGetValue("BlindOffset", out double _blindoffset)) BlindOffset = _blindoffset;
             if (values.TryGetValue("ThicknessOffset", out double _thicknessoffset)) ThicknessOffset = _thicknessoffset;
             if (values.TryGetValue("FlipDirection", out double _flipdirection)) FlipDirection = _flipdirection > 0;
+            if (values.TryGetValue("BackOffset", out double _backoffset)) BackOffset = _backoffset;
+            if (values.TryGetValue("OutInset", out double _outinset)) OutInset = _outinset;
+            if (values.TryGetValue("Radius", out double _radius)) Radius = _radius;
+
+            Console.WriteLine($"Radius: {Radius}");
         }
 
         public override List<object> GetDebugList()
@@ -103,6 +120,10 @@ namespace GluLamb.Joints.TenonJoints
 
             if (Normal * beam0Y < 0.0)
                 Normal.Reverse();
+
+
+            if (mortiseDirection * Vector3d.CrossProduct(tenonDirection, Normal) < 0)
+                mortiseDirection.Reverse();
             // Normal = GluLamb.Utility.ClosestAxis(MortisePlane, beam0Y);
 
             var mortiseToTenon = TenonPlane.Origin - MortisePlane.Origin;
@@ -120,7 +141,6 @@ namespace GluLamb.Joints.TenonJoints
 
             if (dim != 0)
             {
-
                 mortiseWidth = mortise.Height;
                 mortiseHeight = mortise.Width;
             }
@@ -130,15 +150,29 @@ namespace GluLamb.Joints.TenonJoints
             var MortiseSideDirection = GluLamb.Utility.ClosestAxis(MortisePlane, tenonDirection);
             var TenonSideDirection = GluLamb.Utility.ClosestAxis(TenonPlane, mortiseDirection);
 
-            debug.Add(new Line(MortisePlane.Origin, MortiseSideDirection, 300));
+
+            debug.Add(new Line(TenonPlane.Origin, TenonSideDirection, 400));
+            debug.Add(new Line(TenonPlane.Origin, MortiseSideDirection, 400));
+
+            debug.Add(new Line(MortisePlane.Origin, tenonDirection, 300));
+            debug.Add(new Line(TenonPlane.Origin, mortiseDirection, 300));
+            debug.Add(new Line(TenonPlane.Origin, Normal, 300));
+
+            JointSidePlane = new Plane(
+                MortisePlane.Origin - (MortiseSideDirection * mortiseWidth * 0.5),
+                Vector3d.CrossProduct(Normal, MortiseSideDirection), Normal);
 
             TenonBackPlane = new Plane(
-                MortisePlane.Origin - (MortiseSideDirection * (mortiseWidth * 0.5 + BackOffset)),
-                Vector3d.CrossProduct(Normal, MortiseSideDirection), Normal);
+                JointSidePlane.Origin + JointSidePlane.Normal * (BackOffset + OutInset),
+                JointSidePlane.XAxis, JointSidePlane.YAxis);
 
             TenonFrontPlane = new Plane(
                 MortisePlane.Origin + MortiseSideDirection * (mortiseWidth * 0.5 - BlindOffset),
                 Vector3d.CrossProduct(Normal, MortiseSideDirection), Normal);
+
+            TenonFrontRadiusPlane = new Plane(
+                TenonFrontPlane.Origin - TenonFrontPlane.Normal * Radius,
+                TenonFrontPlane.XAxis, TenonFrontPlane.YAxis);
 
 
             dim = GluLamb.Utility.ClosestDimension2D(TenonBackPlane, TenonPlane.XAxis);
@@ -149,7 +183,6 @@ namespace GluLamb.Joints.TenonJoints
                 tenonHeight = tenon.Width;
             }
 
-            // debug.Add(new Line(MortisePlane.Origin, -Normal, tenonHeight * 0.5));
 
             TenonSidePlanes = new Plane[]{
                 new Plane(TenonPlane.Origin + TenonSideDirection * (tenonWidth * 0.5 + Added), tenonDirection, tenonUp),
@@ -158,34 +191,30 @@ namespace GluLamb.Joints.TenonJoints
 
             MortiseSidePlanes = new Plane[]{
                 new Plane(TenonPlane.Origin + TenonSideDirection * (tenonWidth * 0.5 - ThicknessOffset), tenonDirection, tenonUp),
-                new Plane(TenonPlane.Origin - TenonSideDirection * (tenonWidth * 0.5 - ThicknessOffset), tenonDirection, tenonUp),
+                new Plane(TenonPlane.Origin - TenonSideDirection * (tenonWidth * 0.5 - ThicknessOffset), -tenonDirection, tenonUp),
             };
 
             var centre = (TenonPlane.Origin + MortisePlane.Origin) * 0.5;
+
+            Position = new Plane(centre, TenonSideDirection, MortiseSideDirection);
 
             TenonBackPlane.Origin = centre.ProjectToPlane(TenonBackPlane);
             TenonFrontPlane.Origin = centre.ProjectToPlane(TenonFrontPlane);
             TenonSidePlanes[0].Origin = centre.ProjectToPlane(TenonSidePlanes[0]);
             TenonSidePlanes[1].Origin = centre.ProjectToPlane(TenonSidePlanes[1]);
 
-            //debug.Add(new GH_Plane(TenonFacePlane));
-            //debug.Add(new GH_Plane(TenonBackPlane));
-            //debug.Add(new GH_Plane(TenonSidePlanes[0]));
-            //debug.Add(new GH_Plane(TenonSidePlanes[1]));
-
-            var TenonBackPlaneOffset = new Plane(
-                TenonBackPlane.Origin - TenonBackPlane.ZAxis * Added,
-                TenonBackPlane.XAxis,
-                TenonBackPlane.YAxis
-                );
-
             var TenonOutPlane = new Plane(
-                TenonBackPlane.Origin - TenonBackPlane.ZAxis * BackOffset,
-                TenonBackPlane.XAxis,
-                TenonBackPlane.YAxis
+                JointSidePlane.Origin + JointSidePlane.ZAxis * OutInset,
+                JointSidePlane.XAxis,
+                JointSidePlane.YAxis
                 );
 
-            // For a real tenon...
+            var TenonOutPlaneOffset = new Plane(
+                JointSidePlane.Origin - JointSidePlane.ZAxis * Added,
+                JointSidePlane.XAxis,
+                JointSidePlane.YAxis
+                );
+
             var tenonThickness = Math.Min(tenonHeight, mortiseHeight) * 0.5;
 
             var TenonBottomPlane = new Plane(
@@ -200,142 +229,219 @@ namespace GluLamb.Joints.TenonJoints
                 TenonBackPlane.ZAxis
                 );
 
-
-            // For a lap joint...
             TopPlane = new Plane(
                 TenonBackPlane.Origin + TenonBackPlane.YAxis * (Math.Max(tenonHeight, mortiseHeight) * 0.5 + Added),
-                TenonBackPlane.XAxis,
+                -TenonBackPlane.XAxis,
                 TenonBackPlane.ZAxis
                 );
 
             MiddlePlane = new Plane(
                 TenonBackPlane.Origin,
-                TenonBackPlane.XAxis,
+                -TenonBackPlane.XAxis,
                 TenonBackPlane.ZAxis
                 );
 
             BottomPlane = new Plane(
-                TenonBackPlane.Origin - TenonBackPlane.YAxis * (Math.Max(tenonHeight, mortiseHeight) * 0.5 + Added),
-                TenonBackPlane.XAxis,
+                TenonBackPlane.Origin - TenonBackPlane.YAxis * (Math.Max(tenonHeight, mortiseHeight) * 0.5 + Added * 2),
+                -TenonBackPlane.XAxis,
                 TenonBackPlane.ZAxis
                 );
 
-            //debug.Add(new GH_Plane(TopPlane));
-            //debug.Add(new GH_Plane(MiddlePlane));
-            //debug.Add(new GH_Plane(BottomPlane));
+            var biInt = TenonSideDirection - MortiseSideDirection;
+            var biExt = TenonSideDirection + MortiseSideDirection;
 
-            TryGetBisectingPlane(TenonPlane, MortisePlane, out Plane InternalPlane, false);
-            TryGetBisectingPlane(TenonPlane, MortisePlane, out Plane ExternalPlane, true);
+            biInt.Unitize();
+            biExt.Unitize();
 
-            RX.PlanePlanePlane(MortiseSidePlanes[0], TenonBackPlane, MiddlePlane, out Point3d internalPlaneOrigin);
-            InternalPlane.Origin = internalPlaneOrigin;
+            RX.PlanePlanePlane(MortiseSidePlanes[1], TenonOutPlane, MiddlePlane, out Point3d internalPlaneOrigin);
 
-            RX.PlanePlanePlane(MortiseSidePlanes[1], TenonBackPlane, MiddlePlane, out Point3d externalPlaneOrigin);
-            ExternalPlane.Origin = externalPlaneOrigin;
+            RX.PlanePlanePlane(MortiseSidePlanes[0], TenonOutPlane, MiddlePlane, out Point3d externalPlaneOrigin);
 
-            var points = new Point3d[18];
+            var WingPlanes = new Plane[]
+            {
+                new Plane(externalPlaneOrigin, Normal, Vector3d.CrossProduct(biExt, -Normal)),
+                new Plane(internalPlaneOrigin, Normal, Vector3d.CrossProduct(biInt, Normal)),
+            };
+
+            var points = new Point3d[22];
 
             for (int i = 0; i < 2; ++i)
             {
-                var ii = i * 9;
+                var ii = i * 11;
 
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, BottomPlane, out points[0 + ii]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackOffsetPlane, BottomPlane, out points[1 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonOutPlane, BottomPlane, out points[0 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, BottomPlane, out points[1 + ii]);
                 RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, MiddlePlane, out points[2 + ii]);
                 RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, MiddlePlane, out points[3 + ii]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, TopPlane, out points[4 + ii]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackOffsetPlane, TopPlane, out points[5 + ii]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, TopPlane, out points[6 + ii]);
-
+                // RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontRadiusPlane, MiddlePlane, out points[3 + ii]);
+                // RX.PlanePlanePlane(MortiseSideRadiusPlanes[i], TenonFrontPlane, MiddlePlane, out points[4 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, MiddlePlane, out points[4 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, TopPlane, out points[5 + ii]);
+                // RX.PlanePlanePlane(MortiseSideRadiusPlanes[i], TenonFrontPlane, TopPlane, out points[5 + ii]);
+                // RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontRadiusPlane, TopPlane, out points[6 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, TopPlane, out points[6 + ii]);
                 RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, TopPlane, out points[7 + ii]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlane, TopPlane, out points[8 + ii]);
+                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonOutPlane, TopPlane, out points[8 + ii]);
+
+                RX.PlanePlanePlane(WingPlanes[i], TenonOutPlaneOffset, TopPlane, out points[9 + ii]);
+                RX.PlanePlanePlane(WingPlanes[i], TenonOutPlaneOffset, BottomPlane, out points[10 + ii]);
             }
 
-            debug.Clear();
-            //debug.AddRange(points.Select(x => new GH_Point(x)));
-            //debug.Add(new GH_Plane(TenonBackPlane));
+            var geo = new Brep[7];
 
-            //debug.Add(new GH_Plane(InternalPlane));
-            //debug.Add(new GH_Plane(ExternalPlane));
-
-            var tenonPoints = new Point3d[8];
+            var topOutline = new Polyline(){
+                points[9],
+                points[8],
+                points[6],
+                points[17],
+                points[19],
+                points[20],
+            };
 
             for (int i = 0; i < 2; ++i)
             {
-                RX.PlanePlanePlane(TenonSidePlanes[i], TenonBackPlane, BottomPlane, out tenonPoints[0 + i * 4]);
-                RX.PlanePlanePlane(TenonSidePlanes[i], TenonBackPlane, MiddlePlane, out tenonPoints[1 + i * 4]);
-                RX.PlanePlanePlane(TenonSidePlanes[i], TenonFrontPlane, MiddlePlane, out tenonPoints[2 + i * 4]);
-                RX.PlanePlanePlane(TenonSidePlanes[i], TenonFrontPlane, TopPlane, out tenonPoints[3 + i * 4]);
+                var ii = i * 11;
+                // geo[0 + i * 2] = Brep.CreateFromCornerPoints(points[0 + ii], points[1 + ii], points[5 + ii], points[6 + ii], 1e-3);
+
+                Polyline outline;
+
+                if (Math.Abs(BackOffset) > 1e-3)
+                {
+                    outline = new Polyline{
+                        points[0 + ii],
+                        points[1 + ii],
+                        points[2 + ii],
+                        points[3 + ii],
+                        points[6 + ii],
+                        points[8 + ii],
+                        points[0 + ii],
+                    };
+                }
+                else
+                {
+                    outline = new Polyline{
+                        points[2 + ii],
+                        points[3 + ii],
+                        points[6 + ii],
+                        points[7 + ii],
+                        points[2 + ii],
+                    };
+                }
+
+                geo[0 + i * 2] = Brep.CreatePlanarBreps(outline.ToNurbsCurve(), 1e-3).FirstOrDefault();
+                geo[1 + i * 2] = Brep.CreateFromCornerPoints(points[0 + ii], points[8 + ii], points[9 + ii], points[10 + ii], 1e-3);
             }
 
-            var tenonGeo = new Brep[3];
-            tenonGeo[0] = Brep.CreateFromCornerPoints(tenonPoints[0], tenonPoints[1], tenonPoints[5], tenonPoints[4], 0.001);
-            tenonGeo[1] = Brep.CreateFromCornerPoints(tenonPoints[1], tenonPoints[2], tenonPoints[6], tenonPoints[5], 0.001);
-            tenonGeo[2] = Brep.CreateFromCornerPoints(tenonPoints[2], tenonPoints[3], tenonPoints[7], tenonPoints[6], 0.001);
+            // return 0;
 
-            //debug.AddRange(tenonGeo);
+            geo[4] = Brep.CreateFromCornerPoints(points[1], points[12], points[13], points[2], 1e-3);
+            geo[5] = Brep.CreateFromCornerPoints(points[2], points[13], points[14], points[3], 1e-3);
+            geo[6] = Brep.CreateFromCornerPoints(points[3], points[14], points[17], points[6], 1e-3);
 
-            var mortisePoints = new Point3d[8];
+            // debug.AddRange(geo);
+
+            var joined = Brep.JoinBreps(geo, 1e-3);
+            if (joined == null) throw new Exception($"{GetType().Name}: joined failed.");
+
+            Parts[0].Geometry.AddRange(joined);
+            Parts[1].Geometry.AddRange(joined);
+
+            var topPocket = new Polyline(){
+                points[8],
+                points[6],
+                points[17],
+                points[19],
+                points[8],
+            };
+
+            var planeDict = new ArchivableDictionary();
+            planeDict.Set("Top", TopPlane);
+            planeDict.Set("Middle", Position);
+            planeDict.Set("Bottom", BottomPlane);
+            planeDict.Set("Wing0", WingPlanes[0]);
+            planeDict.Set("Wing1", WingPlanes[1]);
+            planeDict.Set("TenonBack", TenonBackPlane);
+            planeDict.Set("TenonFront", TenonFrontPlane);
+            planeDict.Set("TenonOut", TenonOutPlane);
+            planeDict.Set("TenonOutOffset", TenonOutPlaneOffset);
+            planeDict.Set("MortiseSide0", MortiseSidePlanes[0]);
+            planeDict.Set("MortiseSide1", MortiseSidePlanes[1]);
+
+            // Create machining geometry
             for (int i = 0; i < 2; ++i)
             {
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlaneOffset, MiddlePlane, out mortisePoints[0 + i * 4]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonBackPlaneOffset, TopPlane, out mortisePoints[1 + i * 4]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, MiddlePlane, out mortisePoints[2 + i * 4]);
-                RX.PlanePlanePlane(MortiseSidePlanes[i], TenonFrontPlane, TopPlane, out mortisePoints[3 + i * 4]);
+                Parts[i].Data.Set("Planes", planeDict);
+
+                Parts[i].Data.Set("TopOutline", topOutline.ToNurbsCurve());
+                Parts[i].Data.Set("TopPocket", topPocket.ToNurbsCurve());
+                Parts[i].Data.Set("TopDepth", points[4].DistanceTo(points[5]));
+
+                Parts[i].Data.Set("WingPlane0", WingPlanes[0]);
+                Parts[i].Data.Set("WingPlane1", WingPlanes[1]);
+                Parts[i].Data.Set("WingEdge0", new Line(points[10], points[9]).ToNurbsCurve());
+                Parts[i].Data.Set("WingDepth0", points[0].DistanceTo(points[10]));
+                Parts[i].Data.Set("WingEdge1", new Line(points[20], points[21]).ToNurbsCurve());
+                Parts[i].Data.Set("WingDepth1", points[11].DistanceTo(points[21]));
+
+                Parts[i].Data.Set("TenonBackPocket", new Polyline() { points[1], points[2], points[13], points[12], points[1] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonBackPlane", TenonBackPlane);
+                Parts[i].Data.Set("TenonBackDepth", Math.Abs(TenonFrontPlane.DistanceTo(TenonBackPlane.Origin)));
+                Parts[i].Data.Set("TenonSeatDepth", TenonOutPlaneOffset.DistanceTo(TenonOutPlane.Origin));
+                Parts[i].Data.Set("TenonBack", new Polyline() { points[1], points[7], points[18], points[12], points[1] }.ToNurbsCurve());
+
+                Parts[i].Data.Set("TenonFront", new Polyline() { points[3], points[6], points[17], points[14], points[3] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonFrontPlane", TenonFrontPlane);
+                Parts[i].Data.Set("TenonFrontDepth", new Polyline() { points[3], points[6], points[17], points[14], points[3] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonShoulderPlane", TenonOutPlane);
+                Parts[i].Data.Set("TenonShoulder", new Polyline() { points[0], points[8], points[19], points[11], points[0] }.ToNurbsCurve());
+
+                Parts[i].Data.Set("TenonTrace0", new Polyline() { points[0], points[8] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonTraceDepth0", new Polyline() { points[0], points[8] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonTrace1", new Polyline() { points[19], points[11] }.ToNurbsCurve());
+                Parts[i].Data.Set("TenonTraceDepth1", new Polyline() { points[0], points[8] }.ToNurbsCurve());
+
+                Parts[i].Data.Set("TraceDepth0", points[2].DistanceTo(points[3]));
+                Parts[i].Data.Set("TraceDepth1", points[13].DistanceTo(points[14]));
+
+                Parts[i].Data.Set("MortiseSidePlane0", MortiseSidePlanes[0]);
+                Parts[i].Data.Set("MortiseSidePlane1", MortiseSidePlanes[1]);
             }
-
-            var mortiseGeo = new Brep[4];
-            mortiseGeo[0] = Brep.CreateFromCornerPoints(mortisePoints[0], mortisePoints[2], mortisePoints[6], mortisePoints[4], 0.001);
-            mortiseGeo[1] = Brep.CreateFromCornerPoints(mortisePoints[0], mortisePoints[1], mortisePoints[3], mortisePoints[2], 0.001);
-            mortiseGeo[2] = Brep.CreateFromCornerPoints(mortisePoints[2], mortisePoints[3], mortisePoints[7], mortisePoints[6], 0.001);
-            mortiseGeo[3] = Brep.CreateFromCornerPoints(mortisePoints[4], mortisePoints[5], mortisePoints[7], mortisePoints[6], 0.001);
-
-            debug.AddRange(mortiseGeo);
-
-            var tenonGeoJoined = Brep.JoinBreps(tenonGeo, 0.001);
-            if (tenonGeoJoined == null) throw new Exception($"{GetType().Name}: tenonGeoJoined failed.");
-            var mortiseGeoJoined = Brep.JoinBreps(mortiseGeo, 0.001);
-            if (mortiseGeoJoined == null) throw new Exception($"{GetType().Name}: mortiseGeoJoined failed.");
-
-            Parts[0].Geometry.AddRange(tenonGeoJoined);
-            Parts[1].Geometry.AddRange(mortiseGeoJoined);
 
             return 0;
         }
 
-        /// <summary>
-        /// Computes the plane that bisects the angle between two input planes.
-        /// </summary>
-        /// <param name="planeA">First plane.</param>
-        /// <param name="planeB">Second plane.</param>
-        /// <param name="bisector">Resulting bisecting plane.</param>
-        /// <returns>True if successful, false if planes are parallel or nearly parallel.</returns>
-        public static bool TryGetBisectingPlane(Plane planeA, Plane planeB, out Plane bisector, bool external = false)
+        public Curve FilletCurve(Curve crv, IEnumerable<int> corners, double radius = 10)
         {
-            bisector = Plane.Unset;
+            var segments = crv.DuplicateSegments();
+            var newSegments = new List<Curve>();
 
-            // 1. Get unit normals
-            Vector3d nA = planeA.Normal;
-            Vector3d nB = planeB.Normal;
-            nA.Unitize();
-            nB.Unitize();
+            foreach (var corner in corners)
+            {
+                if (corner < 0 || corner > (segments.Length - 1)) continue;
 
-            // 2. Compute bisector normal (internal or external)
-            Vector3d nBis = external ? nA - nB : nA + nB;
-            if (!nBis.Unitize())
-                return false; // parallel or opposite planes
+                var c0 = segments[corner];
+                var c1 = segments[corner + 1];
 
-            // 3. Find intersection line between the two planes
-            if (!Rhino.Geometry.Intersect.Intersection.PlanePlane(planeA, planeB, out Line intersection))
-                return false;
+                var fillet = Curve.CreateFilletCurves(c0, c0.PointAtStart, c1, c1.PointAtEnd, radius, false, true, false, 1e-3, 1e-3);
 
-            // 4. Use midpoint of intersection line as the origin
-            Point3d origin = intersection.PointAt(0.5);
+                // Console.WriteLine($"Num. fillets: {fillet.Length}");
 
-            // 5. Construct bisector plane
-            bisector = new Plane(origin, nBis);
+                if (fillet.Length == 3)
+                {
+                    segments[corner] = fillet[0];
+                    segments[corner + 1] = fillet[1];
+                    newSegments.Add(fillet[2]);
+                }
+            }
 
-            return true;
+            newSegments.AddRange(segments);
+
+            // Console.WriteLine($"New segments: {newSegments.Count}");
+
+            var joined = Curve.JoinCurves(newSegments);
+
+            // Console.WriteLine($"joined {joined.Length}");
+            return joined.FirstOrDefault();
         }
     }
 }

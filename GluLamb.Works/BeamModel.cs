@@ -43,6 +43,8 @@ namespace GluLamb
 
         public void RotateBeam(TimberBeam beam)
         {
+            if (beam == null) return;
+
             var obj = RhinoDoc.ActiveDoc.Objects.FindId(beam.Id);
             if (obj != null)
             {
@@ -68,6 +70,8 @@ namespace GluLamb
 
         public void FlipBeam(TimberBeam beam)
         {
+            if (beam == null) return;
+
             var obj = RhinoDoc.ActiveDoc.Objects.FindId(beam.Id);
             if (obj != null)
             {
