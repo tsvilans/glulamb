@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Deterministic>false</Deterministic>
+		<Nullable>enable</Nullable>
+		<PackageOutputPath>..\bin\</PackageOutputPath>
+		<BaseOutputPath>..\bin</BaseOutputPath>
+		<OutputPath>..\bin</OutputPath>  
+	</PropertyGroup>
+	
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
+		
+	<ItemGroup>
+		<ProjectReference Include="..\GluLamb\GluLamb.csproj" />
+	</ItemGroup>
+
+</Project>

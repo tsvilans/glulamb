@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Reflection;
 using System.Threading.Tasks;
 
 using Rhino.PlugIns;
@@ -18,19 +18,25 @@ using Rhino.DocObjects;
 using Rhino.Display;
 using Rhino.Input.Custom;
 using System.Collections.ObjectModel;
-
-
+using GluLamb.Joints;
 
 namespace G2PComponents
 {
+    public static class Loader
+    {
+        public static JointFactory Factory { get; } = new JointFactory();
+    }
+
     public class GluLambPlugin : PlugIn
     {
         DisplayMaterial MeshMaterial;
+        GluLamb.Joints.JointFactory JointLoader;
 
         public GluLambPlugin()
         {
             Instance = this;
             MeshMaterial = new DisplayMaterial();
+
         }
 
         ~GluLambPlugin()
@@ -47,6 +53,14 @@ namespace G2PComponents
         {
             Rhino.RhinoApp.WriteLine($"G2PComponents v{Version}");
             RhinoApp.WriteLine("An extension for D2PComponents (c) Design-to-Production GmbH.");
+
+
+            //var jointsPath = Path.GetFullPath("./");
+            var jointsPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+            RhinoApp.WriteLine($"-- Loading joints from {jointsPath}...");
+            Loader.Factory.LoadFromFolder(jointsPath);
+            RhinoApp.WriteLine($"-- Loaded {Loader.Factory.Available.Count} joints.");
 
             return base.OnLoad(ref errorMessage);
         }
