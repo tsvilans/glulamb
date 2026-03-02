@@ -30,7 +30,6 @@ namespace G2PComponents
     public class GluLambPlugin : PlugIn
     {
         DisplayMaterial MeshMaterial;
-        GluLamb.Joints.JointFactory JointLoader;
 
         public GluLambPlugin()
         {
