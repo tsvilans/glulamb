@@ -151,6 +151,8 @@ namespace G2PComponents.Commands
                 attr.SetUserString("width", $"{width}");
                 attr.SetUserString("height", $"{height}");
                 attr.SetUserString("length", $"{length}");
+                attr.WireDensity = -1;
+
 
                 //RhinoApp.WriteLine($"Setting geometry: {brep.IsValid}");
 

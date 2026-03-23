@@ -122,5 +122,46 @@ namespace G2PComponents
 
             return Instantiation.InstancesFromObjects(guids, null);
         }
+
+
+        public static BoxSide GetBoxSide(Point3d point, Box box, double epsilon = 1e-6)
+        {
+            if (!box.Plane.RemapToPlaneSpace(point, out Point3d wp))
+                return BoxSide.Unknown;
+
+            // Check if within Z bounds (i.e., not top/bottom)
+            if (wp.Z + epsilon < box.Z.Max && wp.Z - epsilon > box.Z.Min)
+            {
+                // Check if within Y bounds
+                if (wp.Y + epsilon < box.Y.Max && wp.Y - epsilon > box.Y.Min)
+                {
+                    // Ends (X direction)
+                    if (wp.X - epsilon < box.X.Min)
+                        return BoxSide.Left;
+
+                    if (wp.X + epsilon > box.X.Max)
+                        return BoxSide.Right;
+                }
+                else if (wp.Y - epsilon < box.Y.Min)
+                {
+                    return BoxSide.Inside;
+                }
+                else if (wp.Y + epsilon > box.Y.Max)
+                {
+                    return BoxSide.Outside;
+                }
+            }
+            // Top / Bottom
+            else if (wp.Z - epsilon < box.Z.Min)
+            {
+                return BoxSide.Bottom;
+            }
+            else if (wp.Z + epsilon > box.Z.Max)
+            {
+                return BoxSide.Top;
+            }
+
+            return BoxSide.Unknown;
+        }
     }
 }
