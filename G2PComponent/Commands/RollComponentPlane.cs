@@ -8,19 +8,19 @@ using Rhino.Input.Custom;
 
 namespace G2PComponents.Commands
 {
-    public class FlipComponentPlaneCommand : Command
+    public class RollComponentPlaneCommand : Command
     {
-        public FlipComponentPlaneCommand()
+        public RollComponentPlaneCommand()
         {
             Instance = this;
         }
 
-        public static FlipComponentPlaneCommand Instance
+        public static RollComponentPlaneCommand Instance
         {
             get; private set;
         }
 
-        public override string EnglishName => "FlipComponentPlane";
+        public override string EnglishName => "RollComponentPlane";
 
         private OptionToggle optionAxis = new OptionToggle(true, "YAxis", "XAxis");
 
@@ -32,7 +32,8 @@ namespace G2PComponents.Commands
             GetObject go = new GetObject();
             go.SetCommandPrompt("Select components");
             go.GeometryFilter = geometryFilter;
-            go.AddOptionToggle("Axis", ref optionAxis);
+            //go.AddOptionToggle("Axis", ref optionAxis);
+
             go.GroupSelect = true;
             go.SubObjectSelect = false;
             go.EnableClearObjectsOnEntry(false);
@@ -69,7 +70,7 @@ namespace G2PComponents.Commands
                 rhObject.Object().Select(true, true);
             }
 
-            var components = Instantiation.InstancesFromObjects(go.Objects().Select(x => x.Object()), Context.settings);
+            var components = Instantiation.InstancesFromObjects(go.Objects().Select(x => x.Object()), Context.settings, doc);
             foreach (var component in components)
             {
                 var plane = component.Plane;
@@ -77,7 +78,7 @@ namespace G2PComponents.Commands
 
                 if (brep == null) continue;
 
-                var flippedPlane = Utility.FlipBasePlane(brep, plane, optionAxis.CurrentValue);
+                var flippedPlane = Utility.RollBaseplane(brep, plane);
                 var label = component.Label.Duplicate() as TextEntity;
                 label.Plane = flippedPlane;
 
