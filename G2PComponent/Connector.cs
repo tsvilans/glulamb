@@ -104,8 +104,10 @@ namespace G2PComponents
                 double backRay = Intersection.MeshRay(mesh, new Ray3d(axis.From - direction * breakthroughEpsilon, -direction));
                 double endRay = Intersection.MeshRay(mesh, new Ray3d(axis.To + direction * breakthroughEpsilon, direction));
 
-                if ((frontRay + breakthroughEpsilon) >= length)
-                    continue;
+                //if ((frontRay + breakthroughEpsilon) >= length)
+                //    continue;
+
+                if (frontRay < breakthroughEpsilon) continue;
 
                 bool startThru = double.IsNegativeInfinity(backRay);
                 bool endThru = double.IsNegativeInfinity(endRay);

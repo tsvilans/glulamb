@@ -29,6 +29,134 @@ namespace G2PComponents
             return null;
         }
 
+        public static (double Width, double Height) GetRelativeDimensions(Box box, Vector3d vector)
+        {
+            var plane = box.Plane;
+            // Test against Y and Z since X is our longitudinal axis
+
+            var dotZ = plane.ZAxis * vector;
+            var dotY = plane.YAxis * vector;
+
+            if (Math.Abs(dotZ) > Math.Abs(dotY)) return (box.Y.Max - box.Y.Min, box.Z.Max - box.Z.Min);
+
+            return (box.Z.Max - box.Z.Min, box.Y.Max - box.Y.Min);
+        }
+
+        /// <summary>
+        /// Deconstruct a box into separate Rectangle3d faces.
+        /// </summary>
+        /// <param name="box"></param>
+        /// <returns></returns>
+        public static List<Rectangle3d> DeBox(Box box)
+        {
+            var data = new List<Rectangle3d>();
+
+            var origin = box.Plane.Origin;
+            var xaxis = box.Plane.XAxis;
+            var yaxis = box.Plane.YAxis;
+            var zaxis = box.Plane.ZAxis;
+
+            var normX = new Interval(0, box.X.Length);
+            var normY = new Interval(0, box.Y.Length);
+            var normZ = new Interval(0, box.Z.Length);
+
+            data.Add(new Rectangle3d(new Plane(
+                origin + xaxis * box.X.Min + yaxis * box.Y.Min + zaxis * box.Z.Max,
+                xaxis, yaxis
+                ), normX, normY));
+
+            data.Add(new Rectangle3d(new Plane(
+                origin + xaxis * box.X.Min + yaxis * box.Y.Max + zaxis * box.Z.Min,
+                xaxis, -yaxis
+                ), normX, normY));
+
+            data.Add(new Rectangle3d(new Plane(
+                origin + xaxis * box.X.Min + yaxis * box.Y.Min + zaxis * box.Z.Min,
+                xaxis, zaxis
+                ), normX, normY));
+
+            data.Add(new Rectangle3d(new Plane(
+                origin + xaxis * box.X.Min + yaxis * box.Y.Max + zaxis * box.Z.Max,
+                xaxis, -zaxis
+                ), normX, normY));
+
+            // data.Add(new Rectangle3d(box.Plane, box.X, box.Y));
+
+            return data;
+        }
+
+        /// <summary>
+        /// Get the bounding box and world box of a Component, provided it has a member
+        /// named Geometry.
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="worldBox"></param>
+        /// <param name="doc"></param>
+        /// <returns></returns>
+        public static BoundingBox GetComponentBounds(D2P_Core.Interfaces.IComponent component, out Box worldBox, RhinoDoc doc = null)
+        {
+            if (doc == null) doc = RhinoDoc.ActiveDoc;
+
+            var geometry = G2PComponents.Utility.GetMember(component, "Geometry", doc);
+            var plane = component.Plane;
+
+            var bounds = BoundingBox.Empty;
+
+            foreach (var geom in geometry)
+            {
+                bounds.Union(geom.GetBoundingBox(component.Plane));
+            }
+
+            worldBox = new Box(component.Plane, bounds);
+
+            return bounds;
+        }
+
+        /// <summary>
+        /// Make a list of planes that divide a certain width in another plane.
+        /// Useful for creating drilling spacings or grids.
+        /// </summary>
+        /// <param name="plane"></param>
+        /// <param name="width"></param>
+        /// <param name="N"></param>
+        /// <param name="margin"></param>
+        /// <param name="minStep"></param>
+        /// <returns></returns>
+        public static List<Plane> MakeDivisors(Plane plane, double width, int N, double margin = 0, double minStep = 0)
+        {
+            if (N == 1 || width < margin * 2)
+            {
+                return new List<Plane> { new Plane(plane.PointAt(0, width / 2, 0), plane.XAxis, plane.ZAxis) };
+            }
+
+            width -= margin * 2;
+
+            var divisors = new List<Plane>();
+
+            if (minStep > 0)
+            {
+                if (width < minStep)
+                {
+                    return new List<Plane> { new Plane(plane.PointAt(0, margin + width / 2, 0), plane.XAxis, plane.ZAxis) };
+                }
+
+                var maxN = (int)Math.Floor(width / minStep) + 1;
+
+                N = Math.Min(N, maxN);
+            }
+
+            var step = width / (N - 1);
+
+            for (int i = 0; i < N; ++i)
+            {
+                var divisor = new Plane(plane.PointAt(0, margin + step * i, 0), plane.XAxis, plane.ZAxis);
+                divisors.Add(divisor);
+            }
+
+            return divisors;
+
+        }
+
         public static GluLamb.Beam ComponentToBeam(Component component)
         {
             var plane = component.Label.Plane;

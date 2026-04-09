@@ -30,9 +30,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-    <Reference Include="D2P_Core">
-      <HintPath>..\..\D2P-Components\D2P_GrasshopperTools\bin\Debug\net7.0-windows\D2P_Core.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+	  <Reference Include="D2P_Core">
+	    <HintPath>..\..\..\Shared\Libraries\GluLamb\D2P_Core.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
 
 </Project>
