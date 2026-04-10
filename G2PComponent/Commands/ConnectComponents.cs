@@ -137,7 +137,10 @@ namespace G2PComponents.Commands
                         ), Math.Min(sourceHeight + ExtraDepth, MaxDepth)
                     );
 
-                    var guid = doc.Objects.AddBrep(cylinder.ToBrep(true, true));
+                    var attr = doc.CreateDefaultAttributes();
+                    attr.WireDensity = -1;
+
+                    var guid = doc.Objects.AddBrep(cylinder.ToBrep(true, true), attr);
                     group.Add(guid);
 
                 }
