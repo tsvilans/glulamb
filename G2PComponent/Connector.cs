@@ -49,31 +49,67 @@ namespace G2PComponents
                 RhinoDoc doc = null,
                 bool avoidBottom = false)
         {
+
+            // --- Get geometry ---
+            GeometryBase geometry = Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
+
+            return IntersectConnectorsRay(
+                component.Label.Plane, 
+                geometry,
+                connectors,
+                breakthroughEpsilon, 
+                compensateTilt,
+                startDistance, 
+                breakthroughDistance, 
+                detailed, 
+                doc, 
+                avoidBottom);
+        }
+
+        public static (List<PlacedConnector>, bool isDoubleSided) IntersectConnectorsRay(
+                Plane baseplane, 
+                GeometryBase geometry,
+                List<Connector> connectors,
+                double breakthroughEpsilon = 0.5,
+                bool compensateTilt = true,
+                double startDistance = 0,
+                double breakthroughDistance = 0,
+                bool detailed = false,
+                RhinoDoc doc = null,
+                bool avoidBottom = false)
+        {
             doc ??= RhinoDoc.ActiveDoc;
 
             double epsilon = 1e-6;
             var intersectingConnectors = new List<PlacedConnector>();
 
             // --- Get geometry ---
-            GeometryBase geometry = Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
+            Mesh mesh = new Mesh();
 
-            if (geometry is Extrusion extrusion)
-                geometry = extrusion.ToBrep();
-            else if (geometry == null)
-                return (new List<PlacedConnector>(), false);
+            if (geometry is Mesh)
+            {
+                mesh.Append(geometry as Mesh);
+            }
+            else if (geometry is Brep brep)
+            {
+                var brepMeshes = Mesh.CreateFromBrep((Brep)geometry, MeshingParameters.FastRenderMesh);
+
+                foreach (var brepMesh in brepMeshes)
+                    mesh.Append(brepMesh);
+            }
+            else if (geometry is Extrusion)
+            {
+                var extrusionMesh = Mesh.CreateFromExtrusion(geometry as Extrusion, MeshingParameters.FastRenderMesh);
+                mesh.Append(extrusionMesh);
+            }
 
             // --- Mesh ---
-            var meshes = Mesh.CreateFromBrep((Brep)geometry, MeshingParameters.FastRenderMesh);
-            var mesh = new Mesh();
 
-            foreach (var m in meshes)
-                mesh.Append(m);
 
             mesh.Weld(0);
             mesh.RebuildNormals();
 
-            Plane plane = component.Label.Plane;
-            geometry.GetBoundingBox(plane, out Box box);
+            geometry.GetBoundingBox(baseplane, out Box box);
             var worldBounds = geometry.GetBoundingBox(true);
 
             bool isDoubleSided = false;
@@ -150,11 +186,11 @@ namespace G2PComponents
                         if (Math.Abs((t1 - 1) * length) < breakthroughEpsilon)
                             tmax = t1;
 
-                        Vector3d zaxis = plane.ZAxis;
-                        bool sides = Math.Abs(plane.ZAxis * direction) < Math.Cos(Math.PI * 0.25);
+                        Vector3d zaxis = baseplane.ZAxis;
+                        bool sides = Math.Abs(baseplane.ZAxis * direction) < Math.Cos(Math.PI * 0.25);
 
                         if (sides)
-                            zaxis = plane.YAxis;
+                            zaxis = baseplane.YAxis;
 
                         if (!sides && (axis.Direction * zaxis) > 0)
                         {
@@ -190,12 +226,12 @@ namespace G2PComponents
                         // --- Tilt compensation ---
                         if (side != BoxSide.Unknown && compensateTilt)
                         {
-                            Vector3d tiltAxis = plane.ZAxis;
+                            Vector3d tiltAxis = baseplane.ZAxis;
 
                             if (side == BoxSide.Inside || side == BoxSide.Outside)
-                                tiltAxis = plane.YAxis;
+                                tiltAxis = baseplane.YAxis;
                             else if (side == BoxSide.Left || side == BoxSide.Right)
-                                tiltAxis = plane.XAxis;
+                                tiltAxis = baseplane.XAxis;
 
                             double dot = Math.Abs(drillVector * tiltAxis);
                             dot = Math.Min(1, dot);
@@ -224,6 +260,7 @@ namespace G2PComponents
 
             return (intersectingConnectors, isDoubleSided);
         }
+
         public static Brep CutConnectors(IComponent component, IEnumerable<Connector> connectors, RhinoDoc doc = null, double tolerance = 1e-3)
         {
             // --- Create cutter breps ---
