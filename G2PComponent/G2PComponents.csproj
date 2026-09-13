@@ -30,9 +30,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Reference Include="D2P_Core">
-	    <HintPath>..\..\..\Shared\Libraries\GluLamb\D2P_Core.dll</HintPath>
-	  </Reference>
+		<Reference Include="D2P_Cure">
+	    <HintPath>..\bin\D2P_Core.dll</HintPath>
+	  </Reference >
 	</ItemGroup>
 
 </Project>

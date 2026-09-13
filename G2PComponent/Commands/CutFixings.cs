@@ -10,9 +10,8 @@ using Rhino.Input.Custom;
 namespace G2PComponents.Commands
 {
     /// <summary>
-    /// WORK IN PROGRESS
-    /// Identifies components that share the same geometry, have the same
-    /// features, and therefore can be produced serially.
+    /// Finds all connectors that intersect selected components and 
+    /// cuts them out to create a detailed geometry.
     /// </summary>
     public class CutFixingsCommand : Command
     {

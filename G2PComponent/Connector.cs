@@ -292,6 +292,9 @@ namespace G2PComponents
             if (brep is Extrusion extrusion)
                 brep = extrusion.ToBrep(true);
 
+            if (cutters.Count < 1)
+                return brep as Brep;
+
             // --- Boolean difference ---
             var result = Brep.CreateBooleanDifference(
                 new List<Brep> { brep as Brep },
