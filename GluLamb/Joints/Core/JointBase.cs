@@ -110,7 +110,10 @@ namespace GluLamb.Joints
 
         public Dictionary<string, object> GetParameters() => JointParameters.Get(this);
 
-        public void SetParameters(IDictionary<string, object> values) => JointParameters.Set(this, values);
+        /// <summary>
+        /// Set parameters by name. Returns the names that don't match a parameter.
+        /// </summary>
+        public List<string> SetParameters(IDictionary<string, object> values) => JointParameters.Set(this, values);
 
         public override string ToString() => $"{GetType().Name} ({TypeId})";
     }
@@ -128,16 +131,27 @@ namespace GluLamb.Joints
             GetProperties(joint.GetType()).ToDictionary(p => p.Name, p => p.GetValue(joint));
 
         /// <summary>
-        /// Set parameters by name. Unknown names are ignored; values are converted to the
-        /// property type (so doubles can set bools and ints, e.g. from Grasshopper).
+        /// Set parameters by name (case-insensitive). Values are converted to the property
+        /// type, so numbers can set bools and ints, e.g. from Grasshopper. Returns the names
+        /// that don't match a parameter.
         /// </summary>
-        public static void Set(object joint, IDictionary<string, object> values)
+        public static List<string> Set(object joint, IDictionary<string, object> values)
         {
-            if (values == null) return;
+            var unknown = new List<string>();
+            if (values == null) return unknown;
 
-            foreach (var prop in GetProperties(joint.GetType()))
+            var props = GetProperties(joint.GetType()).ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kvp in values)
             {
-                if (!values.TryGetValue(prop.Name, out var value) || value == null) continue;
+                if (!props.TryGetValue(kvp.Key, out var prop))
+                {
+                    unknown.Add(kvp.Key);
+                    continue;
+                }
+
+                var value = kvp.Value;
+                if (value == null) continue;
 
                 var target = prop.PropertyType;
                 if (!target.IsInstanceOfType(value))
@@ -150,6 +164,36 @@ namespace GluLamb.Joints
 
                 prop.SetValue(joint, value);
             }
+
+            return unknown;
+        }
+
+        /// <summary>
+        /// Parse "Name=Value" strings (also "Name:Value") into a parameter dictionary.
+        /// Numbers are parsed with the invariant culture; anything else is kept as a string.
+        /// </summary>
+        public static Dictionary<string, object> Parse(IEnumerable<string> entries)
+        {
+            var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            if (entries == null) return values;
+
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry)) continue;
+
+                var split = entry.IndexOfAny(new[] { '=', ':' });
+                if (split < 1) continue;
+
+                var name = entry.Substring(0, split).Trim();
+                var text = entry.Substring(split + 1).Trim();
+
+                if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double number))
+                    values[name] = number;
+                else
+                    values[name] = text;
+            }
+
+            return values;
         }
     }
 }

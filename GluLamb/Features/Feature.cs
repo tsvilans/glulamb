@@ -214,6 +214,11 @@ namespace GluLamb.Features
 
         public List<Brep> Cutters = new List<Brep>();
 
+        /// <summary>
+        /// Contours that define the cut, for production (e.g. tool paths or BTLx FreeContour).
+        /// </summary>
+        public List<Curve> Contours = new List<Curve>();
+
         public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(x => x.DuplicateBrep()).ToList();
 
         public override void Transform(Transform xform)
@@ -221,12 +226,15 @@ namespace GluLamb.Features
             base.Transform(xform);
             foreach (var cutter in Cutters)
                 cutter.Transform(xform);
+            foreach (var contour in Contours)
+                contour.Transform(xform);
         }
 
         public override Feature Duplicate()
         {
             var contour = CopyBaseTo(new FreeContour());
             contour.Cutters = Cutters.Select(x => x.DuplicateBrep()).ToList();
+            contour.Contours = Contours.Select(x => x.DuplicateCurve()).ToList();
             return contour;
         }
     }

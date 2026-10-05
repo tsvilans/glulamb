@@ -52,10 +52,14 @@ namespace GluLamb.GH.Components
             pManager.AddGenericParameter("Beams", "B", "Beams, one per branch. The first path index is the beam index used by the joint conditions.", GH_ParamAccess.tree);
             pManager.AddGenericParameter("Joints", "J", "Joint conditions (e.g. from Classify Joints), one per branch.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Types", "T", "Optional joint type id per joint branch. If empty, the best-scoring registered type is used.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Parameters", "P", "Optional joint parameters as \"Name=Value\" (e.g. \"BlindOffset=30\"). " +
+                "A branch matching a joint's path applies to that joint; a single branch applies to all joints. " +
+                "Names a joint doesn't have are ignored and reported in Messages.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Tolerance", "t", "Modelling tolerance.", GH_ParamAccess.item, 1e-3);
 
             pManager[2].Optional = true;
             pManager[3].Optional = true;
+            pManager[4].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -72,8 +76,9 @@ namespace GluLamb.GH.Components
             if (!DA.GetDataTree(0, out GH_Structure<IGH_Goo> beamTree)) return;
             if (!DA.GetDataTree(1, out GH_Structure<IGH_Goo> jointTree)) return;
             DA.GetDataTree(2, out GH_Structure<GH_String> typeTree);
+            DA.GetDataTree(3, out GH_Structure<GH_String> parameterTree);
             double tolerance = 1e-3;
-            DA.GetData(3, ref tolerance);
+            DA.GetData(4, ref tolerance);
 
             var registry = JointRegistry.Default;
 
@@ -142,10 +147,34 @@ namespace GluLamb.GH.Components
                     continue;
                 }
 
+                var parameterMessages = new List<string>();
+                if (parameterTree != null && parameterTree.PathCount > 0)
+                {
+                    var parameterBranch = parameterTree.PathExists(path) ? parameterTree[path]
+                        : parameterTree.PathCount == 1 ? parameterTree.Branches[0] : null;
+
+                    if (parameterBranch != null)
+                    {
+                        try
+                        {
+                            var values = JointParameters.Parse(parameterBranch.Where(x => x != null).Select(x => x.Value));
+                            var unknown = JointParameters.Set(joint, values);
+                            if (unknown.Count > 0)
+                                parameterMessages.Add($"Ignored parameters not on {joint.GetType().Name}: {string.Join(", ", unknown)}");
+                        }
+                        catch (Exception e)
+                        {
+                            parameterMessages.Add($"Invalid parameter value: {e.Message}");
+                        }
+                    }
+                }
+
                 var result = joint.Construct(context);
 
                 jointsOut.Add(new GH_ObjectWrapper(joint), path);
                 messagesOut.Add($"{result.Status}: {joint}", path);
+                foreach (var message in parameterMessages)
+                    messagesOut.Add(message, path);
                 foreach (var message in result.Messages)
                     messagesOut.Add(message, path);
 
@@ -164,7 +193,9 @@ namespace GluLamb.GH.Components
                 }
             }
 
-            var registryInfo = registry.Types.Select(x => $"{x.Id}: {x.Name} ({x.Attribute.Topology}, {x.Attribute.Arity} parts)")
+            var registryInfo = registry.Types.OrderBy(x => x.Id)
+                .Select(x => $"{x.Id}: {x.Name} ({x.Attribute.Topology}, {x.Attribute.Arity} parts) " +
+                    $"[{string.Join(", ", x.Parameters.Select(p => p.Name))}]")
                 .Concat(registry.Errors.Select(x => $"Error: {x}"))
                 .ToList();
 
