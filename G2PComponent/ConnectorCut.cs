@@ -44,7 +44,7 @@ using System.Linq;
 
 namespace G2PComponents
 {
-    public partial class Connector // (paste the members into the existing class; `partial` only so this file stands alone)
+    public partial class Connector
     {
         public static Brep CutConnectors(
             IComponent component,
