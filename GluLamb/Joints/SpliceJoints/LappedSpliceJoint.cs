@@ -38,6 +38,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Dowel diameter. 0 means no dowels.", Unit = "length")]
         public double DowelDiameter { get; set; } = 16;
 
+        [JointParameter(Description = "Largest angle between the beams that the splice will handle.", Unit = "radians")]
+        public double MaximumAngle { get; set; } = Rhino.RhinoMath.ToRadians(45.0);
+
         public LappedSpliceJoint(JointX condition) : base(condition)
         {
         }
@@ -95,20 +98,36 @@ namespace GluLamb.Joints
             double height = Math.Max(beam0Height, beam1Height);
             double spliceHeight = Math.Min(beam0Height, beam1Height);
 
+            // When the beams aren't aligned, each beam crosses the splice surface at an angle,
+            // so widen the surface by its projected width plus its drift over the splice length.
+            var divergence = Vector3d.VectorAngle(beam0Direction, -beam1Direction);
+            if (divergence == Rhino.RhinoMath.UnsetValue) divergence = 0;
+            if (divergence > MaximumAngle)
+            {
+                result.Status = JointStatus.Failed;
+                result.Messages.Add($"{GetType().Name}: beams diverge by {Rhino.RhinoMath.ToDegrees(divergence):0.0}°, " +
+                    $"more than MaximumAngle ({Rhino.RhinoMath.ToDegrees(MaximumAngle):0.0}°).");
+                return;
+            }
+
+            var drift = SpliceLength * Math.Tan(divergence);
+            var halfWidth = width * 0.5 / Math.Cos(divergence) + drift + Added;
+            var halfHeight = height * 0.5 / Math.Cos(divergence) + drift + AddedUp;
+
             var topProfile = new Polyline()
             {
-                end0Plane.PointAt(-width * 0.5 - Added, height * 0.5 + AddedUp, 0),
-                end0Plane.PointAt(-width * 0.5 - Added, spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(-width * 0.5 - Added, -spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(-width * 0.5 - Added, -height * 0.5 - AddedUp, 0),
+                end0Plane.PointAt(-halfWidth, halfHeight, 0),
+                end0Plane.PointAt(-halfWidth, spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(-halfWidth, -spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(-halfWidth, -halfHeight, 0),
             };
 
             var bottomProfile = new Polyline()
             {
-                end0Plane.PointAt(width * 0.5 + Added, height * 0.5 + AddedUp, 0),
-                end0Plane.PointAt(width * 0.5 + Added, spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(width * 0.5 + Added, -spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(width * 0.5 + Added, -height * 0.5 - AddedUp, 0),
+                end0Plane.PointAt(halfWidth, halfHeight, 0),
+                end0Plane.PointAt(halfWidth, spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(halfWidth, -spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(halfWidth, -halfHeight, 0),
             };
 
             var lapGeo = Brep.CreateFromLoft(new Curve[] { topProfile.ToNurbsCurve(), bottomProfile.ToNurbsCurve() },

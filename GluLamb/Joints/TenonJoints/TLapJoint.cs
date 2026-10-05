@@ -27,6 +27,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Flip which side of the beams the lap is cut from.")]
         public bool FlipDirection { get; set; } = false;
 
+        [JointParameter(Description = "Diameter of a dowel through the middle of the lap. 0 means no dowel.", Unit = "length")]
+        public double DowelDiameter { get; set; } = 0;
+
         public TLapJoint(JointX condition) : base(condition)
         {
         }
@@ -188,6 +191,16 @@ namespace GluLamb.Joints
 
             int created = result.Features.Count;
             result.Status = created == 2 ? JointStatus.Ok : created == 1 ? JointStatus.Partial : JointStatus.Failed;
+
+            // Optional dowel through the middle of the lap, across both beams
+            if (DowelDiameter > 0 && result.Success)
+            {
+                var lapCentre = (tenonFacePlane.Origin + tenonBackPlane.Origin) * 0.5;
+                var axis = new Line(lapCentre - normal * halfDepth, lapCentre + normal * halfDepth);
+
+                result.Add(new Drilling(tenon.Id, axis, DowelDiameter));
+                result.Add(new Drilling(mortise.Id, axis, DowelDiameter));
+            }
         }
     }
 }

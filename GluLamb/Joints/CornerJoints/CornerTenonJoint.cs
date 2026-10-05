@@ -44,7 +44,8 @@ namespace GluLamb.Joints
         }
 
         /// <summary>
-        /// Handles two beam ends meeting at an angle (corner or acute topology).
+        /// Handles two beam ends meeting at an angle (corner or acute topology). Scores below
+        /// CornerLapJoint, so it is only used when asked for by type id.
         /// </summary>
         public static double Score(JointX condition, IJointContext context)
         {
@@ -52,7 +53,7 @@ namespace GluLamb.Joints
             if (!JointPartX.IsAtEnd(condition.Parts[0].Case) || !JointPartX.IsAtEnd(condition.Parts[1].Case)) return 0;
 
             var topology = JointRegistry.Classify(condition, JointX.PerpendicularThreshold);
-            return topology == JointTopology.Corner || topology == JointTopology.Acute ? 1.0 : 0.0;
+            return topology == JointTopology.Corner || topology == JointTopology.Acute ? 0.5 : 0.0;
         }
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
@@ -163,7 +164,7 @@ namespace GluLamb.Joints
             points[idx] = points[idx - 1] + binormal * (InsetIn / Math.Cos(angle * 0.5) + 20); idx++;
 
             Curve tenon0Outline = new Polyline(points.Take(idx)).ToNurbsCurve();
-            tenon0Outline = Curve.CreateFilletCornersCurve(tenon0Outline, FilletRadius, tolerance, context.AngleTolerance);
+            tenon0Outline = FilletOutline(tenon0Outline, tolerance, context.AngleTolerance, "tenon", result);
 
             // Mortise 0
             points = new Point3d[10];
@@ -194,7 +195,7 @@ namespace GluLamb.Joints
             points[idx] = points[idx - 1] + binormal * (InsetIn / Math.Cos(angle * 0.5) + 20); idx++;
 
             Curve mortise0Outline = new Polyline(points.Take(idx)).ToNurbsCurve();
-            mortise0Outline = Curve.CreateFilletCornersCurve(mortise0Outline, FilletRadius, tolerance, context.AngleTolerance);
+            mortise0Outline = FilletOutline(mortise0Outline, tolerance, context.AngleTolerance, "mortise", result);
 
             if (!ok || tenon0Outline == null || mortise0Outline == null)
             {
@@ -237,6 +238,34 @@ namespace GluLamb.Joints
                 Cutters = cutters.ToList(),
                 Contours = new List<Curve> { tenon.DuplicateCurve(), mortise.DuplicateCurve() }
             });
+        }
+
+        /// <summary>
+        /// Fillet the corners of an outline. If filleting fails or makes the outline
+        /// self-intersecting (a fillet on a segment shorter than the radius can flip), the
+        /// sharp outline is kept instead and a message is added.
+        /// </summary>
+        private Curve FilletOutline(Curve outline, double tolerance, double angleTolerance, string name, JointResult result)
+        {
+            if (RX.CurveSelf(outline, tolerance).Count > 0)
+                result.Messages.Add($"{GetType().Name}: {name} outline is self-intersecting before filleting; check Inset, InsetIn and BackOffset.");
+
+            if (FilletRadius <= 0) return outline;
+
+            var filleted = Curve.CreateFilletCornersCurve(outline, FilletRadius, tolerance, angleTolerance);
+            if (filleted == null)
+            {
+                result.Messages.Add($"{GetType().Name}: filleting the {name} outline failed; using sharp corners.");
+                return outline;
+            }
+
+            if (RX.CurveSelf(filleted, tolerance).Count > 0)
+            {
+                result.Messages.Add($"{GetType().Name}: filleting made the {name} outline self-intersect; using sharp corners.");
+                return outline;
+            }
+
+            return filleted;
         }
 
         private static Brep[] ConstructGeometry(Curve c0, Curve c1, Vector3d up, double height, double tolerance)
