@@ -50,6 +50,11 @@ namespace GluLamb
         public static int SetAcute(int c) => c |= (1 << (int)JointCaseBits.ObliqueAcuteBit);
 
         public int ElementIndex = -1;
+        /// <summary>
+        /// Identifier of the beam this part belongs to (Beam.Id). If empty, IJointContext
+        /// implementations may fall back to ElementIndex.
+        /// </summary>
+        public string BeamId = null;
         public int JointIndex = -1;
         public double Parameter = 0;
         public int Case = 0;
@@ -71,6 +76,7 @@ namespace GluLamb
         {
             if (Case == other.Case 
                 && ElementIndex == other.ElementIndex
+                && BeamId == other.BeamId
                 //&& Parameter == other.Parameter
                 //&& JointIndex == other.JointIndex
                 ) { return true; }
@@ -79,7 +85,7 @@ namespace GluLamb
 
         public override int GetHashCode()
         {
-            return ElementIndex.GetHashCode() ^ Case.GetHashCode();
+            return ElementIndex.GetHashCode() ^ Case.GetHashCode() ^ (BeamId?.GetHashCode() ?? 0);
         }
 
         public JointPartX DuplicateJointPart()
@@ -87,11 +93,13 @@ namespace GluLamb
             return new JointPartX()
             {
                 ElementIndex = ElementIndex,
+                BeamId = BeamId,
                 Case = Case,
                 JointIndex = JointIndex,
                 Direction = Direction,
                 Parameter = Parameter,
-                Geometry = Geometry.Select(x => x.DuplicateBrep()).ToList()
+                Geometry = Geometry.Select(x => x.DuplicateBrep()).ToList(),
+                Data = Data == null ? new ArchivableDictionary() : Data.Clone()
             };
         }
 
@@ -162,7 +170,7 @@ namespace GluLamb
                     {
                         // corner or splice joint
                         double dot = joint.Parts[0].Direction * joint.Parts[1].Direction;
-                        double angle = Math.Acos(dot);
+                        double angle = Math.Acos(Math.Max(-1.0, Math.Min(1.0, dot)));
 
                         if (angle < perpendicularThreshold)
                         {

@@ -33,7 +33,6 @@ namespace GluLamb
     {
         protected Glulam()
         {
-            Id = Guid.NewGuid();
             CornerGenerator = GenerateCorners;
         }
         static public Glulam CreateGlulam(Beam beam, CrossSectionOrientation orientation, Standards.Standard standard= Standards.Standard.None)

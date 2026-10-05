@@ -181,6 +181,7 @@ return string.Empty;
             if (Value == null) throw new Exception("GlulamParameter.Value is null.");
 
             writer.SetString("type", Value.GetType().FullName);
+            writer.SetString("id", Value.Id);
             writer.SetByteArray("guide", GH_Convert.CommonObjectToByteArray(Value.Centreline));
 
             GH_CrossSectionOrientation.Write(writer, Value.Orientation);
@@ -246,6 +247,9 @@ return string.Empty;
 
                 Value = new Beam() { Centreline = guide, Orientation = ori, Width = width, Height = height };
             }
+
+            if (reader.ItemExists("id"))
+                Value.Id = reader.GetString("id");
 
             return base.Read(reader);
         }
