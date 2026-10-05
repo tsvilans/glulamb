@@ -18,7 +18,7 @@ namespace G2PComponents
         public BoxSide Side;
     }
 
-    public class Connector
+    public partial class Connector
     {
         public string Name { get; set; }
         public Line Axis { get; set; }
@@ -49,25 +49,30 @@ namespace G2PComponents
                 RhinoDoc doc = null,
                 bool avoidBottom = false)
         {
-
             // --- Get geometry ---
-            GeometryBase geometry = Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
+            GeometryBase geometry = null;
+            if (detailed)
+                geometry = Utility.GetMember(component, "DetailedGeometry", doc).FirstOrDefault();
+            geometry ??= Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
+
+            if (geometry == null)
+                return (new List<PlacedConnector>(), false);
 
             return IntersectConnectorsRay(
-                component.Label.Plane, 
+                component.Label.Plane,
                 geometry,
                 connectors,
-                breakthroughEpsilon, 
+                breakthroughEpsilon,
                 compensateTilt,
-                startDistance, 
-                breakthroughDistance, 
-                detailed, 
-                doc, 
+                startDistance,
+                breakthroughDistance,
+                detailed,
+                doc,
                 avoidBottom);
         }
 
         public static (List<PlacedConnector>, bool isDoubleSided) IntersectConnectorsRay(
-                Plane baseplane, 
+                Plane baseplane,
                 GeometryBase geometry,
                 List<Connector> connectors,
                 double breakthroughEpsilon = 0.5,
@@ -79,187 +84,240 @@ namespace G2PComponents
                 bool avoidBottom = false)
         {
             doc ??= RhinoDoc.ActiveDoc;
+            double tol = doc?.ModelAbsoluteTolerance ?? 1e-3;
 
-            double epsilon = 1e-6;
-            var intersectingConnectors = new List<PlacedConnector>();
+            var placed = new List<PlacedConnector>();
+            bool isDoubleSided = false;
 
-            // --- Get geometry ---
-            Mesh mesh = new Mesh();
-
-            if (geometry is Mesh)
+            var target = HitTarget.From(geometry, tol);
+            if (target == null)
             {
-                mesh.Append(geometry as Mesh);
+                RhinoApp.WriteLine($"-- WARNING: Can't intersect connectors with a {geometry?.ObjectType}.");
+                return (placed, false);
             }
-            else if (geometry is Brep brep)
-            {
-                var brepMeshes = Mesh.CreateFromBrep((Brep)geometry, MeshingParameters.FastRenderMesh);
-
-                foreach (var brepMesh in brepMeshes)
-                    mesh.Append(brepMesh);
-            }
-            else if (geometry is Extrusion)
-            {
-                var extrusionMesh = Mesh.CreateFromExtrusion(geometry as Extrusion, MeshingParameters.FastRenderMesh);
-                mesh.Append(extrusionMesh);
-            }
-
-            // --- Mesh ---
-
-
-            mesh.Weld(0);
-            mesh.RebuildNormals();
 
             geometry.GetBoundingBox(baseplane, out Box box);
-            var worldBounds = geometry.GetBoundingBox(true);
-
-            bool isDoubleSided = false;
+            BoundingBox worldBounds = geometry.GetBoundingBox(true);
+            double reach = worldBounds.Diagonal.Length;
 
             foreach (var connector in connectors)
             {
                 Line axis = connector.Axis;
-
-                // --- Bounding box rejection ---
-                if (
-                    Math.Max(axis.FromX, axis.ToX) < worldBounds.Min.X ||
-                    Math.Min(axis.FromX, axis.ToX) > worldBounds.Max.X ||
-                    Math.Max(axis.FromY, axis.ToY) < worldBounds.Min.Y ||
-                    Math.Min(axis.FromY, axis.ToY) > worldBounds.Max.Y ||
-                    Math.Max(axis.FromZ, axis.ToZ) < worldBounds.Min.Z ||
-                    Math.Min(axis.FromZ, axis.ToZ) > worldBounds.Max.Z
-                )
-                    continue;
-
                 double length = axis.Length;
-                if (length < 1.0) continue;
+                double r = connector.Diameter * 0.5;
+                if (length < tol) continue;
 
-                Vector3d direction = axis.Direction;
-                direction.Unitize();
+                // --- Bounding box rejection (now including the radius) ---
+                var connectorBounds = new BoundingBox(new[] { axis.From, axis.To });
+                connectorBounds.Inflate(r);
+                if (!Overlaps(connectorBounds, worldBounds)) continue;
 
-                // --- Rays ---
-                double frontRay = Intersection.MeshRay(mesh, new Ray3d(axis.From, direction));
-                double backRay = Intersection.MeshRay(mesh, new Ray3d(axis.From - direction * breakthroughEpsilon, -direction));
-                double endRay = Intersection.MeshRay(mesh, new Ray3d(axis.To + direction * breakthroughEpsilon, direction));
+                Vector3d d = axis.Direction;
+                d.Unitize();
 
-                //if ((frontRay + breakthroughEpsilon) >= length)
-                //    continue;
+                // --- Material along the axis line, as distances from axis.From ---
+                var spans = target.MaterialSpans(axis.From, d, reach + length)
+                    .Where(s => s.T1 > -breakthroughEpsilon && s.T0 < length + breakthroughEpsilon)
+                    .ToList();
+                if (spans.Count == 0) continue;
 
-                if (frontRay < breakthroughEpsilon) continue;
+                double entry = spans[0].T0;               // first surface the axis crosses into material
+                double exit = spans[spans.Count - 1].T1;  // last surface it leaves through
 
-                bool startThru = double.IsNegativeInfinity(backRay);
-                bool endThru = double.IsNegativeInfinity(endRay);
+                double depth = spans.Sum(s => Math.Max(0, Math.Min(s.T1, length) - Math.Max(s.T0, 0)));
+                if (depth < breakthroughEpsilon) continue; // only grazes the part
 
-                if (!startThru && !endThru)
+                bool startThru = entry >= -breakthroughEpsilon;     // start is outside, on, or just under the surface
+                bool endThru = exit <= length + breakthroughEpsilon;
+
+                // --- Choose where drilling starts (sA) and stops (sB) ---
+                double sA, sB;
+                bool exitOpen; // does the drill come out the other side?
+
+                if (startThru)
+                {
+                    sA = entry;
+                    sB = endThru ? exit : length;
+                    exitOpen = endThru;
+                }
+                else if (endThru)
+                {
+                    sA = exit;
+                    sB = 0;
+                    exitOpen = false;
+                }
+                else
                 {
                     RhinoApp.WriteLine($"-- WARNING: Connector {connector.Name} starts and stops within material!");
+                    // Drill from whichever surface is closer.
+                    bool fromStart = -entry <= exit - length;
+                    sA = fromStart ? entry : exit;
+                    sB = fromStart ? length : 0;
+                    exitOpen = false;
                 }
 
-                // --- Flip logic ---
-                if (backRay >= 0 && frontRay > breakthroughEpsilon)
-                {
-                    axis.Flip();
-                    direction.Reverse();
-                    (startThru, endThru) = (endThru, startThru);
-                }
-                else if (backRay > breakthroughEpsilon)
-                {
-                    continue;
-                }
-                else if (double.IsNegativeInfinity(backRay) && double.IsNegativeInfinity(frontRay))
-                {
-                    continue;
-                }
+                Point3d p0 = axis.From + d * sA;
+                Point3d p1 = axis.From + d * sB;
+                Vector3d drill = p1 - p0;
+                if (!drill.Unitize()) continue;
 
-                if (Intersection.LineBox(axis, box, 1e-3, out Interval interval))
+                // --- Steep connectors: prefer drilling from the top ---
+                bool steep = Math.Abs(baseplane.ZAxis * drill) >= Math.Cos(Math.PI * 0.25);
+                if (steep && drill * baseplane.ZAxis > 0)
                 {
-                    if (interval.Min < (1 + 0.2 / axis.Length) &&
-                        interval.Max > (0 - 0.2 / axis.Length))
+                    if (exitOpen)
                     {
-                        double t0 = interval.T0;
-                        double t1 = interval.T1;
-
-                        double tmin = 0;
-                        double tmax = 1;
-
-                        if (Math.Abs(t0 * length) < breakthroughEpsilon)
-                            tmin = t0;
-
-                        if (Math.Abs((t1 - 1) * length) < breakthroughEpsilon)
-                            tmax = t1;
-
-                        Vector3d zaxis = baseplane.ZAxis;
-                        bool sides = Math.Abs(baseplane.ZAxis * direction) < Math.Cos(Math.PI * 0.25);
-
-                        if (sides)
-                            zaxis = baseplane.YAxis;
-
-                        if (!sides && (axis.Direction * zaxis) > 0)
-                        {
-                            if ((t0 + epsilon) >= tmin && (t1 - epsilon) <= tmax)
-                            {
-                                (t0, t1) = (t1, t0);
-                            }
-                            else if (t0 < tmin && t1 <= tmax)
-                            {
-                                (t0, t1) = (t1, tmin);
-                                (startThru, endThru) = (endThru, startThru);
-                            }
-                            else if (t0 >= tmin && t1 > tmax)
-                            {
-                                isDoubleSided = true;
-                            }
-                        }
-
-                        Interval limited = new Interval(Math.Max(t0, t0), Math.Min(tmax, t1));
-                        double depth = limited.Length * axis.Length;
-
-                        if (Math.Abs(depth) < breakthroughEpsilon)
-                            continue;
-
-                        Point3d p0 = axis.PointAt(limited.T0);
-                        Point3d p1 = axis.PointAt(limited.T1);
-
-                        Vector3d drillVector = p1 - p0;
-                        drillVector.Unitize();
-
-                        var side = Utility.GetBoxSide(p0, box);
-
-                        // --- Tilt compensation ---
-                        if (side != BoxSide.Unknown && compensateTilt)
-                        {
-                            Vector3d tiltAxis = baseplane.ZAxis;
-
-                            if (side == BoxSide.Inside || side == BoxSide.Outside)
-                                tiltAxis = baseplane.YAxis;
-                            else if (side == BoxSide.Left || side == BoxSide.Right)
-                                tiltAxis = baseplane.XAxis;
-
-                            double dot = Math.Abs(drillVector * tiltAxis);
-                            dot = Math.Min(1, dot);
-
-                            double tiltOffset = connector.Diameter * 0.5 *
-                                Math.Tan(Math.Acos(dot));
-
-                            p0 -= drillVector * tiltOffset;
-
-                            if (endThru)
-                                p1 += drillVector * tiltOffset;
-                        }
-
-                        if (endThru)
-                            p1 += drillVector * breakthroughDistance;
-
-                        p0 -= drillVector * startDistance;
-
-                        var newAxis = new Line(p0, p1);
-
-                        intersectingConnectors.Add(new PlacedConnector { Connector = new Connector(newAxis, connector.Diameter, connector.Name), Side = side });
-
+                        (p0, p1) = (p1, p0);
+                        drill.Reverse();
                     }
+                    else
+                    {
+                        isDoubleSided = true; // blind, and only reachable from below
+                    }
+                }
+
+                // --- Tilt compensation against the real surface at each end ---
+                if (compensateTilt)
+                {
+                    p0 -= drill * TiltOffset(target.NormalAt(p0), drill, r);
+                    if (exitOpen)
+                        p1 += drill * TiltOffset(target.NormalAt(p1), drill, r);
+                }
+
+                if (exitOpen)
+                    p1 += drill * breakthroughDistance;
+
+                p0 -= drill * startDistance;
+
+                // --- Side is still a bounding-box concept: classify by where the drill enters the box ---
+                var newAxis = new Line(p0, p1);
+                var side = BoxSide.Unknown;
+                if (Intersection.LineBox(newAxis, box, tol, out Interval boxHit))
+                    side = Utility.GetBoxSide(newAxis.PointAt(boxHit.T0), box);
+
+                placed.Add(new PlacedConnector
+                {
+                    Connector = new Connector(newAxis, connector.Diameter, connector.Name),
+                    Side = side
+                });
+            }
+
+            return (placed, isDoubleSided);
+        }
+
+        /// <summary>
+        /// How far the rim of a cylinder of radius r reaches past the point where its axis meets
+        /// a surface with normal n. theta is clamped so near-parallel hits stay finite.
+        /// </summary>
+        static double TiltOffset(Vector3d n, Vector3d drill, double r)
+        {
+            if (!n.Unitize())
+                return r; // unknown normal: assume 45 degrees
+
+            double dot = Math.Min(1, Math.Abs(n * drill));
+            double theta = Math.Min(Math.Acos(dot), RhinoMath.ToRadians(80));
+            return r * Math.Tan(theta);
+        }
+
+        // Overlaps(BoundingBox, BoundingBox) is defined in ConnectorCut.cs.
+
+        /// <summary>Line intersections, inside tests and normals for a Brep (exact) or a Mesh.</summary>
+        sealed class HitTarget
+        {
+            readonly Brep _brep;
+            readonly Mesh _mesh;
+            readonly double _tol;
+
+            HitTarget(Brep brep, Mesh mesh, double tol)
+            {
+                _brep = brep;
+                _mesh = mesh;
+                _tol = tol;
+            }
+
+            public static HitTarget From(GeometryBase geometry, double tol)
+            {
+                switch (geometry)
+                {
+                    case Brep brep:
+                        return new HitTarget(brep, null, tol);
+                    case Extrusion extrusion:
+                        return new HitTarget(extrusion.ToBrep(true), null, tol);
+                    case Mesh mesh:
+                        var m = mesh.DuplicateMesh();
+                        m.FaceNormals.ComputeFaceNormals();
+                        return new HitTarget(null, m, tol);
+                    default:
+                        return null;
                 }
             }
 
-            return (intersectingConnectors, isDoubleSided);
+            /// <summary>Sorted distances along d from origin where the infinite line crosses the surface.</summary>
+            public List<double> Crossings(Point3d origin, Vector3d d, double reach)
+            {
+                var line = new Line(origin - d * reach, origin + d * reach);
+                Point3d[] points;
+
+                if (_brep != null)
+                    Intersection.CurveBrep(new LineCurve(line), _brep, _tol, out _, out points);
+                else
+                    points = Intersection.MeshLine(_mesh, line, out _);
+
+                var result = new List<double>();
+                foreach (double x in (points ?? Array.Empty<Point3d>()).Select(p => (p - origin) * d).OrderBy(x => x))
+                    if (result.Count == 0 || x - result[result.Count - 1] > 10 * _tol) // edge hits come back twice
+                        result.Add(x);
+                return result;
+            }
+
+            /// <summary>
+            /// Intervals (distances along d) of the line that lie inside material. Each gap between
+            /// consecutive crossings is tested at its midpoint, so duplicate or grazing hits don't
+            /// flip inside/outside the way pure parity would.
+            /// </summary>
+            public List<Interval> MaterialSpans(Point3d origin, Vector3d d, double reach)
+            {
+                var xs = Crossings(origin, d, reach);
+                var spans = new List<Interval>();
+
+                for (int i = 0; i + 1 < xs.Count; i++)
+                {
+                    double mid = 0.5 * (xs[i] + xs[i + 1]);
+                    if (!IsInside(origin + d * mid, xs, mid)) continue;
+
+                    if (spans.Count > 0 && xs[i] - spans[spans.Count - 1].T1 < 10 * _tol)
+                        spans[spans.Count - 1] = new Interval(spans[spans.Count - 1].T0, xs[i + 1]); // split face: merge
+                    else
+                        spans.Add(new Interval(xs[i], xs[i + 1]));
+                }
+                return spans;
+            }
+
+            bool IsInside(Point3d p, List<double> crossings, double s)
+            {
+                if (_brep != null && _brep.IsSolid)
+                    return _brep.IsPointInside(p, _tol, false);
+                if (_mesh != null && _mesh.IsClosed)
+                    return _mesh.IsPointInside(p, _tol, false);
+
+                // Open geometry: fall back to parity along the line.
+                return crossings.Count(x => x > s) % 2 == 1;
+            }
+
+            public Vector3d NormalAt(Point3d p)
+            {
+                if (_brep != null)
+                {
+                    if (_brep.ClosestPoint(p, out _, out _, out _, out _, 0, out Vector3d n))
+                        return n;
+                    return Vector3d.Zero;
+                }
+
+                MeshPoint mp = _mesh.ClosestMeshPoint(p, 0);
+                return mp != null ? (Vector3d)_mesh.FaceNormals[mp.FaceIndex] : Vector3d.Zero;
+            }
         }
+
 
         public static Brep CutConnectors(IComponent component, IEnumerable<Connector> connectors, RhinoDoc doc = null, double tolerance = 1e-3)
         {
