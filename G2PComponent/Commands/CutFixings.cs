@@ -62,7 +62,8 @@ namespace G2PComponents.Commands
 
                 (var placedConnectors, bool doubleSided) = Connector.IntersectConnectorsRay(component, connectors, 1.0, true, 10, 10, false, doc, false);
 
-                var brep = Connector.CutConnectors(component, placedConnectors.Select(x => x.Connector), doc, 1e-2);
+                //var brep = Connector.CutConnectors(component, placedConnectors.Select(x => x.Connector), doc, 1e-2);
+                var brep = Connector.CutConnectors(component, placedConnectors.Select(x => x.Connector), doc, 1e-2, 1, 0.5);
 
                 if (brep == null)
                 {
