@@ -101,6 +101,11 @@ namespace GluLamb.Joints
             var normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
             normal.Unitize();
 
+            // The under beam is notched on the normal side, so the normal must point from the
+            // under beam towards the over beam when their centrelines are offset.
+            if ((overPlane.Origin - underPlane.Origin) * normal < -tolerance)
+                normal.Reverse();
+
             var lapOrigin = Interpolation.Lerp(underPlane.Origin, overPlane.Origin, underHeight / (overHeight + underHeight));
             var lapPlane = new Plane(lapOrigin, underSideDirection, overSideDirection);
             Position = lapPlane;

@@ -118,7 +118,6 @@ namespace GluLamb.Joints
 
             var pout1Added = new Plane(pout1.Origin - p1.YAxis * 10, pout1.XAxis, pout1.YAxis);
 
-            var x0 = (b0.Width * 0.5 - Inset) / Math.Cos(angle);
             var z0 = (b1.Width * 0.5 - Inset * 2) * Math.Tan(Math.PI * 0.5 - angle);
 
             bool ok = true;
@@ -145,17 +144,27 @@ namespace GluLamb.Joints
                 ok &= RX.PlanePlanePlane(plane, p0, pout0Added, out points[idx]); idx++;
                 ok &= RX.PlanePlanePlane(plane, pin1, pout0, out points[idx]); idx++;
 
-                if (BackOffset < Math.Abs(x0))
+                // Only chamfer the outer corner if the chamfer actually cuts it. The old test
+                // (BackOffset < |x0|) always passed near 90 degrees, since x0 goes to infinity,
+                // so narrow beams got a chamfer outside the corner and a zig-zag outline.
+                ok &= RX.PlanePlanePlane(plane, pout0, pout1, out Point3d outerCorner);
+                ok &= RX.PlanePlanePlane(plane, pout1, pin0, out Point3d outerEnd);
+
+                if (RX.PlanePlanePlane(plane, pout0, chamfer, out Point3d chamfer0) &&
+                    RX.PlanePlanePlane(plane, chamfer, pout1, out Point3d chamfer1) &&
+                    IsBetween(chamfer0, points[idx - 1], outerCorner) &&
+                    IsBetween(chamfer1, outerCorner, outerEnd) &&
+                    chamfer0.DistanceTo(chamfer1) > FilletRadius * 2)
                 {
-                    ok &= RX.PlanePlanePlane(plane, pout0, chamfer, out points[idx]); idx++;
-                    ok &= RX.PlanePlanePlane(plane, chamfer, pout1, out points[idx]); idx++;
+                    points[idx] = chamfer0; idx++;
+                    points[idx] = chamfer1; idx++;
                 }
                 else
                 {
-                    ok &= RX.PlanePlanePlane(plane, pout0, pout1, out points[idx]); idx++;
+                    points[idx] = outerCorner; idx++;
                 }
 
-                ok &= RX.PlanePlanePlane(plane, pout1, pin0, out points[idx]); idx++;
+                points[idx] = outerEnd; idx++;
             }
 
             ok &= RX.PlanePlanePlane(plane, pin0, pin1, out points[idx]); idx++;
@@ -241,12 +250,26 @@ namespace GluLamb.Joints
         }
 
         /// <summary>
+        /// True if pt lies strictly between a and b, measured along the line from a to b.
+        /// </summary>
+        private static bool IsBetween(Point3d pt, Point3d a, Point3d b)
+        {
+            var ab = b - a;
+            var lengthSquared = ab.SquareLength;
+            if (lengthSquared < 1e-12) return false;
+            var t = ((pt - a) * ab) / lengthSquared;
+            return t > 1e-6 && t < 1 - 1e-6;
+        }
+
+        /// <summary>
         /// Fillet the corners of an outline. If filleting fails or makes the outline
         /// self-intersecting (a fillet on a segment shorter than the radius can flip), the
         /// sharp outline is kept instead and a message is added.
         /// </summary>
         private Curve FilletOutline(Curve outline, double tolerance, double angleTolerance, string name, JointResult result)
         {
+            result.Debug.Add(outline.DuplicateCurve());
+
             if (RX.CurveSelf(outline, tolerance).Count > 0)
                 result.Messages.Add($"{GetType().Name}: {name} outline is self-intersecting before filleting; check Inset, InsetIn and BackOffset.");
 

@@ -78,6 +78,11 @@ namespace GluLamb.Joints
                 return;
             }
 
+            // The over beam is notched on the -zaxis side, so it has to face the under beam.
+            // If the centrelines are offset the other way, mirror the joint through the lap plane.
+            if ((uPlane.Origin - oPlane.Origin) * zaxis > tolerance)
+                zaxis.Reverse();
+
             var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, zaxis);
             Position = plane;
 
