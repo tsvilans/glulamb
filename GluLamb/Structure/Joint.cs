@@ -110,6 +110,12 @@ namespace GluLamb
         public static double PerpendicularThreshold = RhinoMath.ToRadians(45);
 
         public Plane Position;
+
+        /// <summary>
+        /// Short, legible id of the joint, e.g. the Grasshopper tree path it is on. Set once; what
+        /// the joint connects is in its parts.
+        /// </summary>
+        public string Id;
         public List<JointPartX> Parts;
 
         public JointX() : this(new List<JointPartX>(), Plane.Unset) { }
@@ -160,6 +166,7 @@ namespace GluLamb
         public virtual JointX DuplicateJoint()
         {
             return new JointX() {
+                Id = Id,
                 Position = Position,
                 Parts = Parts.Select(x => x.DuplicateJointPart()).ToList()
             };

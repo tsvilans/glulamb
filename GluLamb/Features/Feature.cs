@@ -20,6 +20,11 @@ namespace GluLamb.Features
         public string BeamId;
 
         /// <summary>
+        /// Id of the joint that made the feature, if any.
+        /// </summary>
+        public string JointId;
+
+        /// <summary>
         /// Reference plane of the feature, in world coordinates.
         /// </summary>
         public Plane Plane = Plane.Unset;
@@ -57,6 +62,7 @@ namespace GluLamb.Features
         protected T CopyBaseTo<T>(T other) where T : Feature
         {
             other.BeamId = BeamId;
+            other.JointId = JointId;
             other.Plane = Plane;
             other.Data = Data?.Clone() ?? new Rhino.Collections.ArchivableDictionary();
             return other;

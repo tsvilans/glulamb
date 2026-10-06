@@ -273,6 +273,8 @@ namespace GluLamb.GH.Components
                         }
                     }
 
+                    // The joint's id is the tree path it is on
+                    joint.Id = path.ToString(false);
                     var result = joint.Construct(context);
 
                     foreach (var kvp in result.Extensions)

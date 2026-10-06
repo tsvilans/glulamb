@@ -18,6 +18,11 @@ namespace GluLamb.Joints
         public List<string> BeamIds = new List<string>();
 
         /// <summary>
+        /// Id of the joint that needs the item.
+        /// </summary>
+        public string JointId;
+
+        /// <summary>
         /// Category for take-offs, e.g. "Dowel" or "Plate".
         /// </summary>
         public abstract string Category { get; }

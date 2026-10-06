@@ -114,7 +114,7 @@ namespace GluLamb.GH.Components
                 var jc = new JointX(new List<JointPartX>
                 {
                     new JointPartX() { Case = jointCase, ElementIndex = best, JointIndex = i, Parameter = bestT, Direction = direction }
-                }, point);
+                }, point) { Id = i.ToString() };
 
                 joints.Add(new GH_Joint(jc));
                 indices.Add(best);

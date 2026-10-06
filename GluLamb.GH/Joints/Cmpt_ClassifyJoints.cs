@@ -278,6 +278,7 @@ namespace GluLamb.GH.Components
             for (int i = 0; i < Joints.Count; ++i)
             {
                 var jc = Joints[i];
+                jc.Id = i.ToString();   // the path it is output on
                 JointOrigins.Add(i, jc.Position);
 
                 var jointType = JointX.ClassifyJoint(jc, csThreshold);

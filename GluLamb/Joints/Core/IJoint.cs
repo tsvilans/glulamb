@@ -42,6 +42,12 @@ namespace GluLamb.Joints
         /// </summary>
         string TypeId { get; }
 
+        /// <summary>
+        /// The joint's id, from its condition (e.g. the Grasshopper tree path it is on). Features
+        /// and hardware the joint makes carry it as JointId.
+        /// </summary>
+        string Id { get; set; }
+
         IReadOnlyList<JointPartX> Parts { get; }
 
         /// <summary>

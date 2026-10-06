@@ -63,6 +63,8 @@ namespace GluLamb.Joints
         public IReadOnlyList<JointPartX> Parts => m_parts;
         public Plane Position { get; protected set; }
 
+        public string Id { get; set; }
+
         public string TypeId => GetType().GetCustomAttribute<JointTypeAttribute>()?.Id ?? GetType().FullName;
 
         protected JointBase(JointX condition)
@@ -74,6 +76,7 @@ namespace GluLamb.Joints
                 throw new ArgumentException($"{GetType().Name} requires {info.Arity} parts, got {condition.Parts.Count}.");
 
             m_parts = condition.Parts.Select(x => x.DuplicateJointPart()).ToList();
+            Id = condition.Id;
             Position = condition.Position;
         }
 
@@ -100,6 +103,11 @@ namespace GluLamb.Joints
                 result.Status = JointStatus.Failed;
                 result.Messages.Add($"{GetType().Name}: {e.Message}");
             }
+            // Everything this joint made carries its id
+            foreach (var feature in result.AllFeatures)
+                if (feature.JointId == null) feature.JointId = Id;
+            foreach (var item in result.Hardware)
+                if (item.JointId == null) item.JointId = Id;
             return result;
         }
 
@@ -225,7 +233,7 @@ namespace GluLamb.Joints
         /// A condition made of some of this joint's parts, for building part of it with another joint type.
         /// </summary>
         protected JointX SubCondition(params int[] parts) =>
-            new JointX(parts.Select(i => m_parts[i]).ToList(), Position);
+            new JointX(parts.Select(i => m_parts[i]).ToList(), Position) { Id = Id };
 
         public Dictionary<string, object> GetParameters() => JointParameters.Get(this);
 
