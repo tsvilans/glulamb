@@ -137,6 +137,79 @@ namespace G2PComponents
             return name;
         }
 
+        /// <summary>
+        /// The component's Geometry cut by every joint it is part of: the cutters on each joint
+        /// component's CuttingGeometry layer tagged with this component (and its Drillings, if
+        /// asked). Open cutters split the geometry and the largest piece is kept; closed ones are
+        /// subtracted. Null if the component has no Geometry or no cutters.
+        /// </summary>
+        public static Brep CutJoints(IComponent component, RhinoDoc doc, bool drillings, List<string> messages)
+        {
+            var geometry = Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
+            var brep = geometry is Extrusion extrusion ? extrusion.ToBrep(true) : geometry as Brep;
+            if (brep == null)
+            {
+                messages.Add($"{component.ShortName}: no Geometry to cut.");
+                return null;
+            }
+
+            var cutters = new List<Brep>();
+            var joints = FindJoints(component, doc);
+            foreach (var joint in joints)
+            {
+                var layers = drillings ? new[] { "CuttingGeometry", "Drillings" } : new[] { "CuttingGeometry" };
+                foreach (var layer in layers)
+                    foreach (var id in Utility.GetMemberIDs(joint, layer, doc))
+                    {
+                        var obj = doc.Objects.FindId(id);
+                        if (obj?.Attributes.GetUserString("part") != component.ShortName) continue;
+                        if (obj.Geometry is Brep cutter) cutters.Add(cutter.DuplicateBrep());
+                        else if (obj.Geometry is Extrusion ex) cutters.Add(ex.ToBrep(true));
+                    }
+            }
+
+            if (cutters.Count == 0)
+            {
+                messages.Add($"{component.ShortName}: no joint cutters ({joints.Count} joints).");
+                return null;
+            }
+
+            var cut = brep.DuplicateBrep().Cut(cutters, doc.ModelAbsoluteTolerance);
+            if (cut == null || !cut.IsValid)
+            {
+                messages.Add($"{component.ShortName}: cutting failed.");
+                return null;
+            }
+            messages.Add($"{component.ShortName}: cut by {cutters.Count} cutters from {joints.Count} joints.");
+            return cut;
+        }
+
+        /// <summary>
+        /// The joint components a component is part of. Like Instantiation.GetJoints, but also
+        /// finds numbered joints (A-01+C-53#2) where the component is last, which GetJoints misses.
+        /// </summary>
+        public static List<IComponent> FindJoints(IComponent component, RhinoDoc doc)
+        {
+            var s = Context.settings;
+            var labels = doc.Objects.GetObjectList(new Rhino.DocObjects.ObjectEnumeratorSettings
+            {
+                HiddenObjects = true,
+                LockedObjects = true,
+                NameFilter = $"*{component.ShortName}*",
+                ObjectTypeFilter = Rhino.DocObjects.ObjectType.Annotation,
+            }).Where(o =>
+            {
+                var name = o.Name ?? "";
+                var typeEnd = name.IndexOf(s.TypeDelimiter);
+                if (typeEnd >= 0) name = name.Substring(typeEnd + 1);
+                if (!name.Contains(s.JointDelimiter)) return false;
+                var count = name.IndexOf(s.CountDelimiter);
+                if (count >= 0) name = name.Substring(0, count);
+                return name.Split(s.JointDelimiter).Contains(component.ShortName);
+            });
+            return Instantiation.InstancesFromObjects(labels, s, doc);
+        }
+
         private static Beam Extended(Beam beam, JointResult result)
         {
             if (!result.Extensions.TryGetValue(beam.Id, out var e)) return beam;
