@@ -32,9 +32,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Dovetail angle.", Unit = "radians")]
         public double Angle { get; set; } = RhinoMath.ToRadians(30);
 
-        [JointParameter(Description = "Flip which side of the beams the dovetail is cut from.")]
-        public bool FlipDirection { get; set; } = false;
-
         [JointParameter(Description = "Diameter of the dowel along the tenon. 0 means no dowel.", Unit = "length")]
         public double DowelDiameter { get; set; } = 16;
 
@@ -66,9 +63,11 @@ namespace GluLamb.Joints
             double mortiseWidth = mortise.Width, mortiseHeight = mortise.Height;
 
             var normal = Utility.ClosestAxis(mortisePlane, Vector3d.CrossProduct(tenonDirection, mortiseDirection));
+            // The tenon sits on the +normal side. Orient the normal with the tenon's up axis,
+            // then put whichever beam is higher on top (the tenon when they are level).
             if (normal * tenonPlane.YAxis < 0.0)
                 normal.Reverse();
-            if (FlipDirection)
+            if (TopPart(tenonPlane.Origin, mortisePlane.Origin, normal, tolerance) != 0)
                 normal.Reverse();
 
             var tenonUp = Utility.ClosestAxis(tenonPlane, normal);
@@ -137,7 +136,8 @@ namespace GluLamb.Joints
             for (int i = 0; i < 2; ++i)
                 tenonSidePlanes[i].Origin = centre.ProjectToPlane(tenonSidePlanes[i]);
 
-            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * 0.5 + Added;
+            // Cutters have to reach past both beams even when their centrelines are offset
+            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * 0.5 + Math.Abs((tenonPlane.Origin - mortisePlane.Origin) * normal) + Added;
             var topPlane = new Plane(tenonFacePlane.Origin + tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var middlePlane = new Plane(tenonFacePlane.Origin, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var bottomPlane = new Plane(tenonFacePlane.Origin - tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
@@ -169,6 +169,9 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: planes did not intersect.");
                 return;
             }
+
+            // The tenon beam has to reach the back of the dovetail
+            ExtendToReach(result, tenon, m_parts[ti], new[] { tenonPoints[3], tenonPoints[4], tenonPoints[9], tenonPoints[10] });
 
             var tenonOutline = new Polyline
             {

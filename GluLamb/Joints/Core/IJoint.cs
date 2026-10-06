@@ -112,5 +112,49 @@ namespace GluLamb.Joints
             result.Messages.Add(message);
             return result;
         }
+
+        /// <summary>
+        /// How far each beam's centreline needs extending at its start and end to contain the
+        /// joint, keyed by Beam.Id.
+        /// </summary>
+        public Dictionary<string, BeamExtension> Extensions = new Dictionary<string, BeamExtension>();
+
+        /// <summary>
+        /// Require a beam to be extended by at least this much at one end (keeps the largest).
+        /// </summary>
+        public void Extend(string beamId, bool atStart, double amount)
+        {
+            if (string.IsNullOrEmpty(beamId) || !(amount > 0)) return;
+
+            if (!Extensions.TryGetValue(beamId, out var extension))
+                extension = new BeamExtension();
+
+            if (atStart)
+                extension.Start = Math.Max(extension.Start, amount);
+            else
+                extension.End = Math.Max(extension.End, amount);
+
+            Extensions[beamId] = extension;
+        }
+    }
+
+    /// <summary>
+    /// Extension of a beam centreline at its start and end.
+    /// </summary>
+    public struct BeamExtension
+    {
+        public double Start;
+        public double End;
+
+        public BeamExtension(double start, double end)
+        {
+            Start = start;
+            End = end;
+        }
+
+        public static BeamExtension Max(BeamExtension a, BeamExtension b) =>
+            new BeamExtension(Math.Max(a.Start, b.Start), Math.Max(a.End, b.End));
+
+        public override string ToString() => $"Start {Start:0.###}, End {End:0.###}";
     }
 }

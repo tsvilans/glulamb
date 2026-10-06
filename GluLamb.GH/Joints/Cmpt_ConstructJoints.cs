@@ -24,6 +24,7 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 using Grasshopper.Kernel.Data;
 using Grasshopper;
+using Rhino.Geometry;
 
 using GluLamb.Joints;
 
@@ -33,7 +34,7 @@ namespace GluLamb.GH.Components
     /// Construct joints with the IJoint system: joint types come from JointRegistry,
     /// output is features per beam.
     /// </summary>
-    public class Cmpt_ConstructJoints : GH_Component
+    public class Cmpt_ConstructJoints : GH_Component, IGH_VariableParameterComponent
     {
         public Cmpt_ConstructJoints()
           : base("Construct joints", "ConJ",
@@ -69,7 +70,40 @@ namespace GluLamb.GH.Components
             pManager.AddBrepParameter("Cutters", "C", "Cutting geometry per beam.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Messages", "M", "Status and messages per joint.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Registry", "R", "Registered joint types, and any registry errors.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Extensions", "E", "How far each beam needs extending to contain its joints: {start, end} per beam path. Plug into Extend Curve.", GH_ParamAccess.tree);
         }
+
+        const string ExtendedBeamsName = "Extended beams";
+
+        static IGH_Param CreateExtendedBeamsParam() => new BeamParameter(ExtendedBeamsName, "EB",
+            "Copies of the beams with their centrelines extended by the Extensions (same ids, so cutters still match).",
+            "GluLamb", UiNames.UtilitiesSection) { Access = GH_ParamAccess.tree };
+
+        bool HasExtendedBeams => Params.Output.Any(x => x.Name == ExtendedBeamsName);
+
+        protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, ExtendedBeamsName, ToggleExtendedBeams, true, HasExtendedBeams);
+        }
+
+        private void ToggleExtendedBeams(object sender, EventArgs e)
+        {
+            RecordUndoEvent(ExtendedBeamsName);
+            if (HasExtendedBeams)
+                Params.UnregisterOutputParameter(Params.Output.First(x => x.Name == ExtendedBeamsName), true);
+            else
+                Params.RegisterOutputParam(CreateExtendedBeamsParam());
+
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
+
+        bool IGH_VariableParameterComponent.CanInsertParameter(GH_ParameterSide side, int index) => false;
+        bool IGH_VariableParameterComponent.CanRemoveParameter(GH_ParameterSide side, int index) => false;
+        IGH_Param IGH_VariableParameterComponent.CreateParameter(GH_ParameterSide side, int index) =>
+            side == GH_ParameterSide.Output ? CreateExtendedBeamsParam() : null;
+        bool IGH_VariableParameterComponent.DestroyParameter(GH_ParameterSide side, int index) => true;
+        void IGH_VariableParameterComponent.VariableParameterMaintenance() { }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
@@ -84,11 +118,13 @@ namespace GluLamb.GH.Components
 
             // Beams by first path index, so ElementIndex in the conditions resolves correctly
             var beamsByIndex = new SortedDictionary<int, Beam>();
+            var beamPaths = new Dictionary<int, GH_Path>();
             foreach (var path in beamTree.Paths)
             {
                 var branch = beamTree[path];
                 if (branch.Count < 1 || !(branch[0] is GH_Beam ghBeam) || ghBeam.Value == null) continue;
                 beamsByIndex[path.Indices[0]] = ghBeam.Value;
+                beamPaths[path.Indices[0]] = path;
             }
 
             var beamList = new List<Beam>();
@@ -116,6 +152,7 @@ namespace GluLamb.GH.Components
             var featuresOut = new DataTree<GH_ObjectWrapper>();
             var cuttersOut = new DataTree<GH_Brep>();
             var messagesOut = new DataTree<string>();
+            var extensions = new Dictionary<string, BeamExtension>();
 
             foreach (var branchPath in jointTree.Paths)
             {
@@ -201,6 +238,9 @@ namespace GluLamb.GH.Components
 
                     var result = joint.Construct(context);
 
+                    foreach (var kvp in result.Extensions)
+                        extensions[kvp.Key] = extensions.TryGetValue(kvp.Key, out var existing) ? BeamExtension.Max(existing, kvp.Value) : kvp.Value;
+
                     jointsOut.Add(new GH_ObjectWrapper(joint), path);
                     messagesOut.Add($"{result.Status}: {joint}", path);
                     foreach (var message in parameterMessages)
@@ -235,6 +275,35 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(2, cuttersOut);
             DA.SetDataTree(3, messagesOut);
             DA.SetDataList(4, registryInfo);
+
+            // Extensions per beam, and optionally the extended beams
+            var extensionsOut = new DataTree<double>();
+            var extendedOut = new DataTree<GH_Beam>();
+            bool extend = HasExtendedBeams;
+
+            foreach (var kvp in beamsByIndex)
+            {
+                var path = beamPaths[kvp.Key];
+                var beam = kvp.Value;
+                extensions.TryGetValue(beam.Id, out var extension);
+                extensionsOut.AddRange(new[] { extension.Start, extension.End }, path);
+
+                if (extend)
+                {
+                    var extended = beam.Duplicate();
+                    var curve = extended.Centreline;
+                    if (extension.Start > 0)
+                        curve = curve.Extend(CurveEnd.Start, extension.Start, CurveExtensionStyle.Line) ?? curve;
+                    if (extension.End > 0)
+                        curve = curve.Extend(CurveEnd.End, extension.End, CurveExtensionStyle.Line) ?? curve;
+                    extended.Centreline = curve;
+                    extendedOut.Add(new GH_Beam(extended), path);
+                }
+            }
+
+            DA.SetDataTree(5, extensionsOut);
+            if (extend)
+                DA.SetDataTree(Params.Output.FindIndex(x => x.Name == ExtendedBeamsName), extendedOut);
         }
     }
 }

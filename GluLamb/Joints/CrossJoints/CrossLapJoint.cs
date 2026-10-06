@@ -25,9 +25,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Inset of the lap sides from the beam sides. Positive values make a tighter lap.", Unit = "length")]
         public double Inset { get; set; } = 0.0;
 
-        [JointParameter(Description = "Swap which beam is on top.")]
-        public bool Flip { get; set; } = false;
-
         /// <summary>
         /// Minimum angle between the beams, below which they are treated as running alongside
         /// each other rather than crossing.
@@ -41,11 +38,22 @@ namespace GluLamb.Joints
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
         {
-            int ui = Flip ? 1 : 0, oi = Flip ? 0 : 1;
+            var tolerance = context.Tolerance;
+
+            // Up is the crossing normal, oriented with the first beam's up axis. The higher beam
+            // goes on top (the first one when they are level); Flip inverts that.
+            var plane0 = beams[0].GetPlane(m_parts[0].Parameter);
+            var up = Vector3d.CrossProduct(
+                beams[0].Centreline.TangentAt(m_parts[0].Parameter),
+                beams[1].Centreline.TangentAt(m_parts[1].Parameter));
+            up.Unitize();
+            if (up * plane0.YAxis < 0) up.Reverse();
+
+            int oi = TopPart(plane0.Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, tolerance);
+            int ui = 1 - oi;
 
             var under = beams[ui];
             var over = beams[oi];
-            var tolerance = context.Tolerance;
 
             var underDirection = under.Centreline.TangentAt(m_parts[ui].Parameter);
             var overDirection = over.Centreline.TangentAt(m_parts[oi].Parameter);
@@ -101,9 +109,8 @@ namespace GluLamb.Joints
             var normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
             normal.Unitize();
 
-            // The under beam is notched on the normal side, so the normal must point from the
-            // under beam towards the over beam when their centrelines are offset.
-            if ((overPlane.Origin - underPlane.Origin) * normal < -tolerance)
+            // The under beam is notched on the normal side, so the normal points up, towards the over beam.
+            if (normal * up < 0)
                 normal.Reverse();
 
             var lapOrigin = Interpolation.Lerp(underPlane.Origin, overPlane.Origin, underHeight / (overHeight + underHeight));

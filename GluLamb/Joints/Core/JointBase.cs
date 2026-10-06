@@ -108,6 +108,50 @@ namespace GluLamb.Joints
         /// </summary>
         protected abstract void ConstructCore(Beam[] beams, IJointContext context, JointResult result);
 
+        /// <summary>
+        /// Inverts the joint's automatic choice of which beam is on top (or which side the
+        /// joint is cut from). The automatic choice puts the beam whose centreline is higher
+        /// on top; if the centrelines are within tolerance of each other, the first part is on top.
+        /// </summary>
+        [JointParameter(Description = "Invert the automatic choice of which beam is on top.")]
+        public bool Flip { get; set; } = false;
+
+        [JointParameter(Description = "Extra length added to the beam extensions this joint reports.", Unit = "length")]
+        public double ExtensionTolerance { get; set; } = 10.0;
+
+        /// <summary>
+        /// Decide which of two parts is on top along an up direction: 0 or 1. The higher origin
+        /// is on top; if the offset is within tolerance, part a. Flip inverts the result.
+        /// </summary>
+        protected int TopPart(Point3d originA, Point3d originB, Vector3d up, double tolerance)
+        {
+            var offset = (originB - originA) * up;
+            int top = Math.Abs(offset) > tolerance && offset > 0 ? 1 : 0;
+            return Flip ? 1 - top : top;
+        }
+
+        /// <summary>
+        /// Report how far the beam of a part at a beam end needs extending so that its end
+        /// reaches past all the given points, plus ExtensionTolerance. Does nothing for parts
+        /// in the middle of a beam.
+        /// </summary>
+        protected void ExtendToReach(JointResult result, Beam beam, JointPartX part, IEnumerable<Point3d> points)
+        {
+            if (!JointPartX.IsAtEnd(part.Case)) return;
+
+            bool atStart = JointPartX.End0(part.Case);
+            var curve = beam.Centreline;
+            var end = atStart ? curve.PointAtStart : curve.PointAtEnd;
+            var outward = atStart ? -curve.TangentAtStart : curve.TangentAtEnd;
+
+            double reach = double.MinValue;
+            foreach (var pt in points)
+                reach = Math.Max(reach, (pt - end) * outward);
+
+            if (reach == double.MinValue) return;
+            result.Extend(beam.Id, atStart, reach + ExtensionTolerance);
+        }
+
         public Dictionary<string, object> GetParameters() => JointParameters.Get(this);
 
         /// <summary>

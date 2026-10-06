@@ -33,9 +33,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Length of the tenon back from the joint position.", Unit = "length")]
         public double BackOffset { get; set; } = 100;
 
-        [JointParameter(Description = "Flip the joint normal, swapping which side the tenon is on.")]
-        public bool Reverse { get; set; } = false;
-
         [JointParameter(Description = "Minimum height of the cutters above and below the joint plane. They are always at least as tall as the deepest beam.", Unit = "length")]
         public double CutterHeight { get; set; } = 120;
 
@@ -77,7 +74,12 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: beams are parallel.");
                 return;
             }
-            if (Reverse)
+            // Beam 0 is on top along -normal. Orient the normal with beam 0's up axis, then reverse
+            // it if beam 0 should be on top (higher or level, inverted by Flip). Reversing mirrors
+            // the joint through its plane.
+            if (normal * b0.GetPlane(m_parts[0].Parameter).YAxis < 0)
+                normal.Reverse();
+            if (TopPart(b0.GetPlane(m_parts[0].Parameter).Origin, b1.GetPlane(m_parts[1].Parameter).Origin, normal, tolerance) == 0)
                 normal.Reverse();
 
             var binormal = v0 + v1;
@@ -212,6 +214,20 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: failed to create outlines.");
                 return;
             }
+
+            // Both beams have to cover the whole overlap of the two cross-sections
+            var overlap = new List<Point3d>();
+            foreach (var s0 in new[] { 1, -1 })
+                foreach (var s1 in new[] { 1, -1 })
+                {
+                    var side0 = new Plane(origin + in0 * b0.Width * 0.5 * s0, in0);
+                    var side1 = new Plane(origin + in1 * b1.Width * 0.5 * s1, in1);
+                    if (RX.PlanePlanePlane(plane, side0, side1, out Point3d corner))
+                        overlap.Add(corner);
+                }
+
+            ExtendToReach(result, b0, m_parts[0], overlap);
+            ExtendToReach(result, b1, m_parts[1], overlap);
 
             var mirror = Transform.Mirror(mirrorPlane);
 

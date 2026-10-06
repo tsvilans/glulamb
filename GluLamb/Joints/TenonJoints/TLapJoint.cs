@@ -24,9 +24,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Distance from the far side of the mortise beam to the end of the lap. 0 is a through lap.", Unit = "length")]
         public double BlindOffset { get; set; } = 0.0;
 
-        [JointParameter(Description = "Flip which side of the beams the lap is cut from.")]
-        public bool FlipDirection { get; set; } = false;
-
         [JointParameter(Description = "Diameter of a dowel through the middle of the lap. 0 means no dowel.", Unit = "length")]
         public double DowelDiameter { get; set; } = 0;
 
@@ -59,9 +56,11 @@ namespace GluLamb.Joints
             double mortiseWidth = mortise.Width, mortiseHeight = mortise.Height;
 
             var normal = Utility.ClosestAxis(mortisePlane, Vector3d.CrossProduct(tenonDirection, mortiseDirection));
+            // The tenon sits on the +normal side. Orient the normal with the tenon's up axis,
+            // then put whichever beam is higher on top (the tenon when they are level).
             if (normal * tenonPlane.YAxis < 0.0)
                 normal.Reverse();
-            if (FlipDirection)
+            if (TopPart(tenonPlane.Origin, mortisePlane.Origin, normal, tolerance) != 0)
                 normal.Reverse();
 
             var tenonUp = Utility.ClosestAxis(tenonPlane, normal);
@@ -110,7 +109,8 @@ namespace GluLamb.Joints
                 tenonFacePlane.Origin - tenonFacePlane.ZAxis * Added,
                 tenonFacePlane.XAxis, tenonFacePlane.YAxis);
 
-            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * 0.5 + Added;
+            // Cutters have to reach past both beams even when their centrelines are offset
+            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * 0.5 + Math.Abs((tenonPlane.Origin - mortisePlane.Origin) * normal) + Added;
             var topPlane = new Plane(tenonFacePlane.Origin + tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var middlePlane = new Plane(tenonFacePlane.Origin, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var bottomPlane = new Plane(tenonFacePlane.Origin - tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
@@ -146,6 +146,9 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: planes are parallel; the beams may be aligned rather than meeting in a T.");
                 return;
             }
+
+            // The tenon beam has to reach the back of the lap, across its full width
+            ExtendToReach(result, tenon, tenonPart, new[] { mortisePoints[2], mortisePoints[6] });
 
             var tenonGeo = new[]
             {

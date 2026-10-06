@@ -114,20 +114,24 @@ namespace GluLamb.Joints
             var halfWidth = width * 0.5 / Math.Cos(divergence) + drift + Added;
             var halfHeight = height * 0.5 / Math.Cos(divergence) + drift + AddedUp;
 
+            // Which beam's half of the lap is on top: the higher beam (beam 0 when level), and
+            // Flip inverts that. s = 1 puts beam 1's half on top; -1 mirrors the profile through the splice plane.
+            double s = TopPart(beam0Plane.Origin, beam1Plane.Origin, splicePlane.YAxis, tolerance) == 0 ? -1.0 : 1.0;
+
             var topProfile = new Polyline()
             {
-                end0Plane.PointAt(-halfWidth, halfHeight, 0),
-                end0Plane.PointAt(-halfWidth, spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(-halfWidth, -spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(-halfWidth, -halfHeight, 0),
+                end0Plane.PointAt(-halfWidth, s * halfHeight, 0),
+                end0Plane.PointAt(-halfWidth, s * spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(-halfWidth, -s * spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(-halfWidth, -s * halfHeight, 0),
             };
 
             var bottomProfile = new Polyline()
             {
-                end0Plane.PointAt(halfWidth, halfHeight, 0),
-                end0Plane.PointAt(halfWidth, spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(halfWidth, -spliceHeight * SpliceRatio, 0),
-                end1Plane.PointAt(halfWidth, -halfHeight, 0),
+                end0Plane.PointAt(halfWidth, s * halfHeight, 0),
+                end0Plane.PointAt(halfWidth, s * spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(halfWidth, -s * spliceHeight * SpliceRatio, 0),
+                end1Plane.PointAt(halfWidth, -s * halfHeight, 0),
             };
 
             var lapGeo = Brep.CreateFromLoft(new Curve[] { topProfile.ToNurbsCurve(), bottomProfile.ToNurbsCurve() },
@@ -141,6 +145,16 @@ namespace GluLamb.Joints
             }
 
             lapGeo[0].Faces.SplitKinkyFaces();
+
+            // Each beam has to reach the far end of the lap, across its full section
+            Point3d[] SectionCorners(Plane p, double w, double h) => new[]
+            {
+                p.PointAt(-w * 0.5, -h * 0.5), p.PointAt(w * 0.5, -h * 0.5),
+                p.PointAt(w * 0.5, h * 0.5), p.PointAt(-w * 0.5, h * 0.5),
+            };
+
+            ExtendToReach(result, beam0, m_parts[0], SectionCorners(end1Plane, beam0Width, beam0Height));
+            ExtendToReach(result, beam1, m_parts[1], SectionCorners(end0Plane, beam1Width, beam1Height));
 
             for (int i = 0; i < 2; ++i)
             {

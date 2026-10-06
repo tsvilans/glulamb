@@ -28,9 +28,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Extra length added to cutters so they clear the beams.", Unit = "length")]
         public double ExtraLength { get; set; } = 50.0;
 
-        [JointParameter(Description = "Swap which beam is on top.")]
-        public bool Flip { get; set; } = false;
-
         public CrossSingleBackcutJoint(JointX condition) : base(condition)
         {
         }
@@ -50,10 +47,21 @@ namespace GluLamb.Joints
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
         {
-            int oi = Flip ? 1 : 0, ui = Flip ? 0 : 1;
+            var tolerance = Math.Max(context.Tolerance, 0.01);
+
+            // Up is the crossing normal, oriented with the first beam's up axis. The higher beam
+            // goes on top (the first one when they are level); Flip inverts that.
+            var plane0 = beams[0].GetPlane(m_parts[0].Parameter);
+            var up = Vector3d.CrossProduct(
+                beams[0].Centreline.TangentAt(m_parts[0].Parameter),
+                beams[1].Centreline.TangentAt(m_parts[1].Parameter));
+            up.Unitize();
+            if (up * plane0.YAxis < 0) up.Reverse();
+
+            int oi = TopPart(plane0.Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, context.Tolerance);
+            int ui = 1 - oi;
             var obeam = beams[oi];
             var ubeam = beams[ui];
-            var tolerance = Math.Max(context.Tolerance, 0.01);
 
             double added = ExtraLength;
 
@@ -78,9 +86,9 @@ namespace GluLamb.Joints
                 return;
             }
 
-            // The over beam is notched on the -zaxis side, so it has to face the under beam.
-            // If the centrelines are offset the other way, mirror the joint through the lap plane.
-            if ((uPlane.Origin - oPlane.Origin) * zaxis > tolerance)
+            // The over beam is notched on the -zaxis side, facing the under beam, so zaxis points
+            // up. Reversing it mirrors the joint through the lap plane.
+            if (zaxis * up < 0)
                 zaxis.Reverse();
 
             var plane = new Plane((oPlane.Origin + uPlane.Origin) / 2, zaxis);
@@ -184,9 +192,6 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Width of material left in the centre of the lap.", Unit = "length")]
         public double OffsetCentre { get; set; } = 10.0;
 
-        [JointParameter(Description = "Swap which beam is on top when the centrelines intersect.")]
-        public bool Flip { get; set; } = false;
-
         public CrossDoubleBackcutJoint(JointX condition) : base(condition)
         {
         }
@@ -226,19 +231,13 @@ namespace GluLamb.Joints
             double ofc2 = OffsetCentre / 2;
 
             // Which way each beam is notched depends on which side of A beam B is on, measured
-            // along each beam's Y axis. The old code unitized ptB - ptA, so when the centrelines
-            // (nearly) intersect, floating-point noise gave it an arbitrary direction and both
-            // beams could get notched on the same side. If the offset is within tolerance, B is
-            // taken to be on +Y of A (or -Y with Flip).
-            double dA = (ptB - ptA) * plA.YAxis;
-            double dB = (ptA - ptB) * plB.YAxis;
-
-            if (Math.Abs(dA) <= tolerance)
-            {
-                double side = Flip ? -1.0 : 1.0;
-                dA = side;
-                dB = -side * (plA.YAxis * plB.YAxis);
-            }
+            // along each beam's Y axis. (The old code unitized ptB - ptA, so when the centrelines
+            // intersected, floating-point noise decided and both beams could get the same side.)
+            // The higher beam goes on top (A when they are level); Flip inverts that.
+            bool aOnTop = TopPart(ptA, ptB, plA.YAxis, tolerance) == 0;
+            double dA = aOnTop ? -1.0 : 1.0;
+            double yDot = plA.YAxis * plB.YAxis;
+            double dB = Math.Abs(yDot) > 1e-3 ? -dA * yDot : (ptA - ptB) * plB.YAxis;
 
             int yAFlip = dA < 0 ? 1 : -1,
                 yBFlip = dB < 0 ? 1 : -1,

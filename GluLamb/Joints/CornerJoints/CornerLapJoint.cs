@@ -100,6 +100,13 @@ namespace GluLamb.Joints
                 return;
             }
 
+            // Beam 0 is on top along -normal. Orient the normal with beam 0's up axis, then put
+            // whichever beam is higher on top (beam 0 when they are level).
+            if (normal * beam0Plane.YAxis < 0)
+                normal.Reverse();
+            if (TopPart(beam0Plane.Origin, beam1Plane.Origin, normal, context.Tolerance) == 0)
+                normal.Reverse();
+
             var lapOrigin = Interpolation.Lerp(beam0Plane.Origin, beam1Plane.Origin, beam0Height / (beam1Height + beam0Height));
             var lapPlane = new Plane(lapOrigin, beam0SideDirection, beam1SideDirection);
             Position = lapPlane;
@@ -135,6 +142,20 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: lap planes did not intersect.");
                 return;
             }
+
+            // Both beams have to cover the whole overlap of the two cross-sections
+            var overlap = new List<Point3d>();
+            foreach (var s0 in new[] { 1, -1 })
+                foreach (var s1 in new[] { 1, -1 })
+                {
+                    var side0 = new Plane(beam0Plane.Origin + beam0SideDirection * beam0Width * 0.5 * s0, beam0SideDirection);
+                    var side1 = new Plane(beam1Plane.Origin + beam1SideDirection * beam1Width * 0.5 * s1, beam1SideDirection);
+                    if (RX.PlanePlanePlane(lapPlane, side0, side1, out Point3d corner))
+                        overlap.Add(corner);
+                }
+
+            ExtendToReach(result, beam0, m_parts[0], overlap);
+            ExtendToReach(result, beam1, m_parts[1], overlap);
 
             var up1 = normal * (beam1Height + Added);
             var boundary = new Polyline { points[0], points[3], points[3] + up1, points[4] + up1, points[4] - up1, points[0] - up1, points[0] };
