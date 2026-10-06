@@ -215,6 +215,39 @@ namespace GluLamb.Features
     }
 
     /// <summary>
+    /// Planar cut along the beam over part of its length (a rip cut), with the plane's normal
+    /// towards the removed side. The cutter is the bounded planar surface. BTLx: LongitudinalCut.
+    /// </summary>
+    public class LongitudinalCut : Feature
+    {
+        public override string ProcessingName => "LongitudinalCut";
+
+        /// <summary>
+        /// Length of the cut along the beam.
+        /// </summary>
+        public double Length = double.NaN;
+
+        public List<Brep> Cutters = new List<Brep>();
+
+        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(PrepareCutter).ToList();
+
+        public override void Transform(Transform xform)
+        {
+            base.Transform(xform);
+            foreach (var cutter in Cutters)
+                cutter.Transform(xform);
+        }
+
+        public override Feature Duplicate()
+        {
+            var cut = CopyBaseTo(new LongitudinalCut());
+            cut.Length = Length;
+            cut.Cutters = Cutters.Select(x => x.DuplicateBrep()).ToList();
+            return cut;
+        }
+    }
+
+    /// <summary>
     /// Cylindrical hole along an axis. Axis.From is the entry point. BTLx: Drilling.
     /// </summary>
     public class Drilling : Feature
