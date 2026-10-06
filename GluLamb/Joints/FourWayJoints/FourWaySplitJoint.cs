@@ -151,8 +151,13 @@ namespace GluLamb.Joints
 
             for (int i = 0; i < 4; ++i)
             {
-                LeftPlanes[i] = new Plane(planes[i].Origin + planes[i].XAxis * widths[i] * 0.5, planes[i].ZAxis, planes[i].YAxis);
-                RightPlanes[i] = new Plane(planes[i].Origin - planes[i].XAxis * widths[i] * 0.5, planes[i].ZAxis, planes[i].YAxis);
+                // Left faces the previous arm around the normal, right the next one, whichever
+                // way the section's X axis points
+                var s = planes[i].XAxis * dirs[(i + 3).Modulus(4)] >= 0 ? 1.0 : -1.0;
+                // Both planes face -s * X, as the original's did for s = 1
+                var (u, v) = s > 0 ? (planes[i].ZAxis, planes[i].YAxis) : (planes[i].YAxis, planes[i].ZAxis);
+                LeftPlanes[i] = new Plane(planes[i].Origin + planes[i].XAxis * s * widths[i] * 0.5, u, v);
+                RightPlanes[i] = new Plane(planes[i].Origin - planes[i].XAxis * s * widths[i] * 0.5, u, v);
             }
 
             // As in the original: 1 unit towards the outer side, with Z pointing to the inner side

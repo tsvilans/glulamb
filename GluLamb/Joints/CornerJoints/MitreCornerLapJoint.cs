@@ -32,7 +32,17 @@ namespace GluLamb.Joints
         {
         }
 
-        public static double Score(JointX condition, IJointContext context) => CornerLapJoint.Score(condition, context) * 0.5;
+        /// <summary>
+        /// As the corner lap, but not for beams within 30° of each other (forks), where a mitre
+        /// across the overlap makes no sense.
+        /// </summary>
+        public static double Score(JointX condition, IJointContext context)
+        {
+            var score = CornerLapJoint.Score(condition, context) * 0.5;
+            if (score <= 0) return 0;
+            var angle = Vector3d.VectorAngle(condition.Parts[0].Direction, condition.Parts[1].Direction);
+            return angle < Rhino.RhinoMath.ToRadians(30) ? 0 : score;
+        }
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
         {

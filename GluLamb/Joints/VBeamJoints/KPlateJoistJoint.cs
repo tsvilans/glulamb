@@ -129,10 +129,11 @@ namespace GluLamb.Joints
 
             // As in the original: compensates for the joist not being perpendicular to the sill,
             // so that the flat end of the joist cutter extends past the slanted end of the joist.
-            // Note that this measures the angle in the world XY plane.
-            var plateZProj = Plane.WorldXY.Project(sPlane.ZAxis);
+            // (The original measured the angle in the world XY plane, which only works for a
+            // horizontal sill and joist; this measures it directly.)
+            var plateZProj = sPlane.ZAxis;
             plateZProj.Unitize();
-            var jDirProj = Plane.WorldXY.Project(jDir);
+            var jDirProj = jDir;
             jDirProj.Unitize();
 
             var angleFactor = 1 - Math.Abs(plateZProj * jDirProj);
