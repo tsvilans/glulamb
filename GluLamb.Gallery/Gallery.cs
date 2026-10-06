@@ -17,6 +17,7 @@ namespace GluLamb.Gallery
         public Case Case;
         public string Variant;
         public bool Default;          // the type the registry picks for this condition
+        public Point3d Origin;        // the joint condition's position
         public JointStatus Status;
         public List<string> Messages = new List<string>();
         public List<string> Problems = new List<string>();
@@ -44,74 +45,63 @@ namespace GluLamb.Gallery
             m_options = options;
         }
 
-        public bool Run()
+        /// <summary>
+        /// One joint type over every condition the registry offers it for: writes its results
+        /// (types/{id}.json), its drawing ({id}.png, and {id}.svg in the docs folder) and its
+        /// grid ({id}.3dm). Returns whether every cell passed.
+        /// </summary>
+        public bool Run(string typeId)
         {
             var registry = JointRegistry.Default;
-            foreach (var error in registry.Errors)
-                Console.WriteLine($"Registry: {error}");
-
-            var types = registry.Types
-                .Where(t => m_options.Types == null || t.Id.Contains(m_options.Types))
-                .OrderBy(t => t.Id)
-                .ToList();
+            var type = registry.Get(typeId) ?? throw new ArgumentException($"No joint type {typeId}.");
             var cases = Conditions.All();
 
-            // Which types the registry offers for which conditions, and its pick
-            var offered = new Dictionary<string, List<(Case Case, bool Default)>>();
+            var record = new TypeRecord { Id = type.Id };
+            var offered = new List<(Case Case, bool Default)>();
             foreach (var c in cases)
             {
                 var (beams, condition) = c.Build(i => 0);
-                if (condition == null)
-                {
-                    Console.WriteLine($"{c.Name}: no condition found");
-                    continue;
-                }
+                if (condition == null) continue;
                 var candidates = registry.Candidates(condition, new BeamCollection(beams, Tolerance));
-                for (int i = 0; i < candidates.Count; ++i)
-                {
-                    if (!offered.TryGetValue(candidates[i].Info.Id, out var list))
-                        offered[candidates[i].Info.Id] = list = new List<(Case, bool)>();
-                    list.Add((c, i == 0));
-                }
+                var rank = candidates.FindIndex(x => x.Info.Id == type.Id);
+                if (rank < 0) continue;
+                offered.Add((c, rank == 0));
+                record.Offered.Add(new OfferRecord { Case = c.Name, Family = c.Family, Default = rank == 0 });
             }
 
             var cells = new List<Cell>();
             var defaults = new Dictionary<string, Dictionary<string, object>>();
-            foreach (var type in types)
-            {
-                if (!offered.TryGetValue(type.Id, out var list))
+            foreach (var (c, isDefault) in offered)
+                foreach (var variant in Variants)
                 {
-                    Console.WriteLine($"{type.Id}: not offered for any condition in the gallery");
-                    continue;
+                    var cell = Try(type, c, variant, isDefault, defaults);
+                    cells.Add(cell);
+                    Console.WriteLine($"{(cell.Pass ? "ok  " : "FAIL")} {type.Id,-32} {c.Name,-34} {variant.Name,-22} {string.Join("; ", cell.Problems.Concat(cell.Messages))}");
                 }
+            if (offered.Count == 0)
+                Console.WriteLine($"{type.Id}: not offered for any condition in the gallery");
 
-                foreach (var (c, isDefault) in list)
-                    foreach (var variant in Variants)
-                    {
-                        var cell = Try(type, c, variant, isDefault, defaults);
-                        cells.Add(cell);
-                        Console.WriteLine($"{(cell.Pass ? "ok  " : "FAIL")} {type.Id,-32} {c.Name,-34} {variant.Name,-22} {string.Join("; ", cell.Problems.Concat(cell.Messages))}");
-                    }
+            if (defaults.TryGetValue(type.Id, out var values))
+                record.Defaults = values.ToDictionary(x => x.Key, x => Format.Value(x.Value));
+            record.Cells = cells.Select(x => new CellRecord { Case = x.Case.Name, Variant = x.Variant, Pass = x.Pass, Problems = x.Problems, Messages = x.Messages }).ToList();
+
+            var folder = Path.Combine(m_options.Out, "types");
+            Directory.CreateDirectory(folder);
+            if (cells.Count > 0)
+            {
+                Drawing.Png(cells, Path.Combine(folder, type.Id + ".png"));
+                if (m_options.Docs != null)
+                {
+                    Directory.CreateDirectory(m_options.Docs);
+                    File.WriteAllText(Path.Combine(m_options.Docs, type.Id + ".svg"), Drawing.Svg(cells));
+                }
+                if (m_options.Write3dm)
+                    Write3dm(cells, Path.Combine(folder, type.Id + ".3dm"));
             }
+            File.WriteAllText(Path.Combine(folder, type.Id + ".json"),
+                System.Text.Json.JsonSerializer.Serialize(record, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 
-            var failed = cells.Count(x => !x.Pass);
-            Console.WriteLine($"{cells.Count} cells, {failed} failed, over {types.Count} joint types.");
-
-            Directory.CreateDirectory(m_options.Out);
-            if (m_options.Write3dm)
-                Write3dm(cells, Path.Combine(m_options.Out, "gallery.3dm"));
-            File.WriteAllLines(Path.Combine(m_options.Out, "summary.txt"),
-                cells.Select(x => $"{(x.Pass ? "ok" : "FAIL")}\t{x.Type.Id}\t{x.Case.Name}\t{x.Variant}\t{string.Join("; ", x.Problems.Concat(x.Messages))}"));
-
-            // Drawings as PNG too, next to the .3dm, for looking at without a browser
-            Directory.CreateDirectory(Path.Combine(m_options.Out, "png"));
-            foreach (var group in cells.GroupBy(x => x.Type.Id))
-                Drawing.Png(group.ToList(), Path.Combine(m_options.Out, "png", group.Key + ".png"));
-
-            if (m_options.Docs != null)
-                Catalogue.Write(m_options.Docs, types, offered, cells, defaults, cases);
-
-            return failed == 0;
+            return cells.All(x => x.Pass);
         }
 
         private Cell Try(JointTypeInfo type, Case c, (string Name, Func<int, int> Rotation, bool Flip) variant, bool isDefault,
@@ -121,6 +111,7 @@ namespace GluLamb.Gallery
             try
             {
                 var (beams, condition) = c.Build(variant.Rotation);
+                cell.Origin = condition.Position.Origin;
                 var context = new BeamCollection(beams, Tolerance);
                 var joint = type.Create(condition);
                 if (!defaults.ContainsKey(type.Id))
@@ -167,6 +158,10 @@ namespace GluLamb.Gallery
                     }
 
                 cell.Hardware.AddRange(result.Hardware.Select(x => x.GetGeometry()).Where(x => x != null));
+            }
+            catch (Rhino.Runtime.NotLicensedException)
+            {
+                throw;
             }
             catch (Exception e)
             {

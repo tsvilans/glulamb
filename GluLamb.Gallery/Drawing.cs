@@ -15,6 +15,8 @@ namespace GluLamb.Gallery
         private const double LabelHeight = 34;
         private static readonly string[] Colours = { "#b5651d", "#2f6690", "#5b7f2a", "#a23b3b" };
         private const string HardwareColour = "#555555";
+        private const double CropRadius = 450;   // half the size of the box around the joint that is drawn
+        private const double Explode = 160;      // how far each beam is moved away from the joint
 
         // Looking down from the front right
         private static readonly Vector3d ViewDirection = new Vector3d(-1, 1.4, -1.1);
@@ -56,12 +58,31 @@ namespace GluLamb.Gallery
         {
             var lines = new List<(List<(double, double)>, string)>();
             var geometry = new List<(GeometryBase Geometry, string Colour)>();
+
+            // Only the joint: each beam cropped to a box around the joint, then moved a little
+            // away from it along the beam (exploded), so the cuts show
+            var sum = Vector3d.Zero;    // where the beams go from the joint, together
+            var crop = new Box(new Plane(cell.Origin, Vector3d.ZAxis), new Interval(-CropRadius, CropRadius), new Interval(-CropRadius, CropRadius), new Interval(-CropRadius, CropRadius)).ToBrep();
             for (int i = 0; i < cell.Pieces.Count; ++i)
-                if (cell.Pieces[i] != null) geometry.Add((cell.Pieces[i], Colours[i % Colours.Length]));
+            {
+                if (cell.Pieces[i] == null) continue;
+                var cropped = Brep.CreateBooleanIntersection(cell.Pieces[i], crop, 0.01);
+                if (cropped == null || cropped.Length == 0) continue;
+                var centre = BoundingBox.Empty;
+                foreach (var b in cropped) centre.Union(b.GetBoundingBox(true));
+                var away = centre.Center - cell.Origin;
+                if (away.Unitize())
+                    sum += away;
+                if (away.Length > 0.5)
+                    foreach (var b in cropped) b.Translate(away * Explode);
+                foreach (var b in cropped)
+                    geometry.Add((b, Colours[i % Colours.Length]));
+            }
             geometry.AddRange(cell.Hardware.Select(h => (h, HardwareColour)));
             if (geometry.Count == 0) return lines;
 
-            var curves = HiddenLines(geometry) ?? Wireframe(geometry);
+            var view = View(sum);
+            var curves = HiddenLines(geometry, view) ?? Wireframe(geometry, view);
             if (curves.Count == 0) return lines;
 
             var bb = BoundingBox.Empty;
@@ -74,6 +95,18 @@ namespace GluLamb.Gallery
             foreach (var (pts, colour) in curves)
                 lines.Add((pts.Select(p => (ox + (p.X - bb.Min.X) * scale, oy + (bb.Max.Y - p.Y) * scale)).ToList(), colour));
             return lines;
+        }
+
+        /// <summary>
+        /// Looking down at the joint from the side most beams come from (so the faces that
+        /// meet them show), a little from the side; the default view if they balance out.
+        /// </summary>
+        private static Vector3d View(Vector3d beams)
+        {
+            var flat = new Vector3d(beams.X, beams.Y, 0);
+            if (!flat.Unitize()) return ViewDirection;
+            var side = Vector3d.CrossProduct(flat, Vector3d.ZAxis);
+            return -flat * 0.45 - side * 1.0 + new Vector3d(0, 0, -0.9);
         }
 
         private static string CellPaths(Cell cell)
@@ -128,14 +161,14 @@ namespace GluLamb.Gallery
         }
 
         /// <summary>Visible edges in a parallel view, flattened, as polylines in view coordinates.</summary>
-        private static List<(List<Point3d> Points, string Colour)> HiddenLines(List<(GeometryBase Geometry, string Colour)> geometry)
+        private static List<(List<Point3d> Points, string Colour)> HiddenLines(List<(GeometryBase Geometry, string Colour)> geometry, Vector3d view)
         {
             try
             {
                 var bb = BoundingBox.Empty;
                 foreach (var (g, _) in geometry) bb.Union(g.GetBoundingBox(true));
                 var radius = bb.Diagonal.Length;
-                var dir = ViewDirection;
+                var dir = view;
                 dir.Unitize();
 
                 var vp = new Rhino.DocObjects.ViewportInfo();
@@ -162,7 +195,7 @@ namespace GluLamb.Gallery
                 var result = new List<(List<Point3d>, string)>();
                 foreach (var segment in drawing.Segments)
                 {
-                    if (segment.SegmentVisibility != HiddenLineDrawingSegment.Visibility.Visible || segment.IsSceneSilhouette) continue;
+                    if (segment.SegmentVisibility != HiddenLineDrawingSegment.Visibility.Visible) continue;
                     var tag = segment.ParentCurve?.SourceObject?.Tag;
                     if (!(tag is int index) || segment.CurveGeometry == null) continue;
                     result.Add((Points(segment.CurveGeometry), geometry[index].Colour));
@@ -176,12 +209,12 @@ namespace GluLamb.Gallery
         }
 
         /// <summary>All edges, projected: the fallback when hidden-line drawing fails.</summary>
-        private static List<(List<Point3d> Points, string Colour)> Wireframe(List<(GeometryBase Geometry, string Colour)> geometry)
+        private static List<(List<Point3d> Points, string Colour)> Wireframe(List<(GeometryBase Geometry, string Colour)> geometry, Vector3d direction)
         {
-            var dir = ViewDirection;
+            var dir = direction;
             dir.Unitize();
-            var view = new Plane(Point3d.Origin, Vector3d.CrossProduct(Vector3d.ZAxis, dir), Vector3d.ZAxis);
-            view = new Plane(Point3d.Origin, view.XAxis, Vector3d.CrossProduct(dir, view.XAxis));
+            var screen = new Plane(Point3d.Origin, Vector3d.CrossProduct(Vector3d.ZAxis, dir), Vector3d.ZAxis);
+            screen = new Plane(Point3d.Origin, screen.XAxis, Vector3d.CrossProduct(dir, screen.XAxis));
 
             var result = new List<(List<Point3d>, string)>();
             foreach (var (g, colour) in geometry)
@@ -191,7 +224,7 @@ namespace GluLamb.Gallery
                 {
                     var pts = Points(edge.ToNurbsCurve()).Select(p =>
                     {
-                        view.RemapToPlaneSpace(p, out Point3d q);
+                        screen.RemapToPlaneSpace(p, out Point3d q);
                         return new Point3d(q.X, q.Y, 0);
                     }).ToList();
                     result.Add((pts, colour));

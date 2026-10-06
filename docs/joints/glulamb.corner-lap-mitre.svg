@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="762" viewBox="0 0 880 762" font-family="sans-serif" font-size="11">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<g transform="translate(0,0)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M67.8,92.8 L24.6,80.5 M24.6,102.1 L24.6,123.6 M24.6,102.1 L24.6,80.5 M24.6,123.6 L75.1,208 M67.8,92.8 L106.4,157.4 M106.4,200.5 L106.4,157.4 M75.1,164.9 L75.1,208 M75.1,208 L106.4,200.5 M24.6,80.5 L75.1,164.9 M106.4,157.4 L75.1,164.9 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M81.8,79.6 L93.7,99.4 M93.7,77.9 L93.7,99.4 M93.7,77.9 L93.7,56.3 M50.5,44 L93.7,56.3 M50.5,65.6 L50.5,44 M50.5,65.6 L81.8,74.5 M195.4,31.9 L195.4,75 M183.5,12 L195.4,31.9 M195.4,75 L93.7,99.4 M195.4,31.9 L93.7,56.3 M183.5,12 L50.5,44 M81.8,74.5 L81.8,79.6 M81.8,74.5 L93.7,77.9 "/>
+<text x="8" y="232" fill="#222">Corner 90°</text>
+<text x="8" y="246" fill="#666">as drawn</text>
+</g>
+<g transform="translate(220,0)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M24.6,80.5 L51.1,88.1 M36.5,121.9 L24.6,102.1 M36.5,121.9 L36.5,143.5 M24.6,102.1 L24.6,80.5 M36.5,143.5 L75.1,208 M67.8,92.8 L74.5,104.1 M75.1,208 L106.4,200.5 M106.4,200.5 L106.4,157.4 M75.1,164.9 L75.1,208 M24.6,80.5 L75.1,164.9 M106.4,157.4 L75.1,164.9 M74.5,104.1 L106.4,157.4 M51.1,88.1 L67.8,92.8 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M62.4,85.4 L93.7,77.9 M62.4,85.4 L62.4,91.3 M93.7,56.3 L50.5,44 M50.5,65.6 L50.5,87.1 M50.5,65.6 L50.5,44 M195.4,31.9 L195.4,75 M183.5,12 L195.4,31.9 M195.4,75 L74.5,104.1 M195.4,31.9 L93.7,56.3 M183.5,12 L50.5,44 M50.5,65.6 L62.4,85.4 M93.7,77.9 L93.7,56.3 M93.7,77.9 L50.5,65.6 M51.1,88.1 L50.5,87.1 "/>
+<text x="8" y="232" fill="#222">Corner 90°</text>
+<text x="8" y="246" fill="#666">as drawn, Flip</text>
+</g>
+<g transform="translate(440,0)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M24.6,102.1 L24.6,123.6 M24.6,102.1 L24.6,80.5 M67.8,92.8 L24.6,80.5 M24.6,123.6 L75.1,208 M67.8,92.8 L106.4,157.4 M75.1,164.9 L75.1,208 M106.4,200.5 L106.4,157.4 M75.1,208 L106.4,200.5 M24.6,80.5 L75.1,164.9 M106.4,157.4 L75.1,164.9 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M93.7,77.9 L93.7,99.4 M93.7,77.9 L93.7,56.3 M50.5,44 L93.7,56.3 M50.5,65.6 L50.5,44 M81.8,79.6 L93.7,99.4 M50.5,65.6 L81.8,74.5 M195.4,31.9 L195.4,75 M183.5,12 L195.4,31.9 M195.4,75 L93.7,99.4 M195.4,31.9 L93.7,56.3 M183.5,12 L50.5,44 M81.8,74.5 L81.8,79.6 M81.8,74.5 L93.7,77.9 "/>
+<text x="8" y="232" fill="#222">Corner 90°</text>
+<text x="8" y="246" fill="#666">sections turned</text>
+</g>
+<g transform="translate(660,0)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M36.5,121.9 L24.6,102.1 M36.5,121.9 L36.5,143.5 M24.6,102.1 L24.6,80.5 M24.6,80.5 L51.1,88.1 M36.5,143.5 L75.1,208 M67.8,92.8 L74.5,104.1 M75.1,208 L106.4,200.5 M75.1,164.9 L75.1,208 M106.4,200.5 L106.4,157.4 M24.6,80.5 L75.1,164.9 M106.4,157.4 L75.1,164.9 M74.5,104.1 L106.4,157.4 M51.1,88.1 L67.8,92.8 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M62.4,85.4 L93.7,77.9 M62.4,85.4 L62.4,91.3 M93.7,56.3 L50.5,44 M50.5,65.6 L50.5,87.1 M50.5,65.6 L50.5,44 M195.4,31.9 L195.4,75 M183.5,12 L195.4,31.9 M195.4,75 L74.5,104.1 M195.4,31.9 L93.7,56.3 M183.5,12 L50.5,44 M50.5,65.6 L62.4,85.4 M93.7,77.9 L93.7,56.3 M93.7,77.9 L50.5,65.6 M51.1,88.1 L50.5,87.1 "/>
+<text x="8" y="232" fill="#222">Corner 90°</text>
+<text x="8" y="246" fill="#666">sections turned, Flip</text>
+</g>
+<g transform="translate(0,254)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M80.2,78.1 L78,77.4 M12,82.7 L12,106.8 M12,82.7 L12,58.6 M12,106.8 L119.3,201.3 M162.3,198.5 L162.3,150.3 M162.3,150.3 L119.3,153.1 M119.3,201.3 L162.3,198.5 M12,58.6 L119.3,153.1 M119.3,153.1 L119.3,201.3 M78,77.4 L12,58.6 M102.1,97.3 L162.3,150.3 M80.2,78.1 L102.1,97.3 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M75.4,75.2 L78,77.4 M100.7,73.3 L100.7,96.1 M100.7,73.3 L100.7,49.2 M32.5,29.7 L100.7,49.2 M32.5,53.8 L32.5,29.7 M32.5,53.8 L75.4,66.1 M208,42.3 L208,90.5 M204.2,18.7 L208,42.3 M208,90.5 L102.1,97.3 M208,42.3 L100.7,49.2 M204.2,18.7 L32.5,29.7 M75.4,66.1 L75.4,75.2 M75.4,66.1 L100.7,73.3 "/>
+<text x="8" y="232" fill="#222">Corner 60°</text>
+<text x="8" y="246" fill="#666">as drawn</text>
+</g>
+<g transform="translate(220,254)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M12,58.6 L32.5,64.4 M37.2,104.9 L12,82.7 M37.2,104.9 L37.2,129 M12,82.7 L12,58.6 M37.2,129 L119.3,201.3 M80.2,78.1 L102.1,97.3 M119.3,201.3 L162.3,198.5 M162.3,198.5 L162.3,150.3 M162.3,150.3 L119.3,153.1 M119.3,153.1 L119.3,201.3 M102.1,97.3 L162.3,150.3 M32.5,64.4 L80.2,78.1 M12,58.6 L119.3,153.1 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M32.5,53.8 L50.3,69.5 M100.7,73.3 L100.7,49.2 M100.7,49.2 L32.5,29.7 M32.5,53.8 L32.5,64.4 M32.5,53.8 L32.5,29.7 M100.7,73.3 L32.5,53.8 M208,42.3 L208,90.5 M204.2,18.7 L208,42.3 M208,90.5 L102.1,97.3 M208,42.3 L100.7,49.2 M204.2,18.7 L32.5,29.7 M70.4,75.3 L100.7,73.3 "/>
+<text x="8" y="232" fill="#222">Corner 60°</text>
+<text x="8" y="246" fill="#666">as drawn, Flip</text>
+</g>
+<g transform="translate(440,254)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M12,82.7 L12,106.8 M12,82.7 L12,58.6 M80.2,78.1 L78,77.4 M12,106.8 L119.3,201.3 M162.3,198.5 L162.3,150.3 M162.3,150.3 L119.3,153.1 M119.3,201.3 L162.3,198.5 M12,58.6 L119.3,153.1 M119.3,153.1 L119.3,201.3 M78,77.4 L12,58.6 M102.1,97.3 L162.3,150.3 M80.2,78.1 L102.1,97.3 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M100.7,73.3 L100.7,96.1 M100.7,73.3 L100.7,49.2 M32.5,29.7 L100.7,49.2 M32.5,53.8 L32.5,29.7 M75.4,75.2 L78,77.4 M32.5,53.8 L75.4,66.1 M208,42.3 L208,90.5 M204.2,18.7 L208,42.3 M208,90.5 L102.1,97.3 M208,42.3 L100.7,49.2 M204.2,18.7 L32.5,29.7 M75.4,66.1 L75.4,75.2 M75.4,66.1 L100.7,73.3 "/>
+<text x="8" y="232" fill="#222">Corner 60°</text>
+<text x="8" y="246" fill="#666">sections turned</text>
+</g>
+<g transform="translate(660,254)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M32.5,53.8 L50.3,69.5 M100.7,73.3 L100.7,49.2 M100.7,49.2 L32.5,29.7 M32.5,53.8 L32.5,64.4 M32.5,53.8 L32.5,29.7 M100.7,73.3 L32.5,53.8 M208,42.3 L208,90.5 M204.2,18.7 L208,42.3 M208,90.5 L102.1,97.3 M208,42.3 L100.7,49.2 M204.2,18.7 L32.5,29.7 M70.4,75.3 L100.7,73.3 "/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M37.2,104.9 L12,82.7 M37.2,104.9 L37.2,129 M12,82.7 L12,58.6 M12,58.6 L32.5,64.4 M37.2,129 L119.3,201.3 M80.2,78.1 L102.1,97.3 M119.3,201.3 L162.3,198.5 M162.3,198.5 L162.3,150.3 M162.3,150.3 L119.3,153.1 M119.3,153.1 L119.3,201.3 M102.1,97.3 L162.3,150.3 M32.5,64.4 L80.2,78.1 M12,58.6 L119.3,153.1 "/>
+<text x="8" y="232" fill="#222">Corner 60°</text>
+<text x="8" y="246" fill="#666">sections turned, Flip</text>
+</g>
+<g transform="translate(0,508)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M70.2,94.8 L70.4,96.3 M73.3,97.1 L70.4,96.3 M44.7,106.4 L44.7,123.9 M44.7,106.4 L44.7,88.9 M44.7,123.9 L58.1,208 M73.3,97.1 L83.6,161.4 M83.6,196.4 L83.6,161.4 M58.1,173 L58.1,208 M58.1,208 L83.6,196.4 M68.3,95.7 L70.2,94.8 M68.3,95.7 L44.7,88.9 M44.7,88.9 L58.1,173 M83.6,161.4 L58.1,173 M70.4,96.3 L68.3,95.7 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M99,78.3 L99,95.8 M99,78.3 L99,60.8 M70.5,70.1 L70.5,52.7 M70.5,70.1 L96.1,77.5 M175.3,26 L175.3,60.9 M159.4,12 L175.3,26 M175.3,60.9 L99,95.8 M175.3,26 L99,60.8 M159.4,12 L70.5,52.7 M96.1,77.5 L99,95.8 M96.1,77.5 L99,78.3 M70.5,52.7 L99,60.8 "/>
+<text x="8" y="232" fill="#222">Corner 120°</text>
+<text x="8" y="246" fill="#666">as drawn</text>
+</g>
+<g transform="translate(220,508)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M46.9,91.9 L75.4,98.8 M51.9,128.3 L46.9,109.1 M51.9,128.3 L51.9,145.5 M46.9,109.1 L46.9,91.9 M51.9,145.5 L68.1,208 M68.1,208 L91.8,195.7 M91.8,195.7 L91.8,161.4 M68.1,173.7 L68.1,208 M46.9,91.9 L68.1,173.7 M91.8,161.4 L68.1,173.7 M75.4,98.8 L75.7,98.8 M78.2,108.6 L91.8,161.4 M75.7,98.8 L78.2,108.6 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M78,91.6 L101.8,79.2 M78,91.6 L78,107.7 M101.8,62.1 L73,55.2 M73,72.3 L73,89.5 M73,72.3 L73,55.2 M173.1,25.1 L173.1,59.4 M156.2,12 L173.1,25.1 M173.1,59.4 L78.2,108.6 M173.1,25.1 L101.8,62.1 M156.2,12 L73,55.2 M73,72.3 L78,91.6 M101.8,79.2 L101.8,62.1 M101.8,79.2 L73,72.3 M75.4,98.8 L73,89.5 "/>
+<text x="8" y="232" fill="#222">Corner 120°</text>
+<text x="8" y="246" fill="#666">as drawn, Flip</text>
+</g>
+<g transform="translate(440,508)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M99,78.3 L99,95.8 M99,78.3 L99,60.8 M70.5,70.1 L70.5,52.7 M70.5,70.1 L96.1,77.5 M175.3,26 L175.3,60.9 M159.4,12 L175.3,26 M175.3,60.9 L99,95.8 M175.3,26 L99,60.8 M159.4,12 L70.5,52.7 M96.1,77.5 L99,95.8 M96.1,77.5 L99,78.3 M70.5,52.7 L99,60.8 "/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M44.7,106.4 L44.7,123.9 M44.7,106.4 L44.7,88.9 M70.2,94.8 L70.4,96.3 M73.3,97.1 L70.4,96.3 M44.7,123.9 L58.1,208 M73.3,97.1 L83.6,161.4 M58.1,173 L58.1,208 M83.6,196.4 L83.6,161.4 M58.1,208 L83.6,196.4 M68.3,95.7 L70.2,94.8 M68.3,95.7 L44.7,88.9 M44.7,88.9 L58.1,173 M83.6,161.4 L58.1,173 M70.4,96.3 L68.3,95.7 "/>
+<text x="8" y="232" fill="#222">Corner 120°</text>
+<text x="8" y="246" fill="#666">sections turned</text>
+</g>
+<g transform="translate(660,508)">
+<rect x="2" y="2" width="216" height="250" fill="none" stroke="#dddddd" stroke-width="1"/>
+<path fill="none" stroke="#2f6690" stroke-width="0.8" stroke-linejoin="round" d="M51.9,128.3 L46.9,109.1 M51.9,128.3 L51.9,145.5 M46.9,109.1 L46.9,91.9 M46.9,91.9 L75.4,98.8 M51.9,145.5 L68.1,208 M68.1,208 L91.8,195.7 M68.1,173.7 L68.1,208 M91.8,195.7 L91.8,161.4 M46.9,91.9 L68.1,173.7 M91.8,161.4 L68.1,173.7 M75.4,98.8 L75.7,98.8 M78.2,108.6 L91.8,161.4 M75.7,98.8 L78.2,108.6 "/>
+<path fill="none" stroke="#b5651d" stroke-width="0.8" stroke-linejoin="round" d="M78,91.6 L101.8,79.2 M78,91.6 L78,107.7 M101.8,62.1 L73,55.2 M73,72.3 L73,89.5 M73,72.3 L73,55.2 M173.1,25.1 L173.1,59.4 M156.2,12 L173.1,25.1 M173.1,59.4 L78.2,108.6 M173.1,25.1 L101.8,62.1 M156.2,12 L73,55.2 M73,72.3 L78,91.6 M101.8,79.2 L101.8,62.1 M101.8,79.2 L73,72.3 M75.4,98.8 L73,89.5 "/>
+<text x="8" y="232" fill="#222">Corner 120°</text>
+<text x="8" y="246" fill="#666">sections turned, Flip</text>
+</g>
+</svg>
