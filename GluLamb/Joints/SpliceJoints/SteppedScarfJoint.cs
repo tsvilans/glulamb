@@ -13,7 +13,9 @@ namespace GluLamb.Joints
     /// scarf face slopes along the splice and has a step in the middle; the two beams' steps are
     /// PinWidth apart, leaving a slot across the beams for a key that is driven in to pull the
     /// joint tight. The ends of the scarf and the step are square to the scarf face, so the
-    /// beams go together square to it. Two dowels pin the splice. Each beam is cut by one open
+    /// beams go together square to it (SquareEnds cuts the ends square to the beams instead).
+    /// With StepWidth 0 it is a plain sloped scarf, which also covers SpliceJoint_Lap1 (its
+    /// BackCut is the default here). Two dowels pin the splice. Each beam is cut by one open
     /// surface (a Lap feature) and the key is reported as hardware.
     /// </summary>
     [JointType("glulamb.splice-scarf-keyed", Name = "Keyed scarf splice", Arity = 2, Topology = JointTopology.Splice,
@@ -40,6 +42,12 @@ namespace GluLamb.Joints
 
         [JointParameter(Description = "Scarf through the width of the beams instead of the height.")]
         public bool SideSplice { get; set; } = false;
+
+        [JointParameter(Description = "Cut the ends of the scarf square to the beams instead of square to the scarf face.")]
+        public bool SquareEnds { get; set; } = false;
+
+        [JointParameter(Description = "Run the dowels square to the scarf face instead of square to the beams.")]
+        public bool DowelsSquareToScarf { get; set; } = false;
 
         [JointParameter(Description = "Distance of the dowels from the ends of the scarf.", Unit = "length")]
         public double DowelEndOffset { get; set; } = 60;
@@ -104,29 +112,30 @@ namespace GluLamb.Joints
             var a = SpliceAngle;
             var d2 = (z: Math.Cos(a), y: -Math.Sin(a));
             var n2 = (z: Math.Sin(a), y: Math.Cos(a));
-            Point3d At(double t, double o, double x)
-            {
-                var z = d2.z * t + n2.z * o;
-                var y = d2.y * t + n2.y * o;
-                return mid + along * z + up * (s * y) + across * x;
-            }
+            Point3d AtZY(double z, double y, double x) => mid + along * z + up * (s * y) + across * x;
+            Point3d At(double t, double o, double x) => AtZY(d2.z * t + n2.z * o, d2.y * t + n2.y * o, x);
 
-            var t0 = -SpliceLength * 0.5 / Math.Cos(a);
-            var t1 = SpliceLength * 0.5 / Math.Cos(a);
-            // o on an end line (constant t) at a given y
-            double OAtY(double t, double y) => (y - d2.y * t) / n2.y;
+            // The ends of the scarf (e = -1 at beam 0, 1 at beam 1): square to the scarf face
+            // through its centre line at the ends of SpliceLength, or square to the beams
+            var tEnd = SpliceLength * 0.5 / Math.Cos(a);
+            Point3d EndAtO(int e, double o, double x) => SquareEnds
+                ? At((e * SpliceLength * 0.5 - n2.z * o) / d2.z, o, x)
+                : At(e * tEnd, o, x);
+            Point3d EndAtY(int e, double y, double x) => SquareEnds
+                ? AtZY(e * SpliceLength * 0.5, y, x)
+                : At(e * tEnd, (y - d2.y * e * tEnd) / n2.y, x);
 
             var step = StepWidth * 0.5;
             Polyline Profile(double sigma, double x)
             {
                 var p = new Polyline
                 {
-                    At(t0, OAtY(t0, yTop), x),
-                    At(t0, -step, x),
+                    EndAtY(-1, yTop, x),
+                    EndAtO(-1, -step, x),
                     At(sigma * PinWidth * 0.5, -step, x),
                     At(sigma * PinWidth * 0.5, step, x),
-                    At(t1, step, x),
-                    At(t1, OAtY(t1, -yTop), x),
+                    EndAtO(1, step, x),
+                    EndAtY(1, -yTop, x),
                 };
                 p.DeleteShortSegments(tolerance);
                 return p;
@@ -167,22 +176,35 @@ namespace GluLamb.Joints
             }
 
             // Each beam has to reach the far end of the scarf, across its full section
-            IEnumerable<Point3d> EndCorners(double t) =>
-                new[] { -1.0, 1.0 }.SelectMany(sy => new[] { -1.0, 1.0 }.Select(sx => At(t, OAtY(t, s * sy * height * 0.5), sx * width * 0.5)));
-            ExtendToReach(result, beam0, m_parts[0], EndCorners(t1));
-            ExtendToReach(result, beam1, m_parts[1], EndCorners(t0));
+            IEnumerable<Point3d> EndCorners(int e) =>
+                new[] { -1.0, 1.0 }.SelectMany(sy => new[] { -1.0, 1.0 }.Select(sx => EndAtY(e, sy * height * 0.5, sx * width * 0.5)));
+            ExtendToReach(result, beam0, m_parts[0], EndCorners(1));
+            ExtendToReach(result, beam1, m_parts[1], EndCorners(-1));
 
-            // Dowels through both beams, square to the beams
+            // Dowels through both beams, square to the beams or to the scarf face, crossing the
+            // scarf face DowelEndOffset from the ends
             if (DowelDiameter > 0)
             {
+                var dir = DowelsSquareToScarf ? along * n2.z + up * (s * n2.y) : up;
+                var du = dir * up;
+                var reach = yTop - AddedUp + Added;
                 foreach (var z in new[] { -SpliceLength * 0.5 + DowelEndOffset, SpliceLength * 0.5 - DowelEndOffset })
                 {
-                    var centre = mid + along * z;
-                    var axis = new Line(centre - up * (yTop - AddedUp + Added), up, (yTop - AddedUp + Added) * 2);
+                    var centre = At(z / d2.z, 0, 0);
+                    var yc = (centre - mid) * up;
+                    var axis = new Line(centre + dir * ((-reach - yc) / du), centre + dir * ((reach - yc) / du));
                     result.Add(new Drilling(beam0.Id, axis, DowelDiameter));
                     result.Add(new Drilling(beam1.Id, axis, DowelDiameter));
-                    result.Hardware.Add(new DowelItem(SpanThrough(centre, up,
-                        new[] { (frame0.Origin, h0), (frame1.Origin, h1) }), DowelDiameter, beam0.Id, beam1.Id));
+
+                    // The dowel itself spans from the lowest to the highest beam face it crosses
+                    double lo = double.MaxValue, hi = double.MinValue;
+                    foreach (var (o, h) in new[] { (frame0.Origin, h0), (frame1.Origin, h1) })
+                    {
+                        var yb = (o - mid) * up;
+                        lo = Math.Min(lo, (yb - h * 0.5 - yc) / du);
+                        hi = Math.Max(hi, (yb + h * 0.5 - yc) / du);
+                    }
+                    result.Hardware.Add(new DowelItem(new Line(centre + dir * lo, centre + dir * hi), DowelDiameter, beam0.Id, beam1.Id));
                 }
             }
 
