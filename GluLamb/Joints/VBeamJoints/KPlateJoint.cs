@@ -637,10 +637,13 @@ namespace GluLamb.Joints
             var plane = new Plane(origin, xaxis, PlatePlane.ZAxis);
             plane.Origin = plane.Origin - InsertionVector * Added;
 
+            // The slot ends are rounded by the tool, so make the slot longer by the corner radius at
+            // each end for the plate's square corners to fit
+            var slotRadius = Math.Min(ToolDiameter * 0.5, PlateThickness * 0.5);
             var tsp = new[] { TenonSidePlanes[0], TenonSidePlanes[1] };
             int sign = tsp[0].ZAxis * (tsp[1].Origin - tsp[0].Origin) > 0 ? 1 : -1;
-            tsp[0].Origin = tsp[0].Origin - tsp[0].ZAxis * ToleranceTenonSide * sign;
-            tsp[1].Origin = tsp[1].Origin - tsp[1].ZAxis * ToleranceTenonSide * sign;
+            tsp[0].Origin = tsp[0].Origin - tsp[0].ZAxis * (ToleranceTenonSide + slotRadius) * sign;
+            tsp[1].Origin = tsp[1].Origin - tsp[1].ZAxis * (ToleranceTenonSide + slotRadius) * sign;
             if (sign < 0)
                 tsp = new[] { tsp[1], tsp[0] };
 
@@ -654,7 +657,7 @@ namespace GluLamb.Joints
             if (Vector3d.CrossProduct(pts[1] - pts[0], pts[2] - pts[1]) * InsertionVector < 0)
                 poly.Reverse();
 
-            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), ToolDiameter * 0.5, 0.01, 0.01) ?? poly.ToNurbsCurve();
+            var profile = Curve.CreateFilletCornersCurve(poly.ToNurbsCurve(), slotRadius, 0.01, 0.01) ?? poly.ToNurbsCurve();
             var extrusion = Extrusion.Create(profile, PlateSlotDepth + Added, true);
             if (extrusion == null)
             {
