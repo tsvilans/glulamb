@@ -481,7 +481,10 @@ namespace GluLamb
                 if (ctr == null) continue;
                 if (ctr.IsSolid)
                 {
-                    if (ctr.SolidOrientation != BrepSolidOrientation.Outward)
+                    // SolidOrientation can be wrong for breps whose faces are inconsistently
+                    // oriented, so go by the sign of the volume when there is one
+                    var vmp = Rhino.Geometry.VolumeMassProperties.Compute(ctr, true, false, false, false);
+                    if (vmp != null ? vmp.Volume < 0 : ctr.SolidOrientation != BrepSolidOrientation.Outward)
                         ctr.Flip();
 
                     solids.Add(ctr);
@@ -535,8 +538,14 @@ namespace GluLamb
 
             if (diff == null || diff.Length < 1)
                 return largest;
-            else
-                return diff[0];
+
+            // Keep the largest piece: cutters can leave small loose bits (e.g. between a slot and
+            // an end cut), and the first piece returned is not necessarily the beam.
+            return diff.OrderByDescending(x =>
+            {
+                var vmp = Rhino.Geometry.VolumeMassProperties.Compute(x, true, false, false, false);
+                return vmp == null ? 0 : Math.Abs(vmp.Volume);
+            }).First();
 
         }
     }

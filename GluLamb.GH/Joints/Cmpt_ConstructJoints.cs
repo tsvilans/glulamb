@@ -187,6 +187,7 @@ namespace GluLamb.GH.Components
             var cuttersOut = new DataTree<GH_Brep>();
             var messagesOut = new DataTree<string>();
             var extensions = new Dictionary<string, BeamExtension>();
+            var pendingCutters = new List<(GH_Path Path, string BeamId, GluLamb.Features.Feature Feature)>();
 
             foreach (var branchPath in jointTree.Paths)
             {
@@ -299,8 +300,7 @@ namespace GluLamb.GH.Components
                         foreach (var feature in kvp.Value)
                         {
                             featuresOut.Add(new GH_ObjectWrapper(feature), beamPath);
-                            foreach (var cutter in feature.GetCutters(beam, tolerance))
-                                cuttersOut.Add(new GH_Brep(cutter), beamPath);
+                            pendingCutters.Add((beamPath, beam.Id, feature));
                         }
                     }
                 }
@@ -314,7 +314,6 @@ namespace GluLamb.GH.Components
 
             DA.SetDataTree(0, jointsOut);
             DA.SetDataTree(1, featuresOut);
-            DA.SetDataTree(2, cuttersOut);
             DA.SetDataTree(3, messagesOut);
             DA.SetDataList(4, registryInfo);
 
@@ -322,6 +321,7 @@ namespace GluLamb.GH.Components
             var extensionsOut = new DataTree<double>();
             var extendedOut = new DataTree<GH_Beam>();
             bool extend = HasExtendedBeams;
+            var extendedById = new Dictionary<string, Beam>();
 
             foreach (var kvp in beamsByIndex)
             {
@@ -330,19 +330,25 @@ namespace GluLamb.GH.Components
                 extensions.TryGetValue(beam.Id, out var extension);
                 extensionsOut.AddRange(new[] { extension.Start, extension.End }, path);
 
+                var extended = beam.Duplicate();
+                var curve = extended.Centreline;
+                if (extension.Start > 0)
+                    curve = curve.Extend(CurveEnd.Start, extension.Start, CurveExtensionStyle.Line) ?? curve;
+                if (extension.End > 0)
+                    curve = curve.Extend(CurveEnd.End, extension.End, CurveExtensionStyle.Line) ?? curve;
+                extended.Centreline = curve;
+                extendedById[beam.Id] = extended;
+
                 if (extend)
-                {
-                    var extended = beam.Duplicate();
-                    var curve = extended.Centreline;
-                    if (extension.Start > 0)
-                        curve = curve.Extend(CurveEnd.Start, extension.Start, CurveExtensionStyle.Line) ?? curve;
-                    if (extension.End > 0)
-                        curve = curve.Extend(CurveEnd.End, extension.End, CurveExtensionStyle.Line) ?? curve;
-                    extended.Centreline = curve;
                     extendedOut.Add(new GH_Beam(extended), path);
-                }
             }
 
+            // Cutters are made for the extended beams, so they cover the extended ends too
+            foreach (var (cutterPath, beamId, feature) in pendingCutters)
+                foreach (var cutter in feature.GetCutters(extendedById.TryGetValue(beamId, out var eb) ? eb : context.GetBeam(beamId), tolerance))
+                    cuttersOut.Add(new GH_Brep(cutter), cutterPath);
+
+            DA.SetDataTree(2, cuttersOut);
             DA.SetDataTree(5, extensionsOut);
             DA.SetDataTree(6, hardwareOut);
 

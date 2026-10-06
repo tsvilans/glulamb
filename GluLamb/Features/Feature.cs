@@ -63,6 +63,23 @@ namespace GluLamb.Features
         }
 
         /// <summary>
+        /// Copy of a cutter, with closed breps turned outward by the sign of their volume.
+        /// (BrepSolidOrientation can report Outward for breps whose faces point inward, e.g.
+        /// after filleting, and a boolean difference with those keeps the cutter instead.)
+        /// </summary>
+        public static Brep PrepareCutter(Brep cutter)
+        {
+            var copy = cutter.DuplicateBrep();
+            if (copy.IsSolid)
+            {
+                var vmp = VolumeMassProperties.Compute(copy, true, false, false, false);
+                if (vmp != null && vmp.Volume < 0)
+                    copy.Flip();
+            }
+            return copy;
+        }
+
+        /// <summary>
         /// Size a square that is guaranteed to cover the beam's cross-section and length,
         /// for building plane cutters.
         /// </summary>
@@ -88,10 +105,73 @@ namespace GluLamb.Features
             Plane = plane;
         }
 
+        /// <summary>
+        /// A box on the removed side of the plane, just large enough to contain the part of the
+        /// beam on that side (sampled along the centreline, plus a margin and a short tangent
+        /// extension past each end, so the cut still works on a slightly extended beam).
+        /// </summary>
         public override IList<Brep> GetCutters(Beam beam, double tolerance)
         {
-            var size = CoverSize(beam);
-            var box = new Box(Plane, new Interval(-size, size), new Interval(-size, size), new Interval(0, size));
+            var curve = beam.Centreline;
+            var size = Math.Max(beam.Width, beam.Height);
+            var margin = size * 0.1 + tolerance * 10;
+            var hw = beam.Width * 0.5 + Math.Abs(beam.OffsetX);
+            var hh = beam.Height * 0.5 + Math.Abs(beam.OffsetY);
+
+            var sections = new List<Plane>();
+            const int samples = 64;
+            for (int i = 0; i <= samples; ++i)
+                sections.Add(beam.GetPlane(curve.Domain.ParameterAt(i / (double)samples)));
+
+            // Past each end along the tangent
+            var start = beam.GetPlane(curve.Domain.Min);
+            var end = beam.GetPlane(curve.Domain.Max);
+            sections.Add(new Plane(start.Origin - start.ZAxis * size, start.XAxis, start.YAxis));
+            sections.Add(new Plane(end.Origin + end.ZAxis * size, end.XAxis, end.YAxis));
+
+            // Corners of each section in the cut plane's coordinates
+            var corners = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) };
+            var local = sections.Select(section => corners.Select(c =>
+            {
+                Plane.RemapToPlaneSpace(section.PointAt(c.Item1 * hw, c.Item2 * hh), out Point3d p);
+                return p;
+            }).ToArray()).ToArray();
+
+            // Points on the removed side, plus where the beam's edges cross the plane
+            var points = new List<Point3d>();
+            void AddEdge(Point3d a, Point3d b)
+            {
+                if (a.Z >= 0) points.Add(a);
+                if ((a.Z < 0) != (b.Z < 0))
+                    points.Add(a + (b - a) * (a.Z / (a.Z - b.Z)));
+            }
+
+            for (int i = 0; i < local.Length; ++i)
+                for (int k = 0; k < 4; ++k)
+                {
+                    AddEdge(local[i][k], local[i][(k + 1) % 4]);   // around the section
+                    if (i < samples)
+                        AddEdge(local[i][k], local[i + 1][k]);     // along the beam
+                }
+
+            for (int k = 0; k < 4; ++k)
+            {
+                AddEdge(local[0][k], local[samples + 1][k]);       // past the start
+                AddEdge(local[samples][k], local[samples + 2][k]); // past the end
+            }
+
+            if (points.Count < 1) return new Brep[0];
+
+            double x0 = points.Min(p => p.X), x1 = points.Max(p => p.X);
+            double y0 = points.Min(p => p.Y), y1 = points.Max(p => p.Y);
+            double z1 = points.Max(p => p.Z);
+
+            if (z1 <= 0) return new Brep[0];
+
+            var box = new Box(Plane,
+                new Interval(x0 - margin, x1 + margin),
+                new Interval(y0 - margin, y1 + margin),
+                new Interval(0, z1 + margin));
             return new[] { box.ToBrep() };
         }
 
@@ -116,7 +196,7 @@ namespace GluLamb.Features
         /// </summary>
         public List<Brep> Cutters = new List<Brep>();
 
-        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(x => x.DuplicateBrep()).ToList();
+        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(PrepareCutter).ToList();
 
         public override void Transform(Transform xform)
         {
@@ -226,7 +306,7 @@ namespace GluLamb.Features
         /// </summary>
         public List<Curve> Contours = new List<Curve>();
 
-        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(x => x.DuplicateBrep()).ToList();
+        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(PrepareCutter).ToList();
 
         public override void Transform(Transform xform)
         {

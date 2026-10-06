@@ -603,7 +603,7 @@ namespace GluLamb.Joints
             }
 
             var slot = new Slot { BeamId = Beams[2].Id, Plane = plane, Thickness = PlateThickness, Depth = PlateSlotDepth };
-            slot.Cutters.Add(extrusion.ToBrep(true));
+            slot.Cutters.Add(Slot.PrepareCutter(extrusion.ToBrep(true)));
             slot.Data.Set("TenonSide0", tsp[0]);
             slot.Data.Set("TenonSide1", tsp[1]);
             slot.Data.Set("PlateFace0", PlateFacePlanes[0]);
@@ -671,7 +671,7 @@ namespace GluLamb.Joints
                 BlendType.Fillet, RailType.RollingBall, 0.01);
 
             var slot = new Slot { BeamId = Beams[index].Id, Plane = PlatePlane, Thickness = PlateThickness };
-            slot.Cutters.Add(filleted != null && filleted.Length > 0 ? filleted[0] : joined);
+            slot.Cutters.Add(Slot.PrepareCutter(filleted != null && filleted.Length > 0 ? filleted[0] : joined));
             slot.Data.Set("SidePlane", sidePlane);
             slot.Data.Set("PlatePlane", PlatePlane);
             slot.Data.Set("EndPlane", endPlane);

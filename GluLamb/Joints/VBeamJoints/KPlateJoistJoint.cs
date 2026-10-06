@@ -79,7 +79,7 @@ namespace GluLamb.Joints
             if (sillCutter != null)
             {
                 var slot = new Slot { BeamId = Beams[2].Id, Plane = PlatePlane };
-                slot.Cutters.Add(sillCutter);
+                slot.Cutters.Add(Slot.PrepareCutter(sillCutter));
                 slot.Data.Set("Name", $"JoistPocket_{Short(joistBeam)}");
                 result.Add(slot);
             }
@@ -87,7 +87,7 @@ namespace GluLamb.Joints
             if (joistCutter != null)
             {
                 var slot = new Slot { BeamId = joistBeam.Id, Plane = PlatePlane };
-                slot.Cutters.Add(joistCutter);
+                slot.Cutters.Add(Slot.PrepareCutter(joistCutter));
                 slot.Data.Set("Name", $"JoistNotch_{Short(Beams[2])}");
                 result.Add(slot);
 

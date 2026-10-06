@@ -308,7 +308,7 @@ namespace GluLamb.Joints
             }
 
             var slot = new Slot { BeamId = arm.Id, Plane = PlatePlane, Thickness = PlateThickness, Depth = depth };
-            slot.Cutters.Add(brep);
+            slot.Cutters.Add(Slot.PrepareCutter(brep));
             slot.Data.Set("SidePlane", sidePlane);
             slot.Data.Set("OutsidePlane", RightPlanes[index]);
             slot.Data.Set("EndPlane", endPlane);

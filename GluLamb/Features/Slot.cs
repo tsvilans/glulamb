@@ -22,7 +22,7 @@ namespace GluLamb.Features
         /// </summary>
         public List<Brep> Cutters = new List<Brep>();
 
-        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(x => x.DuplicateBrep()).ToList();
+        public override IList<Brep> GetCutters(Beam beam, double tolerance) => Cutters.Select(PrepareCutter).ToList();
 
         public override void Transform(Transform xform)
         {
