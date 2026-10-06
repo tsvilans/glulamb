@@ -106,9 +106,11 @@ namespace GluLamb.Features
         }
 
         /// <summary>
-        /// A box on the removed side of the plane, just large enough to contain the part of the
-        /// beam on that side (sampled along the centreline, plus a margin and a short tangent
-        /// extension past each end, so the cut still works on a slightly extended beam).
+        /// A planar surface in the cut plane, just covering where the beam crosses it (sampled
+        /// along the centreline, with a small margin and a short tangent extension past each end,
+        /// so it still works on a slightly extended beam). Brep.Cut splits the beam with it and
+        /// keeps the largest piece; the plane itself (with its normal towards the removed side)
+        /// is the production data.
         /// </summary>
         public override IList<Brep> GetCutters(Beam beam, double tolerance)
         {
@@ -137,11 +139,10 @@ namespace GluLamb.Features
                 return p;
             }).ToArray()).ToArray();
 
-            // Points on the removed side, plus where the beam's edges cross the plane
+            // Where the beam's edges cross the plane
             var points = new List<Point3d>();
             void AddEdge(Point3d a, Point3d b)
             {
-                if (a.Z >= 0) points.Add(a);
                 if ((a.Z < 0) != (b.Z < 0))
                     points.Add(a + (b - a) * (a.Z / (a.Z - b.Z)));
             }
@@ -162,17 +163,14 @@ namespace GluLamb.Features
 
             if (points.Count < 1) return new Brep[0];
 
-            double x0 = points.Min(p => p.X), x1 = points.Max(p => p.X);
-            double y0 = points.Min(p => p.Y), y1 = points.Max(p => p.Y);
-            double z1 = points.Max(p => p.Z);
+            // A planar surface just covering the beam's section in the plane; Brep.Cut splits the
+            // beam with it and keeps the largest piece.
+            var rectangle = new Rectangle3d(Plane,
+                new Interval(points.Min(p => p.X) - margin, points.Max(p => p.X) + margin),
+                new Interval(points.Min(p => p.Y) - margin, points.Max(p => p.Y) + margin));
 
-            if (z1 <= 0) return new Brep[0];
-
-            var box = new Box(Plane,
-                new Interval(x0 - margin, x1 + margin),
-                new Interval(y0 - margin, y1 + margin),
-                new Interval(0, z1 + margin));
-            return new[] { box.ToBrep() };
+            var surface = Brep.CreatePlanarBreps(rectangle.ToNurbsCurve(), tolerance);
+            return surface == null ? new Brep[0] : surface.ToList();
         }
 
         public override Feature Duplicate() => CopyBaseTo(new JackRafterCut());

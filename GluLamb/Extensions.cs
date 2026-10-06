@@ -538,14 +538,8 @@ namespace GluLamb
 
             if (diff == null || diff.Length < 1)
                 return largest;
-
-            // Keep the largest piece: cutters can leave small loose bits (e.g. between a slot and
-            // an end cut), and the first piece returned is not necessarily the beam.
-            return diff.OrderByDescending(x =>
-            {
-                var vmp = Rhino.Geometry.VolumeMassProperties.Compute(x, true, false, false, false);
-                return vmp == null ? 0 : Math.Abs(vmp.Volume);
-            }).First();
+            else
+                return diff[0];
 
         }
     }
