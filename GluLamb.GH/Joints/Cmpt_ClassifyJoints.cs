@@ -52,6 +52,7 @@ namespace GluLamb.GH.Components
 
         bool monochrome = false;
         bool fullName = false;
+        bool freeEnds = false;
 
         List<JointCondition> JointConditions = new List<JointCondition>();
         Dictionary<int, Plane> JointOrigins = null;
@@ -72,6 +73,30 @@ namespace GluLamb.GH.Components
         {
             Menu_AppendItem(menu, "Monochrome", ToggleMonochrome, true, monochrome);
             Menu_AppendItem(menu, "Full name", ToggleFullName, true, fullName);
+            Menu_AppendItem(menu, "Free ends", ToggleFreeEnds, true, freeEnds)
+                .ToolTipText = "Also make single-beam (E) conditions at curve ends that aren't in any joint.";
+        }
+
+        private void ToggleFreeEnds(object sender, EventArgs e)
+        {
+            RecordUndoEvent("Free ends");
+            freeEnds = !freeEnds;
+            Message = freeEnds ? "Free ends" : null;
+            ExpireSolution(true);
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            writer.SetBoolean("FreeEnds", freeEnds);
+            return base.Write(writer);
+        }
+
+        public override bool Read(GH_IReader reader)
+        {
+            if (reader.ItemExists("FreeEnds"))
+                freeEnds = reader.GetBoolean("FreeEnds");
+            Message = freeEnds ? "Free ends" : null;
+            return base.Read(reader);
         }
 
         private void ToggleMonochrome(object sender, EventArgs e)
@@ -202,6 +227,34 @@ namespace GluLamb.GH.Components
             }
 
             Joints = JointX.MergeJoints(Joints, mergeDistance);
+
+            // Single-beam conditions at curve ends that no joint uses
+            if (freeEnds)
+            {
+                var used = new HashSet<(int, bool)>(Joints.SelectMany(j => j.Parts)
+                    .Where(p => JointPartX.IsAtEnd(p.Case))
+                    .Select(p => (p.ElementIndex, JointPartX.End1(p.Case))));
+
+                int id = Joints.Count;
+                foreach (var path in curves.Paths)
+                {
+                    if (curves[path].Count < 1 || curves[path][0]?.Value == null) continue;
+                    var index = path.Indices[0];
+                    var curve = curves[path][0].Value;
+
+                    foreach (var atEnd1 in new[] { false, true })
+                    {
+                        if (used.Contains((index, atEnd1))) continue;
+
+                        var t = atEnd1 ? curve.Domain.Max : curve.Domain.Min;
+                        ClassifyJointPosition(curve, t, out int s, out Vector3d v, endTolerance);
+                        Joints.Add(new JointX(
+                            new List<JointPartX> { new JointPartX() { Case = s, ElementIndex = index, JointIndex = id, Parameter = t, Direction = v } },
+                            curve.PointAt(t)));
+                        id++;
+                    }
+                }
+            }
 
             for (int i = 0; i < Joints.Count; ++i)
             {
