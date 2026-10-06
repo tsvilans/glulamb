@@ -63,6 +63,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Clearance at the end of the plate slots in the arms.", Unit = "length")]
         public double ToleranceSlotEnd { get; set; } = 1.5;
 
+        [JointParameter(Description = "Shortest length of the plate and its slots along each edge of an arm, measured from the sill face.", Unit = "length")]
+        public double MinimumSlotLength { get; set; } = 40;
+
         [JointParameter(Description = "Insert the plate from one direction (slot ends parallel), instead of along each arm.")]
         public bool SingleInsertionDirection { get; set; } = true;
 
@@ -271,6 +274,31 @@ namespace GluLamb.Joints
                 EndPlanes[i] = SingleInsertionDirection
                     ? new Plane(endPt, PlatePlane.XAxis * -sign, PlatePlane.ZAxis)
                     : new Plane(endPt, PlatePlane.Project(-BeamPlanes[i].XAxis), PlatePlane.ZAxis);
+
+                // The end plane is placed from the outside edge of the arm. With a single insertion
+                // direction it isn't square to the arm, so on the seam side it can end up close to,
+                // or even below, the sill face. And when the arms are close together, their seam
+                // faces only meet some way up the arms. In both cases the plate outline would cross
+                // itself and the plate come out inside-out, so move the end plane out until each
+                // edge is long enough and the plate reaches past the point where the seams meet.
+                double seamApex = 0;
+                if (RX.PlanePlanePlane(PlatePlane, SeamPlanes[0], SeamPlanes[1], out Point3d apex) &&
+                    RX.PlanePlanePlane(PlatePlane, SeamPlanes[i], SillPlane, out Point3d seamAtSill))
+                    seamApex = Math.Max(0, (apex - seamAtSill) * BeamDirections[i]);
+
+                var neededSeam = Math.Max(MinimumSlotLength, seamApex > 0 ? seamApex + ToolDiameter : 0);
+
+                for (int iteration = 0; iteration < 8; ++iteration)
+                {
+                    var deficit = Math.Max(
+                        neededSeam - SlotEdgeLength(i, SeamPlanes[i]),
+                        MinimumSlotLength - SlotEdgeLength(i, OutsidePlanes[i]));
+                    if (double.IsNaN(deficit) || deficit <= 0) break;
+
+                    // Moving the plane by d along its normal moves its edge points by d / cos along the arm
+                    var n = EndPlanes[i].ZAxis * BeamDirections[i] < 0 ? -EndPlanes[i].ZAxis : EndPlanes[i].ZAxis;
+                    EndPlanes[i].Origin = EndPlanes[i].Origin + n * ((deficit + 0.5) * Math.Max(n * BeamDirections[i], 0.05));
+                }
             }
 
             // How the arms meet each other
@@ -359,6 +387,18 @@ namespace GluLamb.Joints
                 result.Messages.Add($"{GetType().Name}: failed to create the plate.");
 
             result.Status = result.Features.Count == 3 ? JointStatus.Ok : JointStatus.Partial;
+        }
+
+        /// <summary>
+        /// Length of an arm's plate slot along one of its edges (the edge where sidePlane meets
+        /// the plate plane), from the sill face to the end plane, measured along the arm.
+        /// </summary>
+        protected double SlotEdgeLength(int arm, Plane sidePlane)
+        {
+            if (!RX.PlanePlanePlane(PlatePlane, sidePlane, EndPlanes[arm], out Point3d end) ||
+                !RX.PlanePlanePlane(PlatePlane, sidePlane, SillPlane, out Point3d sill))
+                return double.NaN;
+            return (end - sill) * BeamDirections[arm];
         }
 
         protected static string Short(Beam beam) => beam.Id.Length > 8 ? beam.Id.Substring(0, 8) : beam.Id;
