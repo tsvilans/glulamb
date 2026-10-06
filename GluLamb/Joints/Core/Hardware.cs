@@ -96,6 +96,27 @@ namespace GluLamb.Joints
     }
 
     /// <summary>
+    /// A rectangular key or wedge, e.g. the key driven into a keyed scarf.
+    /// </summary>
+    public class KeyItem : HardwareItem
+    {
+        public Box Box;
+
+        public KeyItem(Box box, params string[] beamIds)
+        {
+            Box = box;
+            BeamIds.AddRange(beamIds);
+        }
+
+        public override string Category => "Key";
+        public override string Specification => $"{Box.X.Length:0.##}×{Box.Y.Length:0.##}";
+        public override double Amount => Box.Z.Length;
+        public override int AmountDimension => 1;
+
+        public override GeometryBase GetGeometry() => Box.ToBrep();
+    }
+
+    /// <summary>
     /// One line of a take-off: all items of a category and specification.
     /// </summary>
     public class TakeOffLine
