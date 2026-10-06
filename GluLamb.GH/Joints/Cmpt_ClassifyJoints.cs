@@ -156,6 +156,8 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Merge distance", "M", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50);
             pManager.AddNumberParameter("End tolerance", "ET", "Distance within which to consider a joint at the end of an element.", GH_ParamAccess.item, 10);
             pManager.AddNumberParameter("Perp threshold", "PT", "Angle threshold at which to consider a joint a splice, corner, or graft.", GH_ParamAccess.item, JointX.PerpendicularThreshold);
+            pManager.AddVectorParameter("Post direction", "PD", "Where three or more beams end at one joint, the one most along this direction (within 45°) is put first, as the post. A zero vector keeps the input order.", GH_ParamAccess.item, Vector3d.ZAxis);
+            pManager[6].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -180,6 +182,9 @@ namespace GluLamb.GH.Components
 
             double csThreshold = JointX.PerpendicularThreshold;
             DA.GetData("Perp threshold", ref csThreshold);
+
+            var postDirection = Vector3d.ZAxis;
+            DA.GetData("Post direction", ref postDirection);
 
             JointOrigins = new Dictionary<int, Plane>();
             JointLines = new Dictionary<int, Line>();
@@ -227,6 +232,16 @@ namespace GluLamb.GH.Components
             }
 
             Joints = JointX.MergeJoints(Joints, mergeDistance);
+
+            // Post first: where only beam ends meet, the joint can't tell the post from the beams
+            if (postDirection.Unitize())
+                foreach (var jc in Joints.Where(j => j.Parts.Count >= 3 && j.Parts.All(p => JointPartX.IsAtEnd(p.Case))))
+                {
+                    var post = jc.Parts.OrderByDescending(p => Math.Abs(p.Direction * postDirection) / Math.Max(p.Direction.Length, 1e-9)).First();
+                    if (Math.Abs(post.Direction * postDirection) / Math.Max(post.Direction.Length, 1e-9) < Math.Cos(Math.PI * 0.25)) continue;
+                    jc.Parts.Remove(post);
+                    jc.Parts.Insert(0, post);
+                }
 
             // Merging adds parts, so frame each condition from all of them
             foreach (var jc in Joints)

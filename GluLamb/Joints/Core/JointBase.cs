@@ -202,6 +202,31 @@ namespace GluLamb.Joints
             result.Extend(beam.Id, atStart, reach + ExtensionTolerance);
         }
 
+        /// <summary>
+        /// Add another joint's result (e.g. a joint built from part of this one's condition) to
+        /// this one's: features, hardware, extensions, messages and debug. Returns whether it succeeded.
+        /// </summary>
+        protected static bool Merge(JointResult into, JointResult from)
+        {
+            foreach (var feature in from.AllFeatures) into.Add(feature);
+            into.Hardware.AddRange(from.Hardware);
+            into.Messages.AddRange(from.Messages);
+            into.Debug.AddRange(from.Debug);
+            foreach (var kv in from.Extensions)
+            {
+                into.Extend(kv.Key, true, kv.Value.Start);
+                into.Extend(kv.Key, false, kv.Value.End);
+            }
+            if (from.Status == JointStatus.Partial) into.Status = JointStatus.Partial;
+            return from.Success;
+        }
+
+        /// <summary>
+        /// A condition made of some of this joint's parts, for building part of it with another joint type.
+        /// </summary>
+        protected JointX SubCondition(params int[] parts) =>
+            new JointX(parts.Select(i => m_parts[i]).ToList(), Position);
+
         public Dictionary<string, object> GetParameters() => JointParameters.Get(this);
 
         /// <summary>

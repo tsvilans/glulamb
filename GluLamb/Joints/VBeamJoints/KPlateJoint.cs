@@ -107,8 +107,11 @@ namespace GluLamb.Joints
         public static double Score(JointX condition, IJointContext context)
         {
             if (condition.Parts.Count != 3) return 0;
-            int middles = condition.Parts.Count(x => JointPartX.IsAtMiddle(x.Case));
-            return middles == 1 ? 1.0 : 0.0;
+            var middle = condition.Parts.Where(x => JointPartX.IsAtMiddle(x.Case)).ToList();
+            if (middle.Count != 1) return 0.0;
+            // The arms must be in one plane with the sill; otherwise it is a post (glulamb.post-beams)
+            var ends = condition.Parts.Where(x => JointPartX.IsAtEnd(x.Case)).ToList();
+            return PostBeamsJoint.ArmsInPlane(middle[0].Direction, ends[0].Direction, ends[1].Direction) ? 1.0 : 0.0;
         }
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
