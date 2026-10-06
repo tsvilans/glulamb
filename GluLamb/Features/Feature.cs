@@ -30,6 +30,12 @@ namespace GluLamb.Features
         public abstract string ProcessingName { get; }
 
         /// <summary>
+        /// Extra named data for production that has no typed parameter yet (e.g. pocket outlines
+        /// and depths). Not transformed by Transform().
+        /// </summary>
+        public Rhino.Collections.ArchivableDictionary Data = new Rhino.Collections.ArchivableDictionary();
+
+        /// <summary>
         /// Geometry for cutting the feature out of a beam or blank model. Closed breps are
         /// subtracted; open breps split the model and the largest piece is kept (see
         /// BrepExtensionMethods.Cut).
@@ -52,6 +58,7 @@ namespace GluLamb.Features
         {
             other.BeamId = BeamId;
             other.Plane = Plane;
+            other.Data = Data?.Clone() ?? new Rhino.Collections.ArchivableDictionary();
             return other;
         }
 
