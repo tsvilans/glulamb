@@ -182,6 +182,9 @@ namespace GluLamb.Joints
 
                     for (int j = 0; j < 2; ++j)
                         result.Add(new Drilling(beams[j].Id, axis, DowelDiameter));
+
+                    result.Hardware.Add(new DowelItem(SpanThrough(dowelOrigin, splicePlane.YAxis,
+                        new[] { (beam0Plane.Origin, beam0Height), (beam1Plane.Origin, beam1Height) }), DowelDiameter, beam0.Id, beam1.Id));
                 }
             }
 

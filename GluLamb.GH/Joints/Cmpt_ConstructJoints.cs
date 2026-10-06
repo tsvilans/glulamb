@@ -71,6 +71,8 @@ namespace GluLamb.GH.Components
             pManager.AddTextParameter("Messages", "M", "Status and messages per joint.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Registry", "R", "Registered joint types, and any registry errors.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Extensions", "E", "How far each beam needs extending to contain its joints: {start, end} per beam path. Plug into Extend Curve.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Hardware", "H", "Separate parts the joints need (dowels, plates), per joint path.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Take-off", "TO", "Hardware totals: count and length (m) or area (m²) per type and size.", GH_ParamAccess.list);
         }
 
         const string ExtendedBeamsName = "Extended beams";
@@ -104,6 +106,36 @@ namespace GluLamb.GH.Components
             side == GH_ParameterSide.Output ? CreateExtendedBeamsParam() : null;
         bool IGH_VariableParameterComponent.DestroyParameter(GH_ParameterSide side, int index) => true;
         void IGH_VariableParameterComponent.VariableParameterMaintenance() { }
+
+        // Joint labels for the preview: position, text and colour
+        readonly List<(Point3d Point, string Text, System.Drawing.Color Color)> m_labels = new List<(Point3d, string, System.Drawing.Color)>();
+
+        protected override void BeforeSolveInstance()
+        {
+            m_labels.Clear();
+            base.BeforeSolveInstance();
+        }
+
+        public override BoundingBox ClippingBox => m_labels.Count > 0 ? new BoundingBox(m_labels.Select(x => x.Point)) : base.ClippingBox;
+
+        public override void DrawViewportWires(IGH_PreviewArgs args)
+        {
+            base.DrawViewportWires(args);
+            if (Hidden || Locked) return;
+
+            foreach (var (point, text, color) in m_labels)
+            {
+                args.Display.DrawPoint(point, Rhino.Display.PointStyle.RoundActivePoint, 4, color);
+                var screen = args.Display.Viewport.WorldToClient(point);
+                args.Display.Draw2dText(text, color, new Point2d(screen.X, screen.Y + 16), true, 14);
+            }
+        }
+
+        static System.Drawing.Color StatusColor(JointStatus status) =>
+            status == JointStatus.Ok ? System.Drawing.Color.White
+            : status == JointStatus.Partial ? System.Drawing.Color.Orange
+            : status == JointStatus.Skipped ? System.Drawing.Color.Gray
+            : System.Drawing.Color.Red;
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
@@ -149,6 +181,8 @@ namespace GluLamb.GH.Components
             var indexById = beamsByIndex.ToDictionary(x => x.Value.Id, x => x.Key);
 
             var jointsOut = new DataTree<GH_ObjectWrapper>();
+            var hardwareOut = new DataTree<GH_ObjectWrapper>();
+            var allHardware = new List<HardwareItem>();
             var featuresOut = new DataTree<GH_ObjectWrapper>();
             var cuttersOut = new DataTree<GH_Brep>();
             var messagesOut = new DataTree<string>();
@@ -204,12 +238,14 @@ namespace GluLamb.GH.Components
                     catch (Exception e)
                     {
                         messagesOut.Add($"Failed: {e.Message}", path);
+                        m_labels.Add((condition.Position.Origin, $"{path} failed", StatusColor(JointStatus.Failed)));
                         continue;
                     }
 
                     if (joint == null)
                     {
                         messagesOut.Add($"Skipped: no registered joint type handles this {topology} condition.", path);
+                        m_labels.Add((condition.Position.Origin, $"{path} skipped", StatusColor(JointStatus.Skipped)));
                         continue;
                     }
 
@@ -242,6 +278,12 @@ namespace GluLamb.GH.Components
                         extensions[kvp.Key] = extensions.TryGetValue(kvp.Key, out var existing) ? BeamExtension.Max(existing, kvp.Value) : kvp.Value;
 
                     jointsOut.Add(new GH_ObjectWrapper(joint), path);
+                    hardwareOut.AddRange(result.Hardware.Select(x => new GH_ObjectWrapper(x)), path);
+                    allHardware.AddRange(result.Hardware);
+
+                    var labelPoint = joint.Position.IsValid ? joint.Position.Origin : condition.Position.Origin;
+                    var typeName = joint.TypeId.StartsWith("glulamb.") ? joint.TypeId.Substring(8) : joint.TypeId;
+                    m_labels.Add((labelPoint, $"{path} {typeName}", StatusColor(result.Status)));
                     messagesOut.Add($"{result.Status}: {joint}", path);
                     foreach (var message in parameterMessages)
                         messagesOut.Add(message, path);
@@ -302,6 +344,10 @@ namespace GluLamb.GH.Components
             }
 
             DA.SetDataTree(5, extensionsOut);
+            DA.SetDataTree(6, hardwareOut);
+
+            var toMetres = Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc?.ModelUnitSystem ?? Rhino.UnitSystem.Millimeters, Rhino.UnitSystem.Meters);
+            DA.SetDataList(7, TakeOffLine.Create(allHardware).Select(x => x.ToString(toMetres, "m")));
             if (extend)
                 DA.SetDataTree(Params.Output.FindIndex(x => x.Name == ExtendedBeamsName), extendedOut);
         }

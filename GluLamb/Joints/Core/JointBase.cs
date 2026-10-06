@@ -131,6 +131,24 @@ namespace GluLamb.Joints
         }
 
         /// <summary>
+        /// The segment of the line through point along direction that spans all the given
+        /// beam sections, each given by its centre and its size along direction. Used for the
+        /// actual length of dowels, as opposed to their (longer) drilling cutters.
+        /// </summary>
+        protected static Line SpanThrough(Point3d point, Vector3d direction, IEnumerable<(Point3d Centre, double Size)> sections)
+        {
+            direction.Unitize();
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (var (centre, size) in sections)
+            {
+                var d = (centre - point) * direction;
+                lo = Math.Min(lo, d - size * 0.5);
+                hi = Math.Max(hi, d + size * 0.5);
+            }
+            return lo > hi ? Line.Unset : new Line(point + direction * lo, point + direction * hi);
+        }
+
+        /// <summary>
         /// Report how far the beam of a part at a beam end needs extending so that its end
         /// reaches past all the given points, plus ExtensionTolerance. Does nothing for parts
         /// in the middle of a beam.

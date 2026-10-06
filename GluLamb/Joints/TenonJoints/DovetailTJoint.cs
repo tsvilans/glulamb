@@ -208,6 +208,11 @@ namespace GluLamb.Joints
 
                 result.Add(new Drilling(tenon.Id, axis, DowelDiameter));
                 result.Add(new Drilling(mortise.Id, axis, DowelDiameter));
+
+                // The dowel itself runs from its start in the tenon beam to the mortise beam's far face
+                var farFace = new Plane(mortisePlane.Origin + mortiseSideDirection * mortiseWidth * 0.5, mortiseSideDirection);
+                var dowel = RX.LinePlane(axis, farFace, out double t) ? new Line(axis.From, axis.PointAt(t)) : axis;
+                result.Hardware.Add(new DowelItem(dowel, DowelDiameter, tenon.Id, mortise.Id));
             }
         }
     }

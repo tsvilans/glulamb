@@ -203,6 +203,9 @@ namespace GluLamb.Joints
 
                 result.Add(new Drilling(tenon.Id, axis, DowelDiameter));
                 result.Add(new Drilling(mortise.Id, axis, DowelDiameter));
+
+                result.Hardware.Add(new DowelItem(SpanThrough(lapCentre, normal,
+                    new[] { (tenonPlane.Origin, tenonHeight), (mortisePlane.Origin, mortiseHeight) }), DowelDiameter, tenon.Id, mortise.Id));
             }
         }
     }

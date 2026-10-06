@@ -120,6 +120,11 @@ namespace GluLamb.Joints
         public Dictionary<string, BeamExtension> Extensions = new Dictionary<string, BeamExtension>();
 
         /// <summary>
+        /// Separate parts the joint needs (dowels, plates), for take-offs.
+        /// </summary>
+        public List<HardwareItem> Hardware = new List<HardwareItem>();
+
+        /// <summary>
         /// Require a beam to be extended by at least this much at one end (keeps the largest).
         /// </summary>
         public void Extend(string beamId, bool atStart, double amount)

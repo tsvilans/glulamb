@@ -184,6 +184,9 @@ namespace GluLamb.Joints
 
                     foreach (var beam in beams)
                         result.Add(new Drilling(beam.Id, axis, DowelDiameter));
+
+                    result.Hardware.Add(new DowelItem(SpanThrough(centre, splicePlane.XAxis,
+                        new[] { (beam0Plane.Origin, beam0Width), (beam1Plane.Origin, beam1Width) }), DowelDiameter, beam0.Id, beam1.Id));
                 }
             }
 
