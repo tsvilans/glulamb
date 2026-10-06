@@ -63,6 +63,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Clearance at the end of the plate slots in the arms.", Unit = "length")]
         public double ToleranceSlotEnd { get; set; } = 1.5;
 
+        [JointParameter(Description = "Width of the plate tenon and its slot in the sill, along the sill. 0 = automatic: just wide enough for the arms and the tool radius. (PlateWidth in KJoint_Plate4.)", Unit = "length")]
+        public double TenonWidth { get; set; } = 0;
+
         [JointParameter(Description = "Shortest length of the plate and its slots along each edge of an arm, measured from the sill face.", Unit = "length")]
         public double MinimumSlotLength { get; set; } = 40;
 
@@ -489,6 +492,14 @@ namespace GluLamb.Joints
 
             min -= toolRadius / Math.Tan(minAngle * 0.5) + toolRadius;
             max += toolRadius / Math.Tan(maxAngle * 0.5) + toolRadius;
+
+            // A fixed tenon width (along the sill), centred on the automatic one
+            if (TenonWidth > 0)
+            {
+                var middle = (min + max) * 0.5;
+                min = middle - TenonWidth * 0.5;
+                max = middle + TenonWidth * 0.5;
+            }
 
             TenonSidePlanes = new[]
             {
