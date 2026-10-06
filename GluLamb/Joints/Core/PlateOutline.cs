@@ -7,40 +7,17 @@ using Rhino.Geometry;
 namespace GluLamb.Joints
 {
     /// <summary>
-    /// Rounding the corners of steel plate outlines. Only where it matters: inside corners
-    /// (concave), which are rounded anyway by the cutting tool and carry stress, and outside
-    /// corners (convex) that sit inside a beam, i.e. in the end of a milled slot, whose own
-    /// corners are rounded to the tool radius. Outside corners in the open stay sharp.
+    /// Rounding the corners of steel plate outlines: only the inside (concave) corners, which the
+    /// cutting tool rounds anyway and which carry stress. Outside corners stay sharp. (Plates whose
+    /// corners sit in milled slot ends may need more; see the TODO list.)
     /// </summary>
     public static class PlateOutline
     {
         /// <summary>
-        /// The box a beam occupies, its centreline extended as the joint result asks, as a
-        /// straight blank from its start frame.
+        /// For each corner of a closed outline (points without the repeated first one), whether it
+        /// is an inside (concave) corner, seen along the normal.
         /// </summary>
-        public static Box BeamBox(Beam beam, JointResult result)
-        {
-            var curve = beam.Centreline;
-            double start = 0, end = 0;
-            if (result != null && result.Extensions.TryGetValue(beam.Id, out var e))
-            {
-                start = e.Start;
-                end = e.End;
-            }
-            var plane = beam.GetPlane(curve.Domain.Min);
-            var length = curve.IsLinear() ? curve.GetLength() : curve.PointAtStart.DistanceTo(curve.PointAtEnd);
-            return new Box(plane,
-                new Interval(-beam.Width * 0.5 + beam.OffsetX, beam.Width * 0.5 + beam.OffsetX),
-                new Interval(-beam.Height * 0.5 + beam.OffsetY, beam.Height * 0.5 + beam.OffsetY),
-                new Interval(-start, length + end));
-        }
-
-        /// <summary>
-        /// For each corner of a closed outline (points without the repeated first one), whether to
-        /// round it: inside corners, and outside corners strictly inside one of the boxes (more
-        /// than margin in from all of its faces).
-        /// </summary>
-        public static bool[] CornersToRound(IList<Point3d> points, Vector3d normal, IEnumerable<Box> boxes, double margin)
+        public static bool[] InsideCorners(IList<Point3d> points, Vector3d normal)
         {
             int n = points.Count;
             var flags = new bool[n];
@@ -51,20 +28,12 @@ namespace GluLamb.Joints
                 area += Vector3d.CrossProduct((Vector3d)points[i], (Vector3d)points[(i + 1) % n]) * normal;
             double sign = area >= 0 ? 1 : -1;
 
-            var inner = boxes.Select(b =>
-            {
-                var x = b.X; var y = b.Y; var z = b.Z;
-                return new Box(b.Plane, new Interval(x.Min + margin, x.Max - margin), new Interval(y.Min + margin, y.Max - margin), new Interval(z.Min + margin, z.Max - margin));
-            }).ToList();
-
             for (int i = 0; i < n; ++i)
             {
                 var a = points[(i - 1 + n) % n];
                 var p = points[i];
                 var b = points[(i + 1) % n];
-                var turn = Vector3d.CrossProduct(p - a, b - p) * normal * sign;
-                bool convex = turn > 0;
-                flags[i] = !convex || inner.Any(box => box.Contains(p, true));
+                flags[i] = Vector3d.CrossProduct(p - a, b - p) * normal * sign < 0;
             }
             return flags;
         }

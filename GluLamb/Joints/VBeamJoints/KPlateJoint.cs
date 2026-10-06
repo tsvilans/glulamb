@@ -563,10 +563,10 @@ namespace GluLamb.Joints
                     RX.PlanePlanePlane(PlateFacePlanes[i], xxPlanes[0], xxPlanes[2], out pts[1]);
                 }
 
-                // Which corners to round: inside corners, and outside ones inside a beam (in a slot
-                // end). Decided on the first face and used for both, so the two faces match.
+                // Round the inside corners. Decided on the first face and used for both, so the two
+                // faces match.
                 if (i == 0)
-                    roundFlags = PlateOutline.CornersToRound(pts, PlateFacePlanes[0].ZAxis, Beams.Select(b => PlateOutline.BeamBox(b, null)), 0.1);
+                    roundFlags = PlateOutline.InsideCorners(pts, PlateFacePlanes[0].ZAxis);
 
                 var segIndices = new[] { corner2 ? 4 : 3, 2, 3, 2, 3, 4 };
 
