@@ -27,6 +27,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Material left at the end of the second beam's lap. 0 is a through lap.", Unit = "length")]
         public double BlindOffset { get; set; } = 0.0;
 
+        [JointParameter(Description = "Diameter of a dowel through the lap. 0 = no dowel.", Unit = "length")]
+        public double DowelDiameter { get; set; } = 0.0;
+
         public CornerLapJoint(JointX condition) : base(condition)
         {
         }
@@ -170,8 +173,18 @@ namespace GluLamb.Joints
 
             AddLap(result, beam0, beam0Geo, lapPlane, tolerance);
             AddLap(result, beam1, beam1Geo, lapPlane, tolerance);
-
             int created = result.Features.Count;
+
+            // Dowel through the lap, square to it, where the centrelines cross
+            if (DowelDiameter > 0)
+            {
+                var dowel = SpanThrough(lapOrigin, normal, new[] { (beam0Plane.Origin, beam0Height), (beam1Plane.Origin, beam1Height) });
+                var hole = new Line(dowel.From - normal * Added, dowel.To + normal * Added);
+                result.Add(new Drilling(beam0.Id, hole, DowelDiameter));
+                result.Add(new Drilling(beam1.Id, hole, DowelDiameter));
+                result.Hardware.Add(new DowelItem(dowel, DowelDiameter, beam0.Id, beam1.Id));
+            }
+
             result.Status = created == 2 ? JointStatus.Ok : created == 1 ? JointStatus.Partial : JointStatus.Failed;
         }
 
