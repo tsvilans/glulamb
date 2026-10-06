@@ -150,8 +150,11 @@ namespace GluLamb.Joints
             }
             outlinePoints.Add(outlinePoints[0]);
 
+            // Round the inside corners, and the outside corners that sit in a slot end in a beam
             Curve outline = new Polyline(outlinePoints).ToNurbsCurve();
-            var filleted = radius > 0 ? Curve.CreateFilletCornersCurve(outline, radius, tolerance, context.AngleTolerance) : null;
+            var flags = PlateOutline.CornersToRound(outlinePoints.Take(outlinePoints.Count - 1).ToList(), platePlane.ZAxis,
+                new[] { PlateOutline.BeamBox(Arm, result), PlateOutline.BeamBox(Sill, result) }, tolerance * 10);
+            var filleted = radius > 0 ? PlateOutline.Round(outlinePoints, flags, radius, tolerance) : null;
             if (filleted != null && RX.CurveSelf(filleted, tolerance).Count == 0)
                 outline = filleted;
             if (RX.CurveSelf(outline, tolerance).Count > 0)

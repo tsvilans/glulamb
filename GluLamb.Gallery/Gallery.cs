@@ -158,6 +158,20 @@ namespace GluLamb.Gallery
                     }
 
                 cell.Hardware.AddRange(result.Hardware.Select(x => x.GetGeometry()).Where(x => x != null));
+
+                // Plates must sit in their slots, not in the wood
+                foreach (var plate in result.Hardware.OfType<PlateItem>().Select(x => x.Geometry).Where(x => x != null))
+                    for (int i = 0; i < cell.Pieces.Count; ++i)
+                    {
+                        var piece = cell.Pieces[i];
+                        if (piece == null || !BoundingBox.Intersection(piece.GetBoundingBox(true), plate.GetBoundingBox(true)).IsValid) continue;
+                        var clash = Brep.CreateBooleanIntersection(piece, plate, Tolerance);
+                        var overlap = clash?.Sum(Volume) ?? 0;
+                        if (m_options.Verbose && clash != null)
+                            foreach (var piece2 in clash) { var bb = piece2.GetBoundingBox(true); Console.WriteLine($"     plate in {beams[i].Id}: {Volume(piece2) / 1000:0.##} cm3 at {bb.Center}, size {bb.Max - bb.Min}"); }
+                        if (overlap > 1000)
+                            cell.Problems.Add($"the plate overlaps beam {beams[i].Id} by {overlap / 1000:0.#} cm³");
+                    }
             }
             catch (Rhino.Runtime.NotLicensedException)
             {

@@ -518,6 +518,7 @@ namespace GluLamb.Joints
 
             var xPlanes = ArmPlanesForMode();
             var segments = new Curve[2, 6];
+            bool[] roundFlags = null;
             var faceLoops = new Curve[2];
             double radius = ToolDiameter * 0.5;
             bool corner2 = false; // The inner corner is chamfered (Mode 1 or -1)
@@ -562,33 +563,36 @@ namespace GluLamb.Joints
                     RX.PlanePlanePlane(PlateFacePlanes[i], xxPlanes[0], xxPlanes[2], out pts[1]);
                 }
 
+                // Which corners to round: inside corners, and outside ones inside a beam (in a slot
+                // end). Decided on the first face and used for both, so the two faces match.
+                if (i == 0)
+                    roundFlags = PlateOutline.CornersToRound(pts, PlateFacePlanes[0].ZAxis, Beams.Select(b => PlateOutline.BeamBox(b, null)), 0.1);
+
                 var segIndices = new[] { corner2 ? 4 : 3, 2, 3, 2, 3, 4 };
 
                 int counter = 0;
                 for (int j = 0; j < 6; ++j)
                 {
-                    var segPoly = new Polyline();
+                    var segPoints = new List<Point3d>();
+                    var segFlags = new List<bool>();
                     for (int k = 0; k < segIndices[j]; ++k)
                     {
                         counter = counter.Modulus(pts.Length);
-                        segPoly.Add(pts[counter]);
+                        segPoints.Add(pts[counter]);
+                        segFlags.Add(roundFlags != null && counter < roundFlags.Length && roundFlags[counter]);
                         counter++;
                     }
                     counter--;
-                    segments[i, j] = segPoly.ToNurbsCurve();
+                    // Corners are rounded within segments 0, 2 and 4, as before
+                    segments[i, j] = j % 2 == 0
+                        ? PlateOutline.Round(segPoints, segFlags, radius, 0.01)
+                        : new Polyline(segPoints).ToNurbsCurve();
                 }
             }
 
             var faceSegs = new List<Curve>[2];
             for (int i = 0; i < 2; ++i)
             {
-                foreach (var j in new[] { 0, 2, 4 })
-                {
-                    var fillet = Curve.CreateFilletCornersCurve(segments[i, j], radius, 0.01, 0.01);
-                    if (fillet != null)
-                        segments[i, j] = fillet;
-                }
-
                 faceSegs[i] = Enumerable.Range(0, 6).Select(j => segments[i, j]).ToList();
                 faceLoops[i] = Curve.JoinCurves(faceSegs[i], 0.01).FirstOrDefault();
             }
@@ -686,8 +690,11 @@ namespace GluLamb.Joints
         /// </summary>
         protected void CreatePlateSlot(JointResult result, int index)
         {
+            // The slot end is milled across the plate's thickness, so its edges are rounded; run it on
+            // past the plate's square end by that radius so the plate never reaches the rounding
+            double r = Math.Min(ToolDiameter * 0.5, PlateThickness * 0.5 - 0.1);
             var endPlane = EndPlanes[index];
-            endPlane.Origin = endPlane.Origin - endPlane.ZAxis * ToleranceSlotEnd;
+            endPlane.Origin = endPlane.Origin - endPlane.ZAxis * (ToleranceSlotEnd + Math.Max(r, 0));
             var sidePlane = SeamPlanes[index];
             var outsidePlane = OutsidePlanes[index];
 
@@ -732,7 +739,7 @@ namespace GluLamb.Joints
             }
             joined.Faces.SplitKinkyFaces(0.1);
 
-            double r = 8;
+
             var filleted = Brep.CreateFilletEdges(joined, new[] { 8, 9 }, new[] { r, r }, new[] { r, r },
                 BlendType.Fillet, RailType.RollingBall, 0.01);
 
