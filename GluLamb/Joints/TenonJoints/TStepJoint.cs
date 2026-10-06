@@ -21,6 +21,9 @@ namespace GluLamb.Joints
     /// <item>heel step (Fersenversatz): the arm's back (heel) corner sinks HeelDepth into the
     /// sill, with a bearing face square to the arm's axis.</item>
     /// <item>double: both, the heel deeper than the front step.</item>
+    /// <item>square front step: the bearing face and the back of the notch at 90° to each other
+    /// (two square cuts on the arm), with the notch's long side on the sill face; the depth
+    /// sets how the right angle is turned.</item>
     /// </list>
     /// Optionally with a seat (as in glulamb.t-butt, cut square to the sill on the obtuse side)
     /// and a blind tenon along the arm into a mortise. The arm's cut is a StepJoint feature and
@@ -30,7 +33,7 @@ namespace GluLamb.Joints
         Description = "An angled strut bearing in a step notch in the side of another beam, optionally seated and tenoned.")]
     public class TStepJoint : SillJointBase
     {
-        [JointParameter(Description = "Step: 0 = front step (Stirnversatz), 1 = heel step (Fersenversatz), 2 = double (both).")]
+        [JointParameter(Description = "Step: 0 = front step (Stirnversatz), 1 = heel step (Fersenversatz), 2 = double (both), 3 = square front step (the two notch faces at 90°, easier to cut).")]
         public int StepType { get; set; } = 0;
 
         [JointParameter(Description = "Depth of the front step below the sill face (or seat), square to it. 0 = StepDepthRatio times the sill depth.", Unit = "length")]
@@ -125,7 +128,7 @@ namespace GluLamb.Joints
 
             var stepDepth = StepDepth > 0 ? StepDepth : SillDepth * StepDepthRatio;
             var heelDepth = HeelDepth > 0 ? HeelDepth : (StepType == 2 ? stepDepth + 15 : stepDepth);
-            bool front = StepType == 0 || StepType == 2;
+            bool front = StepType == 0 || StepType == 2 || StepType == 3;
             bool heel = StepType == 1 || StepType == 2;
 
             var y0 = -SeatDepth;
@@ -138,7 +141,23 @@ namespace GluLamb.Joints
 
             var profile = new List<Point2d> { new Point2d(L.X - Added, y0), L };
             Point2d B = Point2d.Unset;
-            if (front)
+            if (front && StepType == 3)
+            {
+                // Square step: the bearing face and the back of the notch at 90°, so the notch is a
+                // right triangle on the seat (or face) between the back edge and the front of the
+                // toe; StepDepth turns it. The right angle lies on the circle over that line.
+                var mid = new Point2d((L.X + Af.X) * 0.5, y0);
+                var r = (Af.X - L.X) * 0.5;
+                if (stepDepth >= r)
+                {
+                    result.Status = JointStatus.Failed;
+                    result.Messages.Add($"{GetType().Name}: a square step can be at most {r:0.#} deep here.");
+                    return;
+                }
+                // Towards the front, so the bearing face is the short one
+                B = new Point2d(mid.X + Math.Sqrt(r * r - stepDepth * stepDepth), y0 - stepDepth);
+            }
+            else if (front)
             {
                 // Bisector of the obtuse outside angle at the front: between up the arm and along the face
                 var u = new Vector2d(-d2.X, -d2.Y);
