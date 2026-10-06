@@ -228,6 +228,10 @@ namespace GluLamb.GH.Components
 
             Joints = JointX.MergeJoints(Joints, mergeDistance);
 
+            // Merging adds parts, so frame each condition from all of them
+            foreach (var jc in Joints)
+                jc.Position = JointX.ConditionPlane(jc.Parts, jc.Position.Origin);
+
             // Single-beam conditions at curve ends that no joint uses
             if (freeEnds)
             {

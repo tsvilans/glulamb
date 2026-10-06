@@ -136,7 +136,7 @@ namespace GluLamb.Joints
                 });
             }
 
-            Position = new Plane(origin, along, normal);
+            Position = new Plane(origin, along, -across);   // Z along the split normal
             result.Status = JointStatus.Ok;
         }
     }

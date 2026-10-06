@@ -131,7 +131,8 @@ namespace GluLamb.Joints
             var corner1 = X(Layer(0), SidePlane(0, false, 0), SidePlane(1, true, 0));
             var middle = (outerCorner + innerCorner) * 0.5;
 
-            Position = new Plane(middle, frames[si].ZAxis, frames[ti].ZAxis);
+            // Z: the direction the tenon goes into the slot (into the slotted beam)
+            Position = new Plane(middle, normal, Vector3d.CrossProduct(frames[si].ZAxis, normal));
 
             var slot = new Slot { BeamId = beams[si].Id, Plane = new Plane(middle, normal), Thickness = slotHalf * 2 };
             slot.Cutters.Add(slotCutter);

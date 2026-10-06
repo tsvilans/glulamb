@@ -44,6 +44,13 @@ namespace GluLamb.Joints
 
         IReadOnlyList<JointPartX> Parts { get; }
 
+        /// <summary>
+        /// The joint's plane. Before Construct, the condition's plane (see
+        /// JointX.ConditionPlane); after, the plane the joint type works out, with Z along the
+        /// joint's main direction: the normal of the main cut (end cut, lap face, split plane),
+        /// the direction a tenon goes into its mortise or slot, the direction of a drilling, or
+        /// along the beams for splices.
+        /// </summary>
         Plane Position { get; }
 
         /// <summary>

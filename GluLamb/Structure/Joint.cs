@@ -122,7 +122,32 @@ namespace GluLamb
         public JointX(List<JointPartX> parts, Point3d position)
         {
             this.Parts = parts;
-            this.Position = new Plane(position, Vector3d.ZAxis);
+            this.Position = ConditionPlane(parts, position);
+        }
+
+        /// <summary>
+        /// A plane for a joint condition from its parts' directions, so it says something about
+        /// the joint before it is constructed: X along the first part's direction (out of the beam
+        /// at an end, along it in the middle); Z the normal of the plane of the joint, from the
+        /// first part not parallel to the first. With one part, or only parallel ones, Z is the
+        /// first part's direction (e.g. the end cut plane). World Z only if no part has a direction.
+        /// </summary>
+        public static Plane ConditionPlane(IList<JointPartX> parts, Point3d origin)
+        {
+            var x = parts != null && parts.Count > 0 ? parts[0].Direction : Vector3d.Unset;
+            if (!x.IsValid || !x.Unitize())
+                return new Plane(origin, Vector3d.ZAxis);
+
+            for (int i = 1; i < parts.Count; ++i)
+            {
+                var d = parts[i].Direction;
+                if (!d.IsValid) continue;
+                var z = Vector3d.CrossProduct(x, d);
+                if (z.Length > 1e-3 * d.Length)
+                    return new Plane(origin, x, Vector3d.CrossProduct(z, x));
+            }
+
+            return new Plane(origin, x);
         }
 
         public override string ToString() => $"Joint ({GetType().Name})";
