@@ -5,6 +5,8 @@ using System.Linq;
 using Rhino.Geometry;
 using RX = Rhino.Geometry.Intersect.Intersection;
 
+using GluLamb.Features;
+
 namespace GluLamb.Joints
 {
     /// <summary>
@@ -96,6 +98,106 @@ namespace GluLamb.Joints
         }
 
         private double ArmLengthMargin => Math.Max(Arm.Width, Arm.Height) * 2;
+
+        /// <summary>
+        /// The side of the arm (+1 or -1 along ArmFrame X) where its side meets the sill face at
+        /// an obtuse angle outside the arm, i.e. where a seat wall along the arm would undercut
+        /// the sill; 0 if the arm is square to the sill face (within 1°).
+        /// </summary>
+        protected int ObtuseSide()
+        {
+            var tilt = -ArmFrame.ZAxis;
+            tilt -= Towards * (tilt * Towards);
+            // Only the lean in the plane of the joint (across ArmFrame X) counts: an arm skewed
+            // across the sill (leaning along the joint normal) is not handled
+            var lean = ArmFrame.XAxis * tilt;
+            if (Math.Abs(lean) < Math.Sin(Rhino.RhinoMath.ToRadians(1))) return 0;
+            return lean > 0 ? 1 : -1;
+        }
+
+        /// <summary>
+        /// The arm's footprint on a plane parallel to the sill face, grown by gx across the arm
+        /// (in the plane of the joint) and gy along the joint normal. On the chamfered side (+1 or
+        /// -1, or 0 for none) the corners are taken square to the sill face from where the arm's
+        /// side meets the face (grown by chamferGrow), so a seat wall there is square to the sill.
+        /// Corners in the order (-1,-1), (1,-1), (1,1), (-1,1) of ArmFrame X and Y.
+        /// </summary>
+        protected Point3d[] SeatCorners(Plane onto, double gx, double gy, int chamferSide, double chamferGrow = 0)
+        {
+            var alongArm = Transform.ProjectAlong(onto, ArmFrame.ZAxis);
+            var toFace = Transform.ProjectAlong(SillFace, ArmFrame.ZAxis);
+            var square = Transform.ProjectAlong(onto, Towards);
+            return new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) }.Select(c =>
+            {
+                if (c.Item1 == chamferSide)
+                {
+                    var p = ArmFrame.PointAt(c.Item1 * (ArmWidth * 0.5 + chamferGrow), c.Item2 * (ArmThickness * 0.5 + gy));
+                    p.Transform(toFace);
+                    p.Transform(square);
+                    return p;
+                }
+                var q = ArmFrame.PointAt(c.Item1 * (ArmWidth * 0.5 + gx), c.Item2 * (ArmThickness * 0.5 + gy));
+                q.Transform(alongArm);
+                return q;
+            }).ToArray();
+        }
+
+        /// <summary>
+        /// Indices into SeatCorners of the two corners on a side, in outline order.
+        /// </summary>
+        protected static (int, int) SideCorners(int side) => side > 0 ? (1, 2) : (3, 0);
+
+        /// <summary>
+        /// A seat (housing) for the arm's full section in the sill face, depth deep, walls up past
+        /// the face. Walls follow the arm, except on the chamfered side, where the wall is square
+        /// to the sill face (see SeatCorners). Returns null if the surface fails.
+        /// </summary>
+        protected Lap SeatHousing(double depth, double clearance, int chamferSide, double added, double tolerance)
+        {
+            var bottomPlane = new Plane(SillFace.Origin - Towards * depth, Towards);
+            var topPlane = new Plane(SillFace.Origin + Towards * added, Towards);
+            var bottom = SeatCorners(bottomPlane, clearance, clearance, chamferSide, clearance);
+            var top = SeatCorners(topPlane, clearance, clearance, chamferSide, clearance);
+
+            var faces = new List<Brep> { Brep.CreateFromCornerPoints(bottom[0], bottom[1], bottom[2], bottom[3], tolerance) };
+            for (int i = 0; i < 4; ++i)
+            {
+                int j = (i + 1) % 4;
+                faces.Add(Brep.CreateFromCornerPoints(bottom[i], bottom[j], top[j], top[i], tolerance));
+            }
+
+            var housing = faces.Any(x => x == null) ? null : Brep.JoinBreps(faces, tolerance)?.FirstOrDefault();
+            if (housing == null) return null;
+
+            var lap = new Lap { BeamId = Sill.Id, Plane = new Plane(SillFace.Origin, SillTangent, JointNormal), Depth = depth, Cutters = new List<Brep> { housing } };
+            lap.Data.Set("Name", "Housing");
+            lap.Data.Set("SquareSide", chamferSide);
+            return lap;
+        }
+
+        /// <summary>
+        /// Faces of the arm's cut at the bottom of a seat: the end face (around an optional hole,
+        /// e.g. a tenon's), and on the chamfered side a face square to the sill face from the end
+        /// up past the sill face, which takes off the arm's acute toe. Join with any other faces.
+        /// </summary>
+        protected List<Brep> SeatEndFaces(Plane end, int chamferSide, double added, Curve hole, double tolerance)
+        {
+            var c = SeatCorners(end, added, added, chamferSide);
+            var outline = new Polyline(c) { c[0] }.ToNurbsCurve();
+            var faces = new List<Brep>(Brep.CreatePlanarBreps(hole == null ? new[] { outline } : new[] { outline, hole }, tolerance) ?? new Brep[0]);
+
+            if (chamferSide != 0)
+            {
+                var (i, j) = SideCorners(chamferSide);
+                var up = Transform.ProjectAlong(new Plane(SillFace.Origin + Towards * added, Towards), Towards);
+                Point3d a = c[i], b = c[j], a1 = a, b1 = b;
+                a1.Transform(up);
+                b1.Transform(up);
+                var chamfer = Brep.CreateFromCornerPoints(a, b, b1, a1, tolerance);
+                if (chamfer != null) faces.Add(chamfer);
+            }
+            return faces;
+        }
 
         /// <summary>
         /// The arm's section corners at its frame, projected along the arm onto a plane.

@@ -20,8 +20,11 @@ namespace GluLamb.Joints
         Description = "A beam butting against the side of another, dowelled through the other, optionally housed.")]
     public class TButtJoint : SillJointBase
     {
-        [JointParameter(Description = "Depth of the housing for the arm in the sill. 0 = no housing.", Unit = "length")]
-        public double Depth { get; set; } = 0;
+        [JointParameter(Description = "Depth of the seat (housing) for the arm in the sill, mostly for locating it. 0 = no seat.", Unit = "length")]
+        public double Depth { get; set; } = 10;
+
+        [JointParameter(Description = "On an angled arm, cut the seat wall and the arm's toe square to the sill face on the obtuse side, so no corner is under 90° (machinable, and no bearing on an edge).")]
+        public bool SquareObtuseSide { get; set; } = true;
 
         [JointParameter(Description = "Clearance around the arm in the housing.", Unit = "length")]
         public double Clearance { get; set; } = 0;
@@ -66,37 +69,46 @@ namespace GluLamb.Joints
 
             // The arm's end, Depth into the sill; the cut's normal points to the removed end
             var endPlane = new Plane(SillFace.Origin - Towards * Depth, -Towards);
-            var cut = new JackRafterCut(Arm.Id, endPlane);
-            cut.Data.Set("Name", "ButtCut");
-            result.Add(cut);
+            bool seated = Depth > tolerance;
+            int square = seated && SquareObtuseSide ? ObtuseSide() : 0;
+
+            if (square == 0)
+            {
+                var cut = new JackRafterCut(Arm.Id, endPlane);
+                cut.Data.Set("Name", "ButtCut");
+                result.Add(cut);
+            }
+            else
+            {
+                // Angled into a seat: the end, and the acute toe cut square to the sill face
+                var faces = SeatEndFaces(new Plane(endPlane.Origin, Towards), square, Added, null, tolerance);
+                var endCutter = Brep.JoinBreps(faces, tolerance);
+                if (endCutter == null || endCutter.Length != 1)
+                {
+                    result.Status = JointStatus.Failed;
+                    result.Messages.Add($"{GetType().Name}: failed to create the end cut.");
+                    return;
+                }
+                var end = new Lap { BeamId = Arm.Id, Plane = endPlane, Cutters = endCutter.ToList() };
+                end.Data.Set("Name", "ButtCut");
+                end.Data.Set("SquareSide", square);
+                result.Add(end);
+            }
 
             var endCorners = ArmCornersOn(endPlane).ToList();
             ExtendToReach(result, Arm, ArmPart, endCorners);
 
-            // Housing: the arm's footprint from the end plane out past the sill face, walls along the arm
-            if (Depth > tolerance)
+            // Seat: the arm's footprint from the end plane out past the sill face
+            if (seated)
             {
-                var bottom = ArmCornersOn(endPlane, Clearance).ToArray();
-                var top = ArmCornersOn(new Plane(SillFace.Origin + Towards * Added, Towards), Clearance).ToArray();
-                var faces = new List<Brep> { Brep.CreateFromCornerPoints(bottom[0], bottom[1], bottom[2], bottom[3], tolerance) };
-                for (int i = 0; i < 4; ++i)
-                {
-                    int j = (i + 1) % 4;
-                    faces.Add(Brep.CreateFromCornerPoints(bottom[i], bottom[j], top[j], top[i], tolerance));
-                }
-
-                var housing = faces.Any(x => x == null) ? null : Brep.JoinBreps(faces, tolerance)?.FirstOrDefault();
+                var housing = SeatHousing(Depth, Clearance, square, Added, tolerance);
                 if (housing == null)
                 {
                     result.Status = JointStatus.Partial;
                     result.Messages.Add($"{GetType().Name}: failed to create the housing.");
                 }
                 else
-                {
-                    var lap = new Lap { BeamId = Sill.Id, Plane = new Plane(SillFace.Origin, SillTangent, JointNormal), Depth = Depth, Cutters = new List<Brep> { housing } };
-                    lap.Data.Set("Name", "Housing");
-                    result.Add(lap);
-                }
+                    result.Add(housing);
             }
 
             // Dowels along the arm, from the back of the sill into the end of the arm

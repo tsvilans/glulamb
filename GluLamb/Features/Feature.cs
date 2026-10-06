@@ -215,6 +215,43 @@ namespace GluLamb.Features
     }
 
     /// <summary>
+    /// End of a strut cut for a step joint: a toe of two or more faces that bears in a notch.
+    /// Data: StepType, StepDepth, HeelDepth, and the strut's angle. BTLx: StepJoint.
+    /// </summary>
+    public class StepJoint : Lap
+    {
+        public override string ProcessingName => "StepJoint";
+
+        public override Feature Duplicate()
+        {
+            var feature = CopyBaseTo(new StepJoint());
+            feature.Depth = Depth;
+            feature.Width = Width;
+            feature.Length = Length;
+            feature.Cutters = Cutters.Select(x => x.DuplicateBrep()).ToList();
+            return feature;
+        }
+    }
+
+    /// <summary>
+    /// The notch a step-jointed strut bears in. BTLx: StepJointNotch.
+    /// </summary>
+    public class StepJointNotch : Lap
+    {
+        public override string ProcessingName => "StepJointNotch";
+
+        public override Feature Duplicate()
+        {
+            var feature = CopyBaseTo(new StepJointNotch());
+            feature.Depth = Depth;
+            feature.Width = Width;
+            feature.Length = Length;
+            feature.Cutters = Cutters.Select(x => x.DuplicateBrep()).ToList();
+            return feature;
+        }
+    }
+
+    /// <summary>
     /// Planar cut along the beam over part of its length (a rip cut), with the plane's normal
     /// towards the removed side. The cutter is the bounded planar surface. BTLx: LongitudinalCut.
     /// </summary>

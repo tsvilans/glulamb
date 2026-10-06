@@ -36,6 +36,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Depth of a housing (seat) for the arm's full section in the sill face, with the shoulder at its bottom. 0 = no housing.", Unit = "length")]
         public double HousingDepth { get; set; } = 0;
 
+        [JointParameter(Description = "On an angled arm in a housing, cut the housing wall and the arm's toe square to the sill face on the obtuse side, so no corner is under 90°.")]
+        public bool SquareObtuseSide { get; set; } = true;
+
         [JointParameter(Description = "Clearance on each side of the tenon in the mortise.", Unit = "length")]
         public double Clearance { get; set; } = 0.5;
 
@@ -142,17 +145,17 @@ namespace GluLamb.Joints
             }
             var tenonEndPlane = new Plane(SillFace.Origin - Towards * length, Towards);
             var tenonSides = Between(Tube(0), shoulderPlane, tenonEndPlane, out Curve shoulderProfile, out Curve tenonEndProfile);
-
-            var shoulderOuter = new Polyline(ArmCornersOn(shoulderPlane, Added));
-            shoulderOuter.Add(shoulderOuter[0]);
+            // On an angled arm in a seat, the seat wall and the arm's toe are cut square to the sill on the obtuse side
+            int square = HousingDepth > tolerance && SquareObtuseSide ? ObtuseSide() : 0;
 
             Brep tenonCutter = null;
             if (tenonSides != null)
             {
                 var faces = new List<Brep> { tenonSides };
-                faces.AddRange(Brep.CreatePlanarBreps(new[] { shoulderOuter.ToNurbsCurve(), shoulderProfile }, tolerance) ?? new Brep[0]);
+                var shoulderFaces = SeatEndFaces(shoulderPlane, square, Added, shoulderProfile, tolerance);
+                faces.AddRange(shoulderFaces);
                 faces.AddRange(Brep.CreatePlanarBreps(tenonEndProfile, tolerance) ?? new Brep[0]);
-                tenonCutter = faces.Count == 3 ? Brep.JoinBreps(faces, tolerance)?.FirstOrDefault() : null;
+                tenonCutter = faces.Count == 2 + shoulderFaces.Count && shoulderFaces.Count == (square != 0 ? 2 : 1) ? Brep.JoinBreps(faces, tolerance)?.FirstOrDefault() : null;
             }
 
             if (tenonCutter == null)
@@ -198,30 +201,17 @@ namespace GluLamb.Joints
                 result.Add(mortise);
             }
 
-            // Housing: the arm's full section let into the sill face (a seat), walls along the arm
+            // Housing: the arm's full section let into the sill face (a seat)
             if (HousingDepth > tolerance)
             {
-                var bottom = ArmCornersOn(shoulderPlane).ToArray();
-                var top = ArmCornersOn(new Plane(SillFace.Origin + Towards * Added, Towards)).ToArray();
-                var faces = new List<Brep> { Brep.CreateFromCornerPoints(bottom[0], bottom[1], bottom[2], bottom[3], tolerance) };
-                for (int i = 0; i < 4; ++i)
-                {
-                    int j = (i + 1) % 4;
-                    faces.Add(Brep.CreateFromCornerPoints(bottom[i], bottom[j], top[j], top[i], tolerance));
-                }
-
-                var housing = faces.Any(x => x == null) ? null : Brep.JoinBreps(faces, tolerance)?.FirstOrDefault();
+                var housing = SeatHousing(HousingDepth, 0, square, Added, tolerance);
                 if (housing == null)
                 {
                     result.Status = JointStatus.Partial;
                     result.Messages.Add($"{GetType().Name}: failed to create the housing.");
                 }
                 else
-                {
-                    var lap = new Lap { BeamId = Sill.Id, Plane = new Plane(SillFace.Origin, SillTangent, JointNormal), Depth = HousingDepth, Cutters = new List<Brep> { housing } };
-                    lap.Data.Set("Name", "Housing");
-                    result.Add(lap);
-                }
+                    result.Add(housing);
             }
 
             // Peg through the sill and the tenon, across the tenon's thin direction, in the middle
