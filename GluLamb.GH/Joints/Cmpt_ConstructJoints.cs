@@ -50,8 +50,8 @@ namespace GluLamb.GH.Components
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Beams", "B", "Beams, one per branch. The first path index is the beam index used by the joint conditions.", GH_ParamAccess.tree);
-            pManager.AddGenericParameter("Joints", "J", "Joint conditions (e.g. from Classify Joints), one per branch.", GH_ParamAccess.tree);
-            pManager.AddTextParameter("Types", "T", "Optional joint type id per joint branch. If empty, the best-scoring registered type is used.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Joints", "J", "Joint conditions (e.g. from Classify Joints), as a list or one per branch.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Types", "T", "Optional preferred joint type ids. A branch matching a joint's path applies to that joint; a single branch applies to all joints. The first listed type that can handle a joint's condition is used (so one list can hold e.g. a cross and a corner type); otherwise the best-scoring registered type.", GH_ParamAccess.tree);
             pManager.AddTextParameter("Parameters", "P", "Optional joint parameters as \"Name=Value\" (e.g. \"BlindOffset=30\"). " +
                 "A branch matching a joint's path applies to that joint; a single branch applies to all joints. " +
                 "Names a joint doesn't have are ignored and reported in Messages.", GH_ParamAccess.tree);
@@ -117,78 +117,109 @@ namespace GluLamb.GH.Components
             var cuttersOut = new DataTree<GH_Brep>();
             var messagesOut = new DataTree<string>();
 
-            foreach (var path in jointTree.Paths)
+            foreach (var branchPath in jointTree.Paths)
             {
-                var branch = jointTree[path];
-                if (branch.Count < 1 || !(branch[0] is GH_Joint ghJoint) || ghJoint.Value == null) continue;
+                var branch = jointTree[branchPath];
 
-                var condition = ghJoint.Value;
-
-                string typeId = null;
-                if (typeTree != null && typeTree.PathExists(path) && typeTree[path].Count > 0)
-                    typeId = typeTree[path][0]?.Value;
-
-                IJoint joint;
-                try
+                // Joints can come one per branch (grafted) or as a list in one branch
+                for (int item = 0; item < branch.Count; ++item)
                 {
-                    joint = string.IsNullOrWhiteSpace(typeId)
-                        ? registry.Allocate(condition, context)
-                        : registry.Create(typeId, condition);
-                }
-                catch (Exception e)
-                {
-                    messagesOut.Add($"Failed: {e.Message}", path);
-                    continue;
-                }
+                    if (!(branch[item] is GH_Joint ghJoint) || ghJoint.Value == null) continue;
 
-                if (joint == null)
-                {
-                    messagesOut.Add($"Skipped: no registered joint type handles this {JointRegistry.Classify(condition, registry.PerpendicularThreshold)} condition.", path);
-                    continue;
-                }
+                    var path = branch.Count > 1 ? branchPath.AppendElement(item) : branchPath;
+                    var condition = ghJoint.Value;
+                    var topology = JointRegistry.Classify(condition, registry.PerpendicularThreshold);
 
-                var parameterMessages = new List<string>();
-                if (parameterTree != null && parameterTree.PathCount > 0)
-                {
-                    var parameterBranch = parameterTree.PathExists(path) ? parameterTree[path]
-                        : parameterTree.PathCount == 1 ? parameterTree.Branches[0] : null;
+                    // Preferred types: the Types branch matching this joint's path, or a single Types
+                    // branch for all joints. The first type that can handle the condition is used;
+                    // otherwise the best-scoring registered type.
+                    var typeBranch = typeTree == null || typeTree.PathCount == 0 ? null
+                        : typeTree.PathExists(path) ? typeTree[path]
+                        : typeTree.PathExists(branchPath) ? typeTree[branchPath]
+                        : typeTree.PathCount == 1 ? typeTree.Branches[0] : null;
 
-                    if (parameterBranch != null)
+                    var preferred = typeBranch == null ? new List<string>()
+                        : typeBranch.Where(x => x != null && !string.IsNullOrWhiteSpace(x.Value)).Select(x => x.Value.Trim()).ToList();
+
+                    var typeMessages = new List<string>();
+                    IJoint joint = null;
+                    try
                     {
-                        try
+                        foreach (var typeId in preferred)
                         {
-                            var values = JointParameters.Parse(parameterBranch.Where(x => x != null).Select(x => x.Value));
-                            var unknown = JointParameters.Set(joint, values);
-                            if (unknown.Count > 0)
-                                parameterMessages.Add($"Ignored parameters not on {joint.GetType().Name}: {string.Join(", ", unknown)}");
+                            var info = registry.Get(typeId);
+                            if (info == null)
+                                typeMessages.Add($"Unknown joint type '{typeId}'.");
+                            else if (info.Score(condition, topology, context) > 0)
+                            {
+                                joint = info.Create(condition);
+                                break;
+                            }
                         }
-                        catch (Exception e)
+
+                        if (joint == null)
                         {
-                            parameterMessages.Add($"Invalid parameter value: {e.Message}");
+                            if (preferred.Count > 0)
+                                typeMessages.Add($"None of the given types handle this {topology} condition; using the default.");
+                            joint = registry.Allocate(condition, context);
                         }
                     }
-                }
-
-                var result = joint.Construct(context);
-
-                jointsOut.Add(new GH_ObjectWrapper(joint), path);
-                messagesOut.Add($"{result.Status}: {joint}", path);
-                foreach (var message in parameterMessages)
-                    messagesOut.Add(message, path);
-                foreach (var message in result.Messages)
-                    messagesOut.Add(message, path);
-
-                foreach (var kvp in result.Features)
-                {
-                    if (!indexById.TryGetValue(kvp.Key, out int beamIndex)) continue;
-                    var beam = context.GetBeam(kvp.Key);
-                    var beamPath = new GH_Path(beamIndex);
-
-                    foreach (var feature in kvp.Value)
+                    catch (Exception e)
                     {
-                        featuresOut.Add(new GH_ObjectWrapper(feature), beamPath);
-                        foreach (var cutter in feature.GetCutters(beam, tolerance))
-                            cuttersOut.Add(new GH_Brep(cutter), beamPath);
+                        messagesOut.Add($"Failed: {e.Message}", path);
+                        continue;
+                    }
+
+                    if (joint == null)
+                    {
+                        messagesOut.Add($"Skipped: no registered joint type handles this {topology} condition.", path);
+                        continue;
+                    }
+
+                    var parameterMessages = new List<string>(typeMessages);
+                    if (parameterTree != null && parameterTree.PathCount > 0)
+                    {
+                        var parameterBranch = parameterTree.PathExists(path) ? parameterTree[path]
+                            : parameterTree.PathExists(branchPath) ? parameterTree[branchPath]
+                            : parameterTree.PathCount == 1 ? parameterTree.Branches[0] : null;
+
+                        if (parameterBranch != null)
+                        {
+                            try
+                            {
+                                var values = JointParameters.Parse(parameterBranch.Where(x => x != null).Select(x => x.Value));
+                                var unknown = JointParameters.Set(joint, values);
+                                if (unknown.Count > 0)
+                                    parameterMessages.Add($"Ignored parameters not on {joint.GetType().Name}: {string.Join(", ", unknown)}");
+                            }
+                            catch (Exception e)
+                            {
+                                parameterMessages.Add($"Invalid parameter value: {e.Message}");
+                            }
+                        }
+                    }
+
+                    var result = joint.Construct(context);
+
+                    jointsOut.Add(new GH_ObjectWrapper(joint), path);
+                    messagesOut.Add($"{result.Status}: {joint}", path);
+                    foreach (var message in parameterMessages)
+                        messagesOut.Add(message, path);
+                    foreach (var message in result.Messages)
+                        messagesOut.Add(message, path);
+
+                    foreach (var kvp in result.Features)
+                    {
+                        if (!indexById.TryGetValue(kvp.Key, out int beamIndex)) continue;
+                        var beam = context.GetBeam(kvp.Key);
+                        var beamPath = new GH_Path(beamIndex);
+
+                        foreach (var feature in kvp.Value)
+                        {
+                            featuresOut.Add(new GH_ObjectWrapper(feature), beamPath);
+                            foreach (var cutter in feature.GetCutters(beam, tolerance))
+                                cuttersOut.Add(new GH_Brep(cutter), beamPath);
+                        }
                     }
                 }
             }
