@@ -77,10 +77,14 @@ namespace GluLamb.Joints
             // Beam 0 is on top along -normal. Orient the normal with beam 0's up axis, then reverse
             // it if beam 0 should be on top (higher or level, inverted by Flip). Reversing mirrors
             // the joint through its plane.
-            if (normal * b0.GetPlane(m_parts[0].Parameter).YAxis < 0)
+            if (normal * NearestSectionAxis(b0.GetPlane(m_parts[0].Parameter), normal) < 0)
                 normal.Reverse();
             if (TopPart(b0.GetPlane(m_parts[0].Parameter).Origin, b1.GetPlane(m_parts[1].Parameter).Origin, normal, tolerance) == 0)
                 normal.Reverse();
+
+            // In-plane widths of the beams, whichever side of each section faces the joint
+            AlignSection(b0, b0.GetPlane(m_parts[0].Parameter), v0, normal, out double w0, out _);
+            AlignSection(b1, b1.GetPlane(m_parts[1].Parameter), v1, normal, out double w1, out _);
 
             var binormal = v0 + v1;
             binormal.Unitize();
@@ -108,19 +112,19 @@ namespace GluLamb.Joints
                 normal,
                 Vector3d.CrossProduct(normal, binormal));
 
-            var pout0 = new Plane(p0.Origin - p0.YAxis * (b0.Width * 0.5 - Inset), p0.ZAxis, normal);
-            var pout1 = new Plane(p1.Origin - p1.YAxis * (b1.Width * 0.5 - Inset), p1.ZAxis, normal);
+            var pout0 = new Plane(p0.Origin - p0.YAxis * (w0 * 0.5 - Inset), p0.ZAxis, normal);
+            var pout1 = new Plane(p1.Origin - p1.YAxis * (w1 * 0.5 - Inset), p1.ZAxis, normal);
 
             var pout0Added = new Plane(pout0.Origin - p0.YAxis * 10, pout0.XAxis, pout0.YAxis);
 
-            var pin0 = new Plane(p0.Origin + p0.YAxis * (b0.Width * 0.5 - InsetIn), p0.ZAxis, normal);
-            var pin1 = new Plane(p1.Origin + p1.YAxis * (b1.Width * 0.5 - InsetIn), p1.ZAxis, normal);
+            var pin0 = new Plane(p0.Origin + p0.YAxis * (w0 * 0.5 - InsetIn), p0.ZAxis, normal);
+            var pin1 = new Plane(p1.Origin + p1.YAxis * (w1 * 0.5 - InsetIn), p1.ZAxis, normal);
 
-            var pin0Partial = new Plane(p0.Origin + p0.YAxis * (b0.Width * 0.3 - InsetIn), p0.ZAxis, normal);
+            var pin0Partial = new Plane(p0.Origin + p0.YAxis * (w0 * 0.3 - InsetIn), p0.ZAxis, normal);
 
             var pout1Added = new Plane(pout1.Origin - p1.YAxis * 10, pout1.XAxis, pout1.YAxis);
 
-            var z0 = (b1.Width * 0.5 - Inset * 2) * Math.Tan(Math.PI * 0.5 - angle);
+            var z0 = (w1 * 0.5 - Inset * 2) * Math.Tan(Math.PI * 0.5 - angle);
 
             bool ok = true;
 
@@ -220,8 +224,8 @@ namespace GluLamb.Joints
             foreach (var s0 in new[] { 1, -1 })
                 foreach (var s1 in new[] { 1, -1 })
                 {
-                    var side0 = new Plane(origin + in0 * b0.Width * 0.5 * s0, in0);
-                    var side1 = new Plane(origin + in1 * b1.Width * 0.5 * s1, in1);
+                    var side0 = new Plane(origin + in0 * w0 * 0.5 * s0, in0);
+                    var side1 = new Plane(origin + in1 * w1 * 0.5 * s1, in1);
                     if (RX.PlanePlanePlane(plane, side0, side1, out Point3d corner))
                         overlap.Add(corner);
                 }

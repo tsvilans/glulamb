@@ -131,6 +131,38 @@ namespace GluLamb.Joints
         }
 
         /// <summary>
+        /// Re-frame a beam's cross-section relative to the joint rather than to the beam's own
+        /// orientation: Y becomes whichever section axis (X or Y, either sign) is closest to up,
+        /// Z points along direction, and width and height are the section's extents along the new
+        /// X and Y. This lets joints sit on any side of a beam, as JointUtil.GetAlignedPlanes does,
+        /// but without reversing the beam direction.
+        /// </summary>
+        /// <param name="beam">The beam.</param>
+        /// <param name="plane">The beam's cross-section plane at the joint (beam.GetPlane).</param>
+        /// <param name="direction">Direction the new Z should point along, e.g. into the beam.</param>
+        /// <param name="up">Reference for the new Y, e.g. the joint normal.</param>
+        /// <summary>
+        /// The cross-section axis (X or Y, with its own sign) closest to a direction, for deciding
+        /// which way is "up" at a joint independently of how the section is rotated.
+        /// </summary>
+        protected static Vector3d NearestSectionAxis(Plane plane, Vector3d direction) =>
+            Math.Abs(plane.YAxis * direction) >= Math.Abs(plane.XAxis * direction) ? plane.YAxis : plane.XAxis;
+
+        protected static Plane AlignSection(Beam beam, Plane plane, Vector3d direction, Vector3d up, out double width, out double height)
+        {
+            var z = plane.ZAxis * direction < 0 ? -plane.ZAxis : plane.ZAxis;
+
+            bool yIsUp = Math.Abs(plane.YAxis * up) >= Math.Abs(plane.XAxis * up);
+            var y = yIsUp ? plane.YAxis : plane.XAxis;
+            if (y * up < 0) y.Reverse();
+
+            width = yIsUp ? beam.Width : beam.Height;
+            height = yIsUp ? beam.Height : beam.Width;
+
+            return new Plane(plane.Origin, Vector3d.CrossProduct(y, z), y);
+        }
+
+        /// <summary>
         /// The segment of the line through point along direction that spans all the given
         /// beam sections, each given by its centre and its size along direction. Used for the
         /// actual length of dowels, as opposed to their (longer) drilling cutters.

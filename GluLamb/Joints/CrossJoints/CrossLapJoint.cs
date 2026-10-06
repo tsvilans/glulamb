@@ -47,7 +47,7 @@ namespace GluLamb.Joints
                 beams[0].Centreline.TangentAt(m_parts[0].Parameter),
                 beams[1].Centreline.TangentAt(m_parts[1].Parameter));
             up.Unitize();
-            if (up * plane0.YAxis < 0) up.Reverse();
+            if (up * NearestSectionAxis(plane0, up) < 0) up.Reverse();
 
             int oi = TopPart(plane0.Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, tolerance);
             int ui = 1 - oi;

@@ -65,7 +65,7 @@ namespace GluLamb.Joints
             var normal = Utility.ClosestAxis(mortisePlane, Vector3d.CrossProduct(tenonDirection, mortiseDirection));
             // The tenon sits on the +normal side. Orient the normal with the tenon's up axis,
             // then put whichever beam is higher on top (the tenon when they are level).
-            if (normal * tenonPlane.YAxis < 0.0)
+            if (normal * NearestSectionAxis(tenonPlane, normal) < 0.0)
                 normal.Reverse();
             if (TopPart(tenonPlane.Origin, mortisePlane.Origin, normal, tolerance) != 0)
                 normal.Reverse();

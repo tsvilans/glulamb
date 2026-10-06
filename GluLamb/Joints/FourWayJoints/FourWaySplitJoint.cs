@@ -74,6 +74,7 @@ namespace GluLamb.Joints
         protected Line[] Seams;
         protected Plane PlatePlane;
         protected Plane NodePlane;
+        protected double[] ArmWidths;
 
         public FourWaySplitJoint(JointX condition) : base(condition)
         {
@@ -99,13 +100,18 @@ namespace GluLamb.Joints
             }
             else
             {
-                normal = Vector3d.Zero;
-                var first = beams[0].GetPlane(origin).YAxis;
-                foreach (var beam in beams)
-                {
-                    var y = beam.GetPlane(origin).YAxis;
-                    normal += y * first < 0 ? -y : y;
-                }
+                // The plane that best fits the four arm directions, independent of how the beam
+                // sections are oriented. Its sign follows the nearest section axis of beam 0;
+                // Flip inverts it.
+                var pts = beams.Select(b => { var d = b.Centreline.PointAt(b.Centreline.Domain.Mid) - origin; d.Unitize(); return origin + d; })
+                    .Append(origin).ToList();
+                Plane.FitPlaneToPoints(pts, out Plane fit);
+                normal = fit.ZAxis;
+
+                var p0 = beams[0].GetPlane(origin);
+                var axis0 = Math.Abs(p0.YAxis * normal) >= Math.Abs(p0.XAxis * normal) ? p0.YAxis : p0.XAxis;
+                if (normal * axis0 < 0) normal.Reverse();
+                if (Flip) normal.Reverse();
             }
 
             if (!normal.Unitize())
@@ -132,15 +138,12 @@ namespace GluLamb.Joints
             NodePlane = new Plane(origin, xRef, yRef);
             Position = NodePlane;
 
-            // Beam frames at the node: Z into the arm, Y along the normal
+            // Beam frames at the node: Z into the arm, Y the section axis closest to the normal
             var planes = new Plane[4];
+            var widths = ArmWidths = new double[4];
+            var heights = new double[4];
             for (int i = 0; i < 4; ++i)
-            {
-                var p = arms[i].GetPlane(origin);
-                var z = p.ZAxis * dirs[i] < 0 ? -p.ZAxis : p.ZAxis;
-                var y = p.YAxis * normal < 0 ? -p.YAxis : p.YAxis;
-                planes[i] = new Plane(p.Origin, Vector3d.CrossProduct(y, z), y);
-            }
+                planes[i] = AlignSection(arms[i], arms[i].GetPlane(origin), dirs[i], normal, out widths[i], out heights[i]);
 
             Seams = new Line[4];
             LeftPlanes = new Plane[4];
@@ -148,8 +151,8 @@ namespace GluLamb.Joints
 
             for (int i = 0; i < 4; ++i)
             {
-                LeftPlanes[i] = new Plane(planes[i].Origin + planes[i].XAxis * arms[i].Width * 0.5, planes[i].ZAxis, planes[i].YAxis);
-                RightPlanes[i] = new Plane(planes[i].Origin - planes[i].XAxis * arms[i].Width * 0.5, planes[i].ZAxis, planes[i].YAxis);
+                LeftPlanes[i] = new Plane(planes[i].Origin + planes[i].XAxis * widths[i] * 0.5, planes[i].ZAxis, planes[i].YAxis);
+                RightPlanes[i] = new Plane(planes[i].Origin - planes[i].XAxis * widths[i] * 0.5, planes[i].ZAxis, planes[i].YAxis);
             }
 
             // As in the original: 1 unit towards the outer side, with Z pointing to the inner side
@@ -166,7 +169,7 @@ namespace GluLamb.Joints
                     return;
                 }
 
-                if (!SeamEnds(xline, normal, Math.Max(arms[i].Height, arms[ii].Height) * 0.5, out Point3d innerPt, out Point3d outerPt))
+                if (!SeamEnds(xline, normal, Math.Max(heights[i], heights[ii]) * 0.5, out Point3d innerPt, out Point3d outerPt))
                 {
                     result.Status = JointStatus.Failed;
                     result.Messages.Add($"{GetType().Name}: the seam between arms {i} and {ii} does not reach the inner and outer sides.");
@@ -291,7 +294,7 @@ namespace GluLamb.Joints
             var topLoop = new Polyline { plane.PointAt(hw, 0), plane.PointAt(-hw, 0), plane.PointAt(-hw, -slotLength), plane.PointAt(hw, -slotLength) };
             topLoop.Add(topLoop[0]);
 
-            var w = arm.Width;
+            var w = ArmWidths[index];
             var btmLoop = new Polyline { plane.PointAt(hw, 0, -w), plane.PointAt(-hw, 0, -w), plane.PointAt(-hw, -slotLength, -w), plane.PointAt(hw, -slotLength, -w) };
             btmLoop.Add(btmLoop[0]);
 

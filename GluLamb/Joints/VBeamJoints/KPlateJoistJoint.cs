@@ -107,13 +107,11 @@ namespace GluLamb.Joints
             var jPlane = joist.GetPlane(joistPart.Parameter);
             var sPlane = Beams[2].GetPlane(KParts[2].Parameter);
 
+            // Joist frame: Z into the joist, Y along the joint's "up" (from the sill towards the
+            // arms), whichever side of the joist's section that is
+            var intoJoist = joist.Centreline.PointAt(joist.Centreline.Domain.Mid) - jPlane.Origin;
+            jPlane = AlignSection(joist, jPlane, intoJoist, Position.XAxis, out double joistWidth, out double joistHeight);
             var jDir = jPlane.ZAxis;
-            if (jDir * (joist.Centreline.PointAt(joist.Centreline.Domain.Mid) - jPlane.Origin) < 0)
-            {
-                jPlane = new Plane(jPlane.Origin, -jPlane.XAxis, jPlane.YAxis);
-                jDir.Reverse();
-            }
-            jDir.Unitize();
 
             var offsetPlatePlane = PlatePlane;
             var offsetDir = jDir * offsetPlatePlane.ZAxis < 0 ? -1 : 1;
@@ -142,8 +140,8 @@ namespace GluLamb.Joints
             double thickness = PlateThickness + 5.0;
             double angleOffset = angleFactor > 0 ? thickness / angleFactor : thickness;
 
-            double jhw = joist.Width * 0.5;
-            double jhh = joist.Height * 0.5;
+            double jhw = joistWidth * 0.5;
+            double jhh = joistHeight * 0.5;
 
             var jEndPlane = new Plane(jPlane.Origin - jDir * angleOffset, jPlane.XAxis, jPlane.YAxis);
 

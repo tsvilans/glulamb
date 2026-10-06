@@ -102,7 +102,7 @@ namespace GluLamb.Joints
 
             // Beam 0 is on top along -normal. Orient the normal with beam 0's up axis, then put
             // whichever beam is higher on top (beam 0 when they are level).
-            if (normal * beam0Plane.YAxis < 0)
+            if (normal * NearestSectionAxis(beam0Plane, normal) < 0)
                 normal.Reverse();
             if (TopPart(beam0Plane.Origin, beam1Plane.Origin, normal, context.Tolerance) == 0)
                 normal.Reverse();

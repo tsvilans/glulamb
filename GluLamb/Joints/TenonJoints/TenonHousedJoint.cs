@@ -69,7 +69,7 @@ namespace GluLamb.Joints
 
             // Orient the normal with the tenon's up axis, then let the higher beam decide (the
             // tenon when they are level); Flip inverts.
-            if (normal * tenonPlane.YAxis < 0.0)
+            if (normal * NearestSectionAxis(tenonPlane, normal) < 0.0)
                 normal.Reverse();
 
             if (mortiseDirection * Vector3d.CrossProduct(tenonDirection, normal) < 0)

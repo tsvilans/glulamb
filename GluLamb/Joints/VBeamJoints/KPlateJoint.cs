@@ -73,6 +73,8 @@ namespace GluLamb.Joints
         protected Beam[] Beams;
         protected JointPartX[] KParts;
         protected Vector3d[] BeamDirections;
+        protected double[] ArmWidths;
+        protected double[] ArmHeights;
         protected Plane[] BeamPlanes;
         protected Plane KPlane;
         protected Vector3d VSum;
@@ -143,26 +145,23 @@ namespace GluLamb.Joints
             VSum = BeamDirections[0] + BeamDirections[1];
             VSum.Unitize();
 
-            // The original assumes the arms come in along the sill's X axis. If they come in along
-            // its Y axis, rotate the sill frame a quarter turn (keeping it right-handed) so that the
-            // same logic applies; the sill's extent towards the arms is then its height.
-            bool rotated = Math.Abs(KPlane.YAxis * VSum) > Math.Abs(KPlane.XAxis * VSum);
-            if (rotated)
-                KPlane = new Plane(KPlane.Origin, KPlane.YAxis, -KPlane.XAxis);
-
-            for (int i = 0; i < 2; ++i)
+            // Frame the sill and the arms relative to the joint, not to their own section
+            // orientations: Y is the section axis closest to the normal of the plane of the joint,
+            // so the joint works whichever side of each section faces the others.
+            var kNormal = Vector3d.CrossProduct(KPlane.ZAxis, VSum);
+            if (!kNormal.Unitize())
             {
-                int signY = BeamPlanes[i].YAxis * KPlane.YAxis < 0 ? -1 : 1;
-
-                if (Math.Abs(BeamPlanes[i].YAxis * KPlane.YAxis) < 0.5)
-                    result.Messages.Add($"{GetType().Name}: arm {i}'s Y axis should be perpendicular to the plane of the joint " +
-                        "(the arms' widths lie in the plane of the plate).");
-
-                // Keep Z pointing into the arm and Y aligned with the sill. (The original flipped Y
-                // without X when aligning, which reversed Z and turned the arm around.)
-                var y = BeamPlanes[i].YAxis * signY;
-                BeamPlanes[i] = new Plane(BeamPlanes[i].Origin, Vector3d.CrossProduct(y, BeamDirections[i]), y);
+                result.Status = JointStatus.Failed;
+                result.Messages.Add($"{GetType().Name}: the arms are parallel to the sill.");
+                return;
             }
+
+            KPlane = AlignSection(Beams[2], KPlane, KPlane.ZAxis, kNormal, out double width, out _);
+
+            ArmWidths = new double[2];
+            ArmHeights = new double[2];
+            for (int i = 0; i < 2; ++i)
+                BeamPlanes[i] = AlignSection(Beams[i], BeamPlanes[i], BeamDirections[i], KPlane.YAxis, out ArmWidths[i], out ArmHeights[i]);
 
             InsertionVector = -KPlane.Project(VSum);
             InsertionVector.Unitize();
@@ -170,7 +169,6 @@ namespace GluLamb.Joints
             OrderArms();
 
             // Plate plane axis: the sill's cross-section axis towards the arms
-            double width = rotated ? Beams[2].Height : Beams[2].Width;
             var xaxis = KPlane.XAxis * VSum < 0 ? -KPlane.XAxis : KPlane.XAxis;
 
             Position = new Plane(KPlane.Origin, xaxis, KPlane.ZAxis);
@@ -224,7 +222,7 @@ namespace GluLamb.Joints
                 // The arm has to reach the sill face across its whole section
                 var project = Transform.ProjectAlong(SillPlane, BeamDirections[i]);
                 var corners = new[] { new Point2d(-1, -1), new Point2d(1, -1), new Point2d(1, 1), new Point2d(-1, 1) }
-                    .Select(c => BeamPlanes[i].PointAt(c.X * Beams[i].Width * 0.5, c.Y * Beams[i].Height * 0.5))
+                    .Select(c => BeamPlanes[i].PointAt(c.X * ArmWidths[i] * 0.5, c.Y * ArmHeights[i] * 0.5))
                     .Select(p => { p.Transform(project); return p; });
                 ExtendToReach(result, Beams[i], KParts[i], corners);
             }
@@ -232,14 +230,14 @@ namespace GluLamb.Joints
             // Seam and outside planes of the arms
             SeamPlanes = new[]
             {
-                new Plane(BeamPlanes[0].Origin + BeamPlanes[0].XAxis * Beams[0].Width * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis),
-                new Plane(BeamPlanes[1].Origin - BeamPlanes[1].XAxis * Beams[1].Width * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis),
+                new Plane(BeamPlanes[0].Origin + BeamPlanes[0].XAxis * ArmWidths[0] * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis),
+                new Plane(BeamPlanes[1].Origin - BeamPlanes[1].XAxis * ArmWidths[1] * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis),
             };
 
             OutsidePlanes = new[]
             {
-                new Plane(BeamPlanes[0].Origin - BeamPlanes[0].XAxis * Beams[0].Width * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis),
-                new Plane(BeamPlanes[1].Origin + BeamPlanes[1].XAxis * Beams[1].Width * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis),
+                new Plane(BeamPlanes[0].Origin - BeamPlanes[0].XAxis * ArmWidths[0] * 0.5, BeamPlanes[0].ZAxis, BeamPlanes[0].YAxis),
+                new Plane(BeamPlanes[1].Origin + BeamPlanes[1].XAxis * ArmWidths[1] * 0.5, BeamPlanes[1].ZAxis, BeamPlanes[1].YAxis),
             };
 
             CheckSides();

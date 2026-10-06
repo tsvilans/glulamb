@@ -56,7 +56,7 @@ namespace GluLamb.Joints
                 beams[0].Centreline.TangentAt(m_parts[0].Parameter),
                 beams[1].Centreline.TangentAt(m_parts[1].Parameter));
             up.Unitize();
-            if (up * plane0.YAxis < 0) up.Reverse();
+            if (up * NearestSectionAxis(plane0, up) < 0) up.Reverse();
 
             int oi = TopPart(plane0.Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, context.Tolerance);
             int ui = 1 - oi;
@@ -68,10 +68,14 @@ namespace GluLamb.Joints
             var oPlane = obeam.GetPlane(m_parts[oi].Parameter);
             var uPlane = ubeam.GetPlane(m_parts[ui].Parameter);
 
+            // Frame both sections so their Y faces the other beam, whichever side that is
+            oPlane = AlignSection(obeam, oPlane, oPlane.ZAxis, up, out double oWidth, out double oHeight);
+            uPlane = AlignSection(ubeam, uPlane, uPlane.ZAxis, up, out double uWidth, out _);
+
             // Offset for the backcut angle
             double tan = Math.Tan(RhinoMath.ToRadians(Math.Max(1.0, TaperAngle)));
             double addedTan = added * tan;
-            double depth = DepthOverride > 0.0 ? DepthOverride : obeam.Height;
+            double depth = DepthOverride > 0.0 ? DepthOverride : oHeight;
             double taperOffset = depth * 0.5 * tan;
 
             uPlane = UnifyPlanes(oPlane, uPlane);
@@ -96,14 +100,14 @@ namespace GluLamb.Joints
 
             var oPlanes = new[]
             {
-                new Plane(oPlane.Origin - oPlane.XAxis * obeam.Width * 0.5, oPlane.ZAxis, oPlane.YAxis),
-                new Plane(oPlane.Origin + oPlane.XAxis * obeam.Width * 0.5, -oPlane.ZAxis, oPlane.YAxis),
+                new Plane(oPlane.Origin - oPlane.XAxis * oWidth * 0.5, oPlane.ZAxis, oPlane.YAxis),
+                new Plane(oPlane.Origin + oPlane.XAxis * oWidth * 0.5, -oPlane.ZAxis, oPlane.YAxis),
             };
 
             var uPlanes = new[]
             {
-                new Plane(uPlane.Origin - uPlane.XAxis * ubeam.Width * 0.5, uPlane.ZAxis, uPlane.YAxis),
-                new Plane(uPlane.Origin + uPlane.XAxis * ubeam.Width * 0.5, -uPlane.ZAxis, uPlane.YAxis),
+                new Plane(uPlane.Origin - uPlane.XAxis * uWidth * 0.5, uPlane.ZAxis, uPlane.YAxis),
+                new Plane(uPlane.Origin + uPlane.XAxis * uWidth * 0.5, -uPlane.ZAxis, uPlane.YAxis),
             };
 
             var corners = new Point3d[4];
@@ -127,7 +131,7 @@ namespace GluLamb.Joints
                 corners[2] - xaxis * taperOffset,
             };
 
-            var h = obeam.Height * 0.5 + added;
+            var h = oHeight * 0.5 + added;
             var topCorners = new[]
             {
                 corners[0] - zaxis * h + yaxis * addedTan,
@@ -203,6 +207,17 @@ namespace GluLamb.Joints
                 ? glulam.GetSideSurface(side, offset, width, extension, flip)
                 : BeamOps.GetSideSurface(beam, side, offset, width, extension, flip);
 
+        // Side surfaces in a frame where "up" is the section axis facing the other beam and "side"
+        // completes a right-handed frame with the beam direction. When up is the beam's X axis,
+        // side is its -Y axis, so offsets along side and rule directions across it are reversed
+        // (a negative width reverses the rules). This keeps every curve direction the same as for a
+        // beam with Y up, which the web and loft construction below relies on.
+        private static Brep Top(Beam beam, bool yUp, double offset, double width, double extension, bool flip) =>
+            yUp ? SideSurface(beam, 1, offset, width, extension, flip) : SideSurface(beam, 0, offset, -width, extension, flip);
+
+        private static Brep Sides(Beam beam, bool yUp, double offset, double width, double extension, bool flip) =>
+            yUp ? SideSurface(beam, 0, offset, width, extension, flip) : SideSurface(beam, 1, -offset, width, extension, flip);
+
         private static Curve FirstIntersection(Brep a, Brep b, double tolerance)
         {
             RX.BrepBrep(a, b, tolerance, out Curve[] curves, out Point3d[] _);
@@ -227,6 +242,17 @@ namespace GluLamb.Joints
             var plA = beamA.GetPlane(ptA);
             var plB = beamB.GetPlane(ptB);
 
+            // Use whichever section axis of each beam faces the other beam as its "up", so the joint
+            // works on any side of the beams (see Top and Sides).
+            var crossNormal = Vector3d.CrossProduct(plA.ZAxis, plB.ZAxis);
+            bool aYUp = Math.Abs(plA.YAxis * crossNormal) >= Math.Abs(plA.XAxis * crossNormal);
+            bool bYUp = Math.Abs(plB.YAxis * crossNormal) >= Math.Abs(plB.XAxis * crossNormal);
+            var upA = aYUp ? plA.YAxis : plA.XAxis;
+            var sideAxisA = aYUp ? plA.XAxis : -plA.YAxis;
+            var upB = bYUp ? plB.YAxis : plB.XAxis;
+            if (!aYUp) (widthA, heightA) = (heightA, widthA);
+            if (!bYUp) (widthB, heightB) = (heightB, widthB);
+
             double ofc = OffsetCentre;
             double ofc2 = OffsetCentre / 2;
 
@@ -234,23 +260,23 @@ namespace GluLamb.Joints
             // along each beam's Y axis. (The old code unitized ptB - ptA, so when the centrelines
             // intersected, floating-point noise decided and both beams could get the same side.)
             // The higher beam goes on top (A when they are level); Flip inverts that.
-            bool aOnTop = TopPart(ptA, ptB, plA.YAxis, tolerance) == 0;
+            bool aOnTop = TopPart(ptA, ptB, upA, tolerance) == 0;
             double dA = aOnTop ? -1.0 : 1.0;
-            double yDot = plA.YAxis * plB.YAxis;
-            double dB = Math.Abs(yDot) > 1e-3 ? -dA * yDot : (ptA - ptB) * plB.YAxis;
+            double yDot = upA * upB;
+            double dB = Math.Abs(yDot) > 1e-3 ? -dA * yDot : (ptA - ptB) * upB;
 
             int yAFlip = dA < 0 ? 1 : -1,
                 yBFlip = dB < 0 ? 1 : -1,
-                xAFlip = plA.XAxis * plB.ZAxis < 0 ? 1 : -1;
+                xAFlip = sideAxisA * plB.ZAxis < 0 ? 1 : -1;
 
             // Centre surface
             var centreSides = new[]
             {
-                SideSurface(beamA, 0, (widthA / 2 - ofc2) * xAFlip, heightB * 3, Extension, flip),
-                SideSurface(beamA, 0, -(widthA / 2 - ofc2) * xAFlip, heightB * 3, Extension, flip),
+                Sides(beamA, aYUp, (widthA / 2 - ofc2) * xAFlip, heightB * 3, Extension, flip),
+                Sides(beamA, aYUp, -(widthA / 2 - ofc2) * xAFlip, heightB * 3, Extension, flip),
             };
 
-            var centreFlat = SideSurface(beamB, 1, cDist * yAFlip, widthB - ofc, Extension, flip);
+            var centreFlat = Top(beamB, bYUp, cDist * yAFlip, widthB - ofc, Extension, flip);
 
             var centreCurves = new Curve[4];
             centreCurves[0] = FirstIntersection(centreSides[0], centreFlat, tolerance);
@@ -288,18 +314,18 @@ namespace GluLamb.Joints
             var centreBrep = Brep.CreateEdgeSurface(centreCurves);
 
             // Beam A top and sides, beam B bottom and sides
-            var aTop = SideSurface(beamA, 1, (heightA / 2 + Offset1) * -yAFlip, widthA + Offset2, Extension, false);
+            var aTop = Top(beamA, aYUp, (heightA / 2 + Offset1) * -yAFlip, widthA + Offset2, Extension, false);
             var aSides = new[]
             {
-                SideSurface(beamA, 0, (widthA / 2 + Offset1) * xAFlip, heightA * 2 + Offset2, Extension, flip),
-                SideSurface(beamA, 0, -(widthA / 2 + Offset1) * xAFlip, heightA * 2 + Offset2, Extension, flip),
+                Sides(beamA, aYUp, (widthA / 2 + Offset1) * xAFlip, heightA * 2 + Offset2, Extension, flip),
+                Sides(beamA, aYUp, -(widthA / 2 + Offset1) * xAFlip, heightA * 2 + Offset2, Extension, flip),
             };
 
-            var bBottom = SideSurface(beamB, 1, (heightB / 2 + Offset1) * -yBFlip, widthB + Offset2, Extension, false);
+            var bBottom = Top(beamB, bYUp, (heightB / 2 + Offset1) * -yBFlip, widthB + Offset2, Extension, false);
             var bSides = new[]
             {
-                SideSurface(beamB, 0, (widthB / 2 + Offset1) * xAFlip, heightB * 2 + Offset2, Extension, flip),
-                SideSurface(beamB, 0, -(widthB / 2 + Offset1) * xAFlip, heightB * 2 + Offset2, Extension, flip),
+                Sides(beamB, bYUp, (widthB / 2 + Offset1) * xAFlip, heightB * 2 + Offset2, Extension, flip),
+                Sides(beamB, bYUp, -(widthB / 2 + Offset1) * xAFlip, heightB * 2 + Offset2, Extension, flip),
             };
 
             var aTopBSides = new[]
