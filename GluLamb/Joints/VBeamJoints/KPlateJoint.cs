@@ -308,7 +308,9 @@ namespace GluLamb.Joints
                     continue;
                 }
 
-                var dowelPlane = Beams[i].GetPlane(dx[0].PointA);
+                // Frame the arm relative to the joint, so the dowel runs across the plate whichever
+                // way the arm's section is oriented
+                var dowelPlane = AlignSection(Beams[i], Beams[i].GetPlane(dx[0].PointA), BeamDirections[i], KPlane.YAxis, out _, out _);
                 var rotPlane = new Plane(dowelPlane.Origin, dowelPlane.ZAxis, dowelPlane.YAxis);
 
                 if (!RX.PlanePlane(rotPlane, DowelOffsetPlanes[i], out Line xpp)) continue;
@@ -336,6 +338,13 @@ namespace GluLamb.Joints
             var portalPoint = (TenonSidePlanes[0].Origin + TenonSidePlanes[1].Origin) * 0.5;
             portalPoint = Beams[2].GetPlane(portalPoint).Origin;
             var portalStart = portalPoint - KPlane.YAxis * DowelLength * 0.5;
+
+            // The sill dowel sits on the sill's centreline, so the plate tenon has to reach past it
+            var toCentreline = (portalPoint - SillPlatePlane.Origin) * InsertionVector;
+            var neededDepth = Math.Ceiling(toCentreline + DowelDiameter + ToleranceTenonEnd);
+            if (PlateDepth < neededDepth || PlateSlotDepth < neededDepth)
+                result.Messages.Add($"{GetType().Name}: the plate tenon doesn't reach the sill dowel; " +
+                    $"set PlateDepth and PlateSlotDepth to at least {neededDepth} (now {PlateDepth} and {PlateSlotDepth}).");
 
             result.Add(new Drilling(Beams[2].Id, new Line(portalStart - KPlane.YAxis * 10, KPlane.YAxis, DowelLength + 20), DowelDiameter));
             var portalAxis = new Line(portalStart, KPlane.YAxis, DowelLength);
