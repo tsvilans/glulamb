@@ -96,6 +96,30 @@ namespace GluLamb.Joints
     }
 
     /// <summary>
+    /// A screw, counted by diameter and length. Axis runs from the head to the tip.
+    /// </summary>
+    public class ScrewItem : HardwareItem
+    {
+        public Line Axis;
+        public double Diameter;
+
+        public ScrewItem(Line axis, double diameter, params string[] beamIds)
+        {
+            Axis = axis;
+            Diameter = diameter;
+            BeamIds.AddRange(beamIds);
+        }
+
+        public override string Category => "Screw";
+        public override string Specification => $"Ø{Diameter:0.##}×{Axis.Length:0.##}";
+        public override double Amount => 1;
+        public override int AmountDimension => 0;
+
+        public override GeometryBase GetGeometry() =>
+            new Cylinder(new Circle(new Plane(Axis.From, Axis.Direction), Diameter * 0.5), Axis.Length).ToBrep(true, true);
+    }
+
+    /// <summary>
     /// A rectangular key or wedge, e.g. the key driven into a keyed scarf.
     /// </summary>
     public class KeyItem : HardwareItem
