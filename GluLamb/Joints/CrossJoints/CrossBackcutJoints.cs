@@ -184,6 +184,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Width of material left in the centre of the lap.", Unit = "length")]
         public double OffsetCentre { get; set; } = 10.0;
 
+        [JointParameter(Description = "Swap which beam is on top when the centrelines intersect.")]
+        public bool Flip { get; set; } = false;
+
         public CrossDoubleBackcutJoint(JointX condition) : base(condition)
         {
         }
@@ -222,22 +225,23 @@ namespace GluLamb.Joints
             double ofc = OffsetCentre;
             double ofc2 = OffsetCentre / 2;
 
-            var vAB = ptB - ptA;
-            var vBA = ptA - ptB;
+            // Which way each beam is notched depends on which side of A beam B is on, measured
+            // along each beam's Y axis. The old code unitized ptB - ptA, so when the centrelines
+            // (nearly) intersect, floating-point noise gave it an arbitrary direction and both
+            // beams could get notched on the same side. If the offset is within tolerance, B is
+            // taken to be on +Y of A (or -Y with Flip).
+            double dA = (ptB - ptA) * plA.YAxis;
+            double dB = (ptA - ptB) * plB.YAxis;
 
-            if (vAB.IsZero || vBA.IsZero)
+            if (Math.Abs(dA) <= tolerance)
             {
-                vAB = plA.YAxis;
-                vBA = -vAB;
-            }
-            else
-            {
-                vAB.Unitize();
-                vBA.Unitize();
+                double side = Flip ? -1.0 : 1.0;
+                dA = side;
+                dB = -side * (plA.YAxis * plB.YAxis);
             }
 
-            int yAFlip = vAB * plA.YAxis < 0 ? 1 : -1,
-                yBFlip = vBA * plB.YAxis < 0 ? 1 : -1,
+            int yAFlip = dA < 0 ? 1 : -1,
+                yBFlip = dB < 0 ? 1 : -1,
                 xAFlip = plA.XAxis * plB.ZAxis < 0 ? 1 : -1;
 
             // Centre surface
