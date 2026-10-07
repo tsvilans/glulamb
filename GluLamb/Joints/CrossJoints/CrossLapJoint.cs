@@ -208,8 +208,10 @@ namespace GluLamb.Joints
                         && RX.PlanePlane(lapPlane, bottomFace, out exit);
                     if (exits)
                     {
-                        var exitSide = (exit.PointAt(0.5) - lapOrigin) * underSideDirection;
-                        int side = exitSide >= 0 ? 1 : -1;
+                        // The open side is the way the over beam's underside rises off the lap
+                        // face: along the over beam, towards the normal
+                        var rising = overDirection * (overDirection * normal >= 0 ? 1 : -1);
+                        int side = rising * underSideDirection >= 0 ? 1 : -1;
                         // Run the lap face out past the exit, square to the lap face
                         var across = Vector3d.CrossProduct(exit.Direction, normal);
                         across.Unitize();
