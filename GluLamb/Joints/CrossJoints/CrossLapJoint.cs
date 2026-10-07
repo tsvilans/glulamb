@@ -112,8 +112,12 @@ namespace GluLamb.Joints
             var normal = Vector3d.CrossProduct(underSideDirection, overSideDirection);
             normal.Unitize();
 
-            // The under beam is notched on the normal side, so the normal points up, towards the over beam.
-            if (normal * up < 0)
+            // The under beam is notched on the normal side, so the normal points towards the over
+            // beam: up, unless Flip has put the over beam below the under one
+            var towardsOver = up;
+            if ((overPlane.Origin - underPlane.Origin) * up < -tolerance)
+                towardsOver = -up;
+            if (normal * towardsOver < 0)
                 normal.Reverse();
 
             var lapOrigin = Interpolation.Lerp(underPlane.Origin, overPlane.Origin, underHeight / (overHeight + underHeight));

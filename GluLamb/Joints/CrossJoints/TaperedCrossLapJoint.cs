@@ -71,6 +71,10 @@ namespace GluLamb.Joints
             var planes = new[] { plane0, plane1 };
             var tangents = new[] { t0, t1 };
 
+            // The lap faces the over beam: up, unless Flip has put the over beam below the under one
+            if ((planes[oi].Origin - planes[ui].Origin) * up < -tolerance)
+                up.Reverse();
+
             // Sections relative to the crossing: Y up, X across the beam (its side direction)
             var under = AlignSection(beams[ui], planes[ui], tangents[ui], up, out double uw, out double uh);
             var over = AlignSection(beams[oi], planes[oi], tangents[oi], up, out double ow, out double oh);
