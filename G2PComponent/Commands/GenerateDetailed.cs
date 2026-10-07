@@ -91,21 +91,9 @@ namespace G2PComponents.Commands
             RhinoApp.WriteLine($"Detailed {done} of {components.Count} components." +
                 (untouched.Count > 0 ? $" {untouched.Count} had nothing to cut or failed (left selected)." : ""));
 
-            // Instances that share a mark should come out the same
-            var (problems, marks, odd) = Detailing.CheckMarks(components, doc);
-            foreach (var problem in problems)
-                RhinoApp.WriteLine($"-- {problem}");
-            if (marks > 0 && problems.Count == 0)
-                RhinoApp.WriteLine($"All instances of {marks} repeated mark{(marks == 1 ? "" : "s")} match.");
-
             doc.Objects.UnselectAll();
             if (untouched.Count > 0)
                 doc.Objects.Select(untouched, true);
-            if (odd.Count > 0)
-            {
-                doc.Objects.Select(odd, true);
-                RhinoApp.WriteLine($"The {odd.Count} instance{(odd.Count == 1 ? "" : "s")} that differ{(odd.Count == 1 ? "s" : "")} or aren't detailed are selected.");
-            }
             doc.Views.Redraw();
             return Result.Success;
         }
