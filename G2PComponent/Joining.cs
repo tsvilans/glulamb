@@ -235,20 +235,43 @@ namespace G2PComponents
         }
 
         /// <summary>
-        /// A short D2P type id for a joint type: "J" and the initials of the id's words, padded
-        /// with letters of the last word to four characters, made unique among the registered
-        /// types (in id order) with a digit.
+        /// The joint condition letters used in the code (JointX.ClassifyJoint), by the first word
+        /// of a joint type id: X crossing, L corner, T, S splice, V fork (acute), E end, plus K for
+        /// K joints, P for post joints and N for other nodes. Types without a family word (e.g.
+        /// glulamb.drilling) are F, a feature along a beam.
+        /// </summary>
+        private static readonly Dictionary<string, char> Families = new()
+        {
+            ["cross"] = 'X', ["corner"] = 'L', ["t"] = 'T', ["splice"] = 'S', ["branch"] = 'V',
+            ["end"] = 'E', ["k"] = 'K', ["post"] = 'P', ["four"] = 'N',
+        };
+
+        /// <summary>
+        /// A short D2P type id for a joint type: J, the condition letter, and two letters for the
+        /// variant: the first two letters of a one-word variant, or the initials of the last two
+        /// words. E.g. glulamb.cross-tapered is JXTA, glulamb.corner-tenon JLTE,
+        /// glulamb.corner-lap-mitre JLLM, glulamb.k-plate-joist JKPJ. Made unique among the
+        /// registered types (in id order) with a digit.
         /// </summary>
         public static string ComponentTypeId(string typeId)
         {
             string Code(string id)
             {
                 var words = (id.StartsWith("glulamb.") ? id.Substring(8) : id).Split('-', '.', '_').Where(x => x.Length > 0).ToList();
-                var code = "J" + string.Concat(words.Select(w => char.ToUpperInvariant(w[0])));
-                var last = words.LastOrDefault() ?? "X";
-                for (int i = 1; code.Length < 4 && i < last.Length; ++i)
-                    code += char.ToUpperInvariant(last[i]);
-                return code.Length > 4 ? code.Substring(0, 4) : code.PadRight(4, 'X');
+                if (words.Count == 0) return "JFXX";
+
+                char family = 'F';
+                if (words.Count > 1 && words[0] == "four" && words[1] == "way") words.RemoveAt(1);
+                if (Families.TryGetValue(words[0], out var f) && words.Count > 1)
+                {
+                    family = f;
+                    words.RemoveAt(0);
+                }
+
+                var variant = words.Count == 1
+                    ? words[0].PadRight(2, 'x').Substring(0, 2)
+                    : string.Concat(words.Skip(words.Count - 2).Select(w => w[0]));
+                return ("J" + family + variant).ToUpperInvariant();
             }
 
             var taken = new Dictionary<string, string>();
