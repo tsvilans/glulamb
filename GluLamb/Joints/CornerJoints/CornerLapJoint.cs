@@ -24,6 +24,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Inset of the lap sides from the beam sides.", Unit = "length")]
         public double Inset { get; set; } = 0.0;
 
+        [JointParameter(Description = "Depth of the cut in the lower beam, from its top face. The upper beam takes the rest. 0 = halfway between the beams.", Unit = "length")]
+        public double LapDepth { get; set; } = 0;
+
         [JointParameter(Description = "Material left at the end of the second beam's lap. 0 is a through lap.", Unit = "length")]
         public double BlindOffset { get; set; } = 0.0;
 
@@ -107,10 +110,24 @@ namespace GluLamb.Joints
             // whichever beam is higher on top (beam 0 when they are level).
             if (normal * NearestSectionAxis(beam0Plane, normal) < 0)
                 normal.Reverse();
-            if (TopPart(beam0Plane.Origin, beam1Plane.Origin, normal, context.Tolerance) == 0)
+            bool beam0OnTop = TopPart(beam0Plane.Origin, beam1Plane.Origin, normal, context.Tolerance) == 0;
+            if (beam0OnTop)
                 normal.Reverse();
 
             var lapOrigin = Interpolation.Lerp(beam0Plane.Origin, beam1Plane.Origin, beam0Height / (beam1Height + beam0Height));
+
+            // A set lap depth: the cut in the lower beam, from its face towards the upper one; the
+            // upper beam takes the rest. The normal points from beam 0 to beam 1.
+            if (LapDepth > 0)
+            {
+                var (lowerPlane, lowerHeight, towardsUpper) = beam0OnTop
+                    ? (beam1Plane, beam1Height, -normal)
+                    : (beam0Plane, beam0Height, normal);
+                var face = lowerPlane.Origin + towardsUpper * lowerHeight * 0.5;
+                lapOrigin += towardsUpper * ((face - lapOrigin) * towardsUpper - LapDepth);
+                if (LapDepth >= lowerHeight)
+                    result.Messages.Add($"{GetType().Name}: LapDepth ({LapDepth}) cuts through the lower beam ({lowerHeight}).");
+            }
             var lapPlane = new Plane(lapOrigin, beam0SideDirection, beam1SideDirection);
             Position = lapPlane;
             result.Debug.Add(lapPlane);

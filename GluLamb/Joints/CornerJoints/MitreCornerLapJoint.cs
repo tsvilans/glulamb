@@ -25,6 +25,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Extra size added to cutters so they clear the beams.", Unit = "length")]
         public double Added { get; set; } = 10.0;
 
+        [JointParameter(Description = "Depth of the cut in the bottom beam, from its top face. The top beam takes the rest. 0 = halfway between the beams.", Unit = "length")]
+        public double LapDepth { get; set; } = 0;
+
         [JointParameter(Description = "Diameter of a dowel through the lap. 0 = no dowel.", Unit = "length")]
         public double DowelDiameter { get; set; } = 0.0;
 
@@ -70,6 +73,14 @@ namespace GluLamb.Joints
                 frames[i] = AlignSection(beams[i], planes[i], -dirs[i], normal, out widths[i], out heights[i]);
 
             var lapOrigin = Interpolation.Lerp(frames[bi].Origin, frames[ti].Origin, heights[bi] / (heights[bi] + heights[ti]));
+            // A set lap depth: the cut in the bottom beam, from its top face; the top beam takes the rest
+            if (LapDepth > 0)
+            {
+                var face = frames[bi].Origin + normal * heights[bi] * 0.5;
+                lapOrigin += normal * ((face - lapOrigin) * normal - LapDepth);
+                if (LapDepth >= heights[bi])
+                    result.Messages.Add($"{GetType().Name}: LapDepth ({LapDepth}) cuts through the bottom beam ({heights[bi]}).");
+            }
             var lap = new Plane(lapOrigin, normal);
 
             // Side planes of a beam: outer is away from the other beam's body (which lies back

@@ -24,6 +24,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Distance from the far side of the mortise beam to the end of the lap. 0 is a through lap.", Unit = "length")]
         public double BlindOffset { get; set; } = 0.0;
 
+        [JointParameter(Description = "Depth of the cut in the lower beam (the one landed on), from its face. The other beam takes the rest. 0 = halfway between the beams.", Unit = "length")]
+        public double LapDepth { get; set; } = 0;
+
         [JointParameter(Description = "Diameter of a dowel through the middle of the lap. 0 means no dowel.", Unit = "length")]
         public double DowelDiameter { get; set; } = 0;
 
@@ -100,6 +103,16 @@ namespace GluLamb.Joints
 
             var centre = (tenonPlane.Origin + mortisePlane.Origin) * 0.5;
 
+            // A set lap depth: the cut in the lower (mortise) beam, from its face towards the
+            // tenon; the tenon beam takes the rest
+            if (LapDepth > 0)
+            {
+                var top = mortisePlane.Origin + normal * mortiseHeight * 0.5;
+                centre += normal * ((top - centre) * normal - LapDepth);
+                if (LapDepth >= mortiseHeight)
+                    result.Messages.Add($"{GetType().Name}: LapDepth ({LapDepth}) cuts through the beam ({mortiseHeight}).");
+            }
+
             tenonFacePlane.Origin = centre.ProjectToPlane(tenonFacePlane);
             tenonBackPlane.Origin = centre.ProjectToPlane(tenonBackPlane);
             for (int i = 0; i < 2; ++i)
@@ -110,7 +123,7 @@ namespace GluLamb.Joints
                 tenonFacePlane.XAxis, tenonFacePlane.YAxis);
 
             // Cutters have to reach past both beams even when their centrelines are offset
-            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * 0.5 + Math.Abs((tenonPlane.Origin - mortisePlane.Origin) * normal) + Added;
+            var halfDepth = Math.Max(tenonHeight, mortiseHeight) * (LapDepth > 0 ? 1.5 : 0.5) + Math.Abs((tenonPlane.Origin - mortisePlane.Origin) * normal) + Added;
             var topPlane = new Plane(tenonFacePlane.Origin + tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var middlePlane = new Plane(tenonFacePlane.Origin, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);
             var bottomPlane = new Plane(tenonFacePlane.Origin - tenonFacePlane.YAxis * halfDepth, tenonFacePlane.XAxis, tenonFacePlane.ZAxis);

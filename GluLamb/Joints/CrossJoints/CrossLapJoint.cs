@@ -25,6 +25,9 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Inset of the lap sides from the beam sides. Positive values make a tighter lap.", Unit = "length")]
         public double Inset { get; set; } = 0.0;
 
+        [JointParameter(Description = "Depth of the notch in the under beam, from its top face. The over beam takes the rest. 0 = halfway between the beams.", Unit = "length")]
+        public double LapDepth { get; set; } = 0;
+
         /// <summary>
         /// Minimum angle between the beams, below which they are treated as running alongside
         /// each other rather than crossing.
@@ -114,6 +117,15 @@ namespace GluLamb.Joints
                 normal.Reverse();
 
             var lapOrigin = Interpolation.Lerp(underPlane.Origin, overPlane.Origin, underHeight / (overHeight + underHeight));
+
+            // A set lap depth: the notch in the under beam, from its top face; the over beam takes the rest
+            if (LapDepth > 0)
+            {
+                var underFace = underPlane.Origin + normal * underHeight * 0.5;
+                lapOrigin += normal * ((underFace - lapOrigin) * normal - LapDepth);
+                if (LapDepth >= underHeight)
+                    result.Messages.Add($"{GetType().Name}: LapDepth ({LapDepth}) cuts through the under beam ({underHeight}).");
+            }
             var lapPlane = new Plane(lapOrigin, underSideDirection, overSideDirection);
             Position = lapPlane;
 
