@@ -114,6 +114,88 @@ namespace G2PComponents
             return doc.Layers.Any(l => !l.IsDeleted && l.Name.EndsWith(suffix) && l.IsVisible);
         }
 
+        /// <summary>
+        /// Checks that every instance of the given components' marks (components sharing a short
+        /// name, e.g. several A-01s) came out the same: compares their DetailedGeometry by volume,
+        /// area, face count and where the cuts took material from (the shift of its centroid from
+        /// the blank's, in the component's plane, allowing for the piece being turned over or end
+        /// for end). Returns a line per mark that differs or isn't
+        /// fully detailed, the number of marks with more than one instance, and the ids of the
+        /// instances that differ from the first of their mark or aren't detailed.
+        /// </summary>
+        public static (List<string> Problems, int Marks, List<Guid> Odd) CheckMarks(IEnumerable<IComponent> components, RhinoDoc doc)
+        {
+            var problems = new List<string>();
+            var odd = new List<Guid>();
+            int marks = 0;
+            var delimiter = Context.settings.JointDelimiter;
+            foreach (var mark in components.GroupBy(x => x.Name).Select(g => g.First()))
+            {
+                if (mark.ShortName.Contains(delimiter)) continue;
+                var instances = Instantiation.InstancesByName(mark, doc).GroupBy(x => x.ID).Select(g => g.First()).ToList();
+                if (instances.Count < 2) continue;
+                marks++;
+
+                var signatures = instances.Select(x => Signature(x, doc)).ToList();
+                var missing = signatures.Count(x => x == null);
+                if (missing == instances.Count) continue;   // none detailed: nothing to compare
+                if (missing > 0)
+                {
+                    problems.Add($"{mark.ShortName}: {missing} of {instances.Count} instances have no detailed geometry.");
+                    odd.AddRange(instances.Where((x, i) => signatures[i] == null).Select(x => x.ID));
+                    continue;
+                }
+
+                var first = signatures[0];
+                var differing = new List<string>();
+                for (int i = 1; i < signatures.Count; ++i)
+                {
+                    var why = Differs(first, signatures[i]);
+                    if (why == null) continue;
+                    differing.Add(why);
+                    odd.Add(instances[i].ID);
+                }
+                if (differing.Count > 0)
+                    problems.Add($"{mark.ShortName}: {differing.Count} of {instances.Count} instances differ from the others ({string.Join("; ", differing.Distinct())}).");
+            }
+            return (problems, marks, odd);
+        }
+
+        private record Shape(double Volume, double Area, int Faces, Vector3d Shift, double Size);
+
+        private static Shape Signature(IComponent component, RhinoDoc doc)
+        {
+            Brep AsBrep(GeometryBase g) => g is Extrusion e ? e.ToBrep(true) : g as Brep;
+            var detailed = AsBrep(Utility.GetMember(component, Detailed, doc).FirstOrDefault());
+            var blank = AsBrep(Utility.GetMember(component, Basic, doc).FirstOrDefault());
+            if (detailed == null || blank == null) return null;
+
+            var vd = VolumeMassProperties.Compute(detailed);
+            var vb = VolumeMassProperties.Compute(blank);
+            var ad = AreaMassProperties.Compute(detailed);
+            if (vd == null || vb == null || ad == null) return null;
+
+            var plane = component.Plane;
+            var d = vd.Centroid - vb.Centroid;
+            var shift = new Vector3d(d * plane.XAxis, d * plane.YAxis, d * plane.ZAxis);
+            return new Shape(vd.Volume, ad.Area, detailed.Faces.Count, shift, blank.GetBoundingBox(false).Diagonal.Length);
+        }
+
+        private static string Differs(Shape a, Shape b)
+        {
+            const double relative = 1e-4;
+            if (a.Faces != b.Faces) return $"{b.Faces} faces, not {a.Faces}";
+            if (Math.Abs(a.Volume - b.Volume) > relative * Math.Max(a.Volume, b.Volume)) return $"volume differs by {Math.Abs(a.Volume - b.Volume) / Math.Max(a.Volume, b.Volume):P2}";
+            if (Math.Abs(a.Area - b.Area) > relative * Math.Max(a.Area, b.Area)) return "surface area differs";
+            // The same piece turned end for end or upside down (a half turn about one of its
+            // plane's axes) is still the same piece; a mirror image isn't
+            var turns = new[] { new Vector3d(1, 1, 1), new Vector3d(1, -1, -1), new Vector3d(-1, 1, -1), new Vector3d(-1, -1, 1) };
+            var limit = relative * 10 * Math.Max(a.Size, b.Size);
+            if (!turns.Any(t => (a.Shift - new Vector3d(b.Shift.X * t.X, b.Shift.Y * t.Y, b.Shift.Z * t.Z)).Length <= limit))
+                return "cuts in different places, or mirrored";
+            return null;
+        }
+
         private static IComponent Reload(IComponent component, RhinoDoc doc) =>
             Instantiation.InstancesFromObjects(new[] { component.ID }, Context.settings, doc).FirstOrDefault() ?? component;
 

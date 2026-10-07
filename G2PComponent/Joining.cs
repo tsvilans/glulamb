@@ -16,16 +16,20 @@ namespace G2PComponents
     public static class Joining
     {
         /// <summary>
-        /// The beam for each component, with the component's short name as its id.
+        /// The beam for each component, in the same order. A beam's id is the component's short
+        /// name (its mark); components that share a mark (several instances of the same element)
+        /// get @2, @3... on the later ones so the beams stay distinct.
         /// </summary>
         public static List<Beam> Beams(IEnumerable<IComponent> components)
         {
             var beams = new List<Beam>();
+            var seen = new Dictionary<string, int>();
             foreach (var component in components)
             {
                 var beam = component is Component c ? Utility.ComponentToBeam(c) : null;
                 if (beam == null) throw new ArgumentException($"Component {component.ShortName} has no Geometry to make a beam from.");
-                beam.Id = component.ShortName;
+                seen[component.ShortName] = seen.TryGetValue(component.ShortName, out var n) ? n + 1 : 1;
+                beam.Id = seen[component.ShortName] == 1 ? component.ShortName : $"{component.ShortName}@{seen[component.ShortName]}";
                 beams.Add(beam);
             }
             return beams;
@@ -76,11 +80,16 @@ namespace G2PComponents
         /// type per joint type, with its plane on the joint's position. Its label carries the
         /// joint type id and parameters as user strings. Each beam's cutters go on the
         /// CuttingGeometry layer, drill holes on Drillings and parts like dowels and plates on
-        /// Hardware, each object tagged with the component it belongs to ("part"). Returns the
-        /// joint component's name.
+        /// Hardware, each object tagged with the component it belongs to: its mark ("part") and
+        /// the component instance's id ("instance"), so instances that share a mark are only cut
+        /// by their own joints. Components and beams are in the same order. Returns the joint
+        /// component's name.
         /// </summary>
         public static string Store(RhinoDoc doc, List<IComponent> components, List<Beam> beams, IJoint joint, JointResult result)
         {
+            string Mark(string beamId) => components[beams.FindIndex(b => b.Id == beamId)].ShortName;
+            string Instance(string beamId) => components[beams.FindIndex(b => b.Id == beamId)].ID.ToString();
+
             var settings = Context.settings;
             var info = JointRegistry.Default.Get(joint.TypeId);
             var typeId = ComponentTypeId(joint.TypeId);
@@ -88,7 +97,7 @@ namespace G2PComponents
             var componentType = new ComponentType(typeId, info?.Name ?? joint.TypeId, settings, 2.0, colour);
 
             // Name: the joined components in the condition's order, numbered if they are already joined
-            var baseName = string.Join(settings.JointDelimiter.ToString(), joint.Parts.Select(p => beams[p.ElementIndex].Id));
+            var baseName = string.Join(settings.JointDelimiter.ToString(), joint.Parts.Select(p => components[p.ElementIndex].ShortName));
             var existing = Instantiation.InstancesByName($"*{settings.TypeDelimiter}{baseName}", settings, doc).Count
                 + Instantiation.InstancesByName($"*{settings.TypeDelimiter}{baseName}{settings.CountDelimiter}*", settings, doc).Count;
             var name = existing == 0 ? baseName : $"{baseName}{settings.CountDelimiter}{existing + 1}";
@@ -98,14 +107,16 @@ namespace G2PComponents
 
             var label = component.AttributeCollection[component.ID];
             label.SetUserString("JointType", joint.TypeId);
-            label.SetUserString("Parts", string.Join(",", joint.Parts.Select(p => beams[p.ElementIndex].Id)));
+            label.SetUserString("Parts", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ShortName)));
+            label.SetUserString("Instances", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ID)));
             foreach (var kv in JointParameters.Get(joint))
                 label.SetUserString(kv.Key, Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture));
 
-            Rhino.DocObjects.ObjectAttributes Tagged(string part, string feature)
+            Rhino.DocObjects.ObjectAttributes Tagged(IEnumerable<string> beamIds, string feature)
             {
                 var attr = doc.CreateDefaultAttributes();
-                attr.SetUserString("part", part);
+                attr.SetUserString("part", string.Join(",", beamIds.Select(Mark)));
+                attr.SetUserString("instance", string.Join(",", beamIds.Select(Instance)));
                 if (feature != null) attr.SetUserString("feature", feature);
                 return attr;
             }
@@ -121,7 +132,7 @@ namespace G2PComponents
                     var layer = feature is GluLamb.Features.Drilling ? "Drillings" : "CuttingGeometry";
                     var cutters = feature.GetCutters(extended, tolerance).Where(x => x != null).Cast<GeometryBase>().ToList();
                     if (cutters.Count == 0) continue;
-                    component.AddMember(new ComponentMember(new LayerInfo(layer, colour), cutters, Tagged(beam.Id, feature.ProcessingName)));
+                    component.AddMember(new ComponentMember(new LayerInfo(layer, colour), cutters, Tagged(new[] { beam.Id }, feature.ProcessingName)));
                 }
             }
 
@@ -129,7 +140,7 @@ namespace G2PComponents
             {
                 var geometry = item.GetGeometry();
                 if (geometry == null) continue;
-                var attr = Tagged(string.Join(",", item.BeamIds), null);
+                var attr = Tagged(item.BeamIds.Where(id => beams.Any(b => b.Id == id)), null);
                 attr.SetUserString("category", item.Category);
                 attr.SetUserString("specification", item.Specification);
                 component.AddMember(new ComponentMember(new LayerInfo("Hardware", colour), new[] { geometry }, attr));
@@ -157,22 +168,25 @@ namespace G2PComponents
 
             var cutters = new List<Brep>();
             var joints = FindJoints(component, doc);
+            int used = 0;
             foreach (var joint in joints)
             {
+                int before = cutters.Count;
                 var layers = drillings ? new[] { "CuttingGeometry", "Drillings" } : new[] { "CuttingGeometry" };
                 foreach (var layer in layers)
                     foreach (var id in Utility.GetMemberIDs(joint, layer, doc))
                     {
                         var obj = doc.Objects.FindId(id);
-                        if (obj?.Attributes.GetUserString("part") != component.ShortName) continue;
+                        if (obj == null || !BelongsTo(obj, component)) continue;
                         if (obj.Geometry is Brep cutter) cutters.Add(cutter.DuplicateBrep());
                         else if (obj.Geometry is Extrusion ex) cutters.Add(ex.ToBrep(true));
                     }
+                if (cutters.Count > before) used++;
             }
 
             if (cutters.Count == 0)
             {
-                messages.Add($"{component.ShortName}: no joint cutters ({joints.Count} joints).");
+                messages.Add($"{component.ShortName}: no joint cutters.");
                 return null;
             }
 
@@ -182,8 +196,20 @@ namespace G2PComponents
                 messages.Add($"{component.ShortName}: cutting failed.");
                 return null;
             }
-            messages.Add($"{component.ShortName}: cut by {cutters.Count} cutters from {joints.Count} joints.");
+            messages.Add($"{component.ShortName}: cut by {cutters.Count} cutters from {used} joints.");
             return cut;
+        }
+
+        /// <summary>
+        /// Whether a joint's object (cutter, drilling, hardware) belongs to the component: tagged
+        /// with its instance id, or, for joints stored before instances were tagged, with its mark.
+        /// </summary>
+        public static bool BelongsTo(Rhino.DocObjects.RhinoObject obj, IComponent component)
+        {
+            var instance = obj.Attributes.GetUserString("instance");
+            if (!string.IsNullOrEmpty(instance))
+                return instance.Split(',').Contains(component.ID.ToString());
+            return (obj.Attributes.GetUserString("part") ?? "").Split(',').Contains(component.ShortName);
         }
 
         /// <summary>
