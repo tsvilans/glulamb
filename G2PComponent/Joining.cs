@@ -154,12 +154,14 @@ namespace G2PComponents
         /// The component's Geometry cut by every joint it is part of: the cutters on each joint
         /// component's CuttingGeometry layer tagged with this component (and its Drillings, if
         /// asked). Open cutters split the geometry and the largest piece is kept; closed ones are
-        /// subtracted. Null if the component has no Geometry or no cutters.
+        /// subtracted. Null if the component has no Geometry or no cutters. A blank, if given, is
+        /// cut instead of the Geometry (a board's profiled blank), with plane cutters extended by
+        /// the overhang, how far the blank reaches outside the Geometry.
         /// </summary>
-        public static Brep CutJoints(IComponent component, RhinoDoc doc, bool drillings, List<string> messages)
+        public static Brep CutJoints(IComponent component, RhinoDoc doc, bool drillings, List<string> messages, Brep blank = null, double overhang = 0)
         {
             var geometry = Utility.GetMember(component, "Geometry", doc).FirstOrDefault();
-            var brep = geometry is Extrusion extrusion ? extrusion.ToBrep(true) : geometry as Brep;
+            var brep = blank ?? (geometry is Extrusion extrusion ? extrusion.ToBrep(true) : geometry as Brep);
             if (brep == null)
             {
                 messages.Add($"{component.ShortName}: no Geometry to cut.");
@@ -178,7 +180,7 @@ namespace G2PComponents
                     {
                         var obj = doc.Objects.FindId(id);
                         if (obj == null || !BelongsTo(obj, component)) continue;
-                        if (obj.Geometry is Brep cutter) cutters.Add(cutter.DuplicateBrep());
+                        if (obj.Geometry is Brep cutter) cutters.Add(Extend(cutter.DuplicateBrep(), overhang));
                         else if (obj.Geometry is Extrusion ex) cutters.Add(ex.ToBrep(true));
                     }
                 if (cutters.Count > before) used++;
@@ -198,6 +200,20 @@ namespace G2PComponents
             }
             messages.Add($"{component.ShortName}: cut by {cutters.Count} cutters from {used} joints.");
             return cut;
+        }
+
+        /// <summary>
+        /// A single-face, untrimmed cutter (a plane cut) extended on all sides by the distance, so
+        /// it still cuts through a blank that reaches further than the beam it was made for (a
+        /// board's protruding tongue). Other cutters are returned as they are.
+        /// </summary>
+        private static Brep Extend(Brep cutter, double distance)
+        {
+            if (distance <= 0 || cutter.Faces.Count != 1 || !cutter.Faces[0].IsSurface) return cutter;
+            Surface surface = cutter.Faces[0].UnderlyingSurface();
+            foreach (var side in new[] { IsoStatus.West, IsoStatus.East, IsoStatus.South, IsoStatus.North })
+                surface = surface?.Extend(side, distance * 2, false);
+            return surface?.ToBrep() ?? cutter;
         }
 
         /// <summary>

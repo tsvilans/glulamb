@@ -29,8 +29,9 @@ namespace G2PComponents
         }
 
         /// <summary>
-        /// Makes the component's DetailedGeometry from its Geometry: its joints cut first (if
-        /// joints), then the connectors on the given layers (if connectors). Returns whether
+        /// Makes the component's DetailedGeometry from its Geometry: its edge profile if it has
+        /// one (see EdgeProfile), its joints cut into that (if joints), then the connectors on the
+        /// given layers (if connectors). Returns whether
         /// anything was cut; messages say what happened.
         /// </summary>
         public static bool Generate(IComponent component, RhinoDoc doc, bool joints, bool connectors,
@@ -40,15 +41,24 @@ namespace G2PComponents
             component = Reload(component, doc);
             bool cut = false;
 
-            if (joints)
+            // A board's edge profile makes the blank the joints are cut into
+            Brep blank = null;
+            var profile = EdgeProfile.Read(component, doc);
+            if (profile != null)
             {
-                var brep = Joining.CutJoints(component, doc, true, messages);
-                if (brep != null)
-                {
-                    Write(component, brep, doc);
-                    component = Reload(component, doc);
-                    cut = true;
-                }
+                blank = profile.Build(component, doc, messages);
+                if (blank != null) messages.Add($"{component.ShortName}: {profile.Type} edges ({profile.Edge1}, {profile.Edge2}).");
+            }
+
+            Brep detailed = null;
+            if (joints)
+                detailed = Joining.CutJoints(component, doc, true, messages, blank, profile?.Overhang ?? 0);
+            detailed ??= blank;
+            if (detailed != null)
+            {
+                Write(component, detailed, doc);
+                component = Reload(component, doc);
+                cut = true;
             }
 
             if (connectors && connectorList != null && connectorList.Count > 0)
