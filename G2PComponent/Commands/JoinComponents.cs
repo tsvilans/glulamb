@@ -30,6 +30,9 @@ namespace G2PComponents.Commands
         // Parameters last used per joint type, so repeated joins keep their settings
         private static readonly Dictionary<string, Dictionary<string, object>> LastParameters = new();
 
+        // Joint type last picked per kind of condition (cross, corner, T...)
+        private static readonly Dictionary<JointTopology, string> LastType = new();
+
         // Search distances, kept between runs (0 = automatic)
         private static double EndTolerance = 0;
         private static double MergeDistance = 0;
@@ -90,19 +93,25 @@ namespace G2PComponents.Commands
                 return Result.Failure;
             }
 
-            // Joint type
+            // Joint type: Enter takes the type last picked for this kind of condition, if it
+            // handles this one, otherwise the registry's choice
+            var topology = JointRegistry.Classify(condition, JointX.PerpendicularThreshold);
+            var type = candidates[0].Info;
+            if (LastType.TryGetValue(topology, out var lastId) && candidates.Any(x => x.Info.Id == lastId))
+                type = candidates.First(x => x.Info.Id == lastId).Info;
+
             var go = new GetOption();
-            go.SetCommandPrompt($"Joint type for {string.Join(", ", components.Select(x => x.ShortName))} (Enter for {candidates[0].Info.Name})");
+            go.SetCommandPrompt($"Joint type for {string.Join(", ", components.Select(x => x.ShortName))} (Enter for {type.Name})");
             go.AcceptNothing(true);
             var byOption = new Dictionary<int, JointTypeInfo>();
             foreach (var (info, _) in candidates)
                 byOption[go.AddOption(Joining.OptionName(info.Id))] = info;
 
-            var type = candidates[0].Info;
             var res = go.Get();
             if (res == GetResult.Cancel) return Result.Cancel;
             if (res == GetResult.Option && byOption.TryGetValue(go.OptionIndex(), out var picked))
                 type = picked;
+            LastType[topology] = type.Id;
 
             var joint = type.Create(condition);
             if (LastParameters.TryGetValue(type.Id, out var last))
