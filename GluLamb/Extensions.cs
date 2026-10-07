@@ -481,7 +481,10 @@ namespace GluLamb
                 if (ctr == null) continue;
                 if (ctr.IsSolid)
                 {
-                    if (ctr.SolidOrientation != BrepSolidOrientation.Outward)
+                    // SolidOrientation can be wrong for breps whose faces are inconsistently
+                    // oriented, so go by the sign of the volume when there is one
+                    var vmp = Rhino.Geometry.VolumeMassProperties.Compute(ctr, true, false, false, false);
+                    if (vmp != null ? vmp.Volume < 0 : ctr.SolidOrientation != BrepSolidOrientation.Outward)
                         ctr.Flip();
 
                     solids.Add(ctr);

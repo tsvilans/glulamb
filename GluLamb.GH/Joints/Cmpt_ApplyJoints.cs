@@ -43,7 +43,9 @@ namespace GluLamb.GH.Components
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.Joint;
         public override Guid ComponentGuid => new Guid("77abcac2-f2c7-42f4-a084-b9acbeaf3d2b");
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+        // Retired with the legacy Element/Joint system; kept so existing definitions still open.
+        public override GH_Exposure Exposure => GH_Exposure.hidden;
+        public override bool Obsolete => true;
 
         List<Guid> LastJointId;
         List<IGH_Param> JointParams;

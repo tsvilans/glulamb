@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Joint gallery: lays out every registered joint type over a grid of joint conditions, checks
+    each one (no failures, no overlapping beams, every beam keeps its body), and writes the joint
+    catalogue (docs/joints) and a .3dm of the grid. Runs Rhino headless through Rhino.Inside, so
+    it needs Rhino 8 installed. See README.md.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>GluLamb.Gallery</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Rhino.Inside" Version="8.0.7-beta" />
+    <PackageReference Include="RhinoCommon" Version="8.10.24226.13001">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Build GluLamb into this project's own output, not the shared ..\bin plug-in folder -->
+    <ProjectReference Include="..\GluLamb\GluLamb.csproj" AdditionalProperties="OutputPath=$(MSBuildThisFileDirectory)obj\GluLamb\;BaseOutputPath=$(MSBuildThisFileDirectory)obj\GluLamb\">
+      <Private>true</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

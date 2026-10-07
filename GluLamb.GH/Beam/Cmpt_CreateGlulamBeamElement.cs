@@ -86,6 +86,10 @@ namespace GluLamb.GH.Components
         {
             get { return new Guid("950B8230-422B-45D0-A5EA-01FE2E446E8A"); }
         }
+
+        // Retired with the legacy Element/Joint system; kept so existing definitions still open.
+        public override GH_Exposure Exposure => GH_Exposure.hidden;
+        public override bool Obsolete => true;
     }
 }
 

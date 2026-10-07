@@ -50,7 +50,6 @@ namespace GluLamb
 
         #endregion
 
-        public Guid Id { private set; get; }
         public GlulamData Data;
 
         // Protected
@@ -119,7 +118,12 @@ namespace GluLamb
         /// Duplicate glulam data.
         /// </summary>
         /// <returns></returns>
-        public new Glulam DuplicateGlulam() => CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+        public new Glulam DuplicateGlulam()
+        {
+            var glulam = CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+            CopyIdentityTo(glulam);
+            return glulam;
+        }
         public override Beam Duplicate() => DuplicateGlulam();
 
         public override int GetHashCode() => Id.GetHashCode();

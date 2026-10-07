@@ -30,7 +30,54 @@ namespace GluLamb
     [Serializable]
     public class Beam
     {
-        public Beam() { }
+        public Beam() : this(null) { }
+
+        /// <summary>
+        /// Create a beam with a specific identifier. If the identifier is null or empty,
+        /// a new random identifier is generated.
+        /// </summary>
+        public Beam(string id)
+        {
+            Id = id;
+        }
+
+        private string m_id;
+
+        /// <summary>
+        /// Identifier of the beam, used to couple joints and features to it. It is kept by
+        /// Duplicate() and Transform(). Setting it to null or empty generates a new one.
+        /// </summary>
+        public string Id
+        {
+            get => m_id;
+            set => m_id = string.IsNullOrEmpty(value) ? NewId() : value;
+        }
+
+        public static string NewId() => Guid.NewGuid().ToString("N");
+
+        /// <summary>
+        /// Named coordinate systems attached to the beam (e.g. "machining"). These are
+        /// separate from GetPlane(t), which is always the cross-section plane at t.
+        /// </summary>
+        public Dictionary<string, Plane> Frames { get; set; } = new Dictionary<string, Plane>();
+
+        /// <summary>
+        /// Duplicate the beam and give the copy a new identifier, for when the copy is a
+        /// different beam rather than the same beam being passed along.
+        /// </summary>
+        public Beam DuplicateWithNewId()
+        {
+            var beam = Duplicate();
+            beam.Id = NewId();
+            return beam;
+        }
+
+        protected void CopyIdentityTo(Beam other)
+        {
+            other.Id = Id;
+            other.Frames = Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(Frames);
+        }
+
         public virtual double Width
         {
             get; set;
@@ -54,7 +101,7 @@ namespace GluLamb
 
         public virtual Beam Duplicate()
         {
-            return new Beam()
+            var beam = new Beam()
             {
                 Centreline = Centreline.DuplicateCurve(),
                 Orientation = Orientation.Duplicate(),
@@ -63,6 +110,8 @@ namespace GluLamb
                 OffsetX = OffsetX,
                 OffsetY = OffsetY
             };
+            CopyIdentityTo(beam);
+            return beam;
         }
 
         public static Beam StraightFromGeometry(Brep brep, Vector3d? xaxis = null, Vector3d? up = null)
@@ -150,6 +199,16 @@ namespace GluLamb
         {
             Centreline.Transform(x);
             Orientation.Transform(x);
+
+            if (Frames != null)
+            {
+                foreach (var key in Frames.Keys.ToList())
+                {
+                    var frame = Frames[key];
+                    frame.Transform(x);
+                    Frames[key] = frame;
+                }
+            }
         }
 
         // MAPPING METHODS

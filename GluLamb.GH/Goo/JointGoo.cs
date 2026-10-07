@@ -141,9 +141,10 @@ return string.Empty;
             if (Value == null) throw new Exception("JointParameter.Value is null.");
             writer.SetString("Type", Value.ToString());
             writer.SetInt32("NumParts", Value.Parts.Count);
+            if (!string.IsNullOrEmpty(Value.Id)) writer.SetString("Id", Value.Id);
             //writer.SetPoint3D("Position", new GH_Point3D(Value.Position.X, Value.Position.Y, Value.Position.Z));
             writer.SetPlane("Position", new GH_IO.Types.GH_Plane(
-                new GH_Point3D(Value.Position.OriginX, Value.Position.OriginZ, Value.Position.OriginZ),
+                new GH_Point3D(Value.Position.OriginX, Value.Position.OriginY, Value.Position.OriginZ),
                 new GH_Point3D(Value.Position.XAxis.X, Value.Position.XAxis.Y, Value.Position.XAxis.Z),
                 new GH_Point3D(Value.Position.YAxis.X, Value.Position.YAxis.Y, Value.Position.YAxis.Z)
                 ));
@@ -153,6 +154,7 @@ return string.Empty;
                 writer.SetInt32($"{i} Case", Value.Parts[i].Case);
                 writer.SetInt32($"{i} ElementIndex", Value.Parts[i].ElementIndex);
                 writer.SetInt32($"{i} JointIndex", Value.Parts[i].JointIndex);
+                writer.SetDouble($"{i} Parameter", Value.Parts[i].Parameter);
                 writer.SetPoint3D($"{i} Direction", new GH_Point3D(Value.Parts[i].Direction.X, Value.Parts[i].Direction.Y, Value.Parts[i].Direction.Z));
                 writer.SetInt32($"{i} NumGeo", Value.Parts[i].Geometry.Count);
 
@@ -201,7 +203,7 @@ return string.Empty;
                 reader.TryGetDouble($"{i} Parameter", ref parameter);
 
                 GH_Point3D ghDirection = new GH_Point3D();
-                reader.TryGetPoint3D("{i} Direction", ref ghDirection);
+                reader.TryGetPoint3D($"{i} Direction", ref ghDirection);
 
                 int numGeo = 0;
                 reader.TryGetInt32($"{i} NumGeo", ref numGeo);
@@ -231,6 +233,9 @@ return string.Empty;
 
             // TO DO: classify joint based on the Type string
             var joint = new JointX(parts, plane);
+            string id = null;
+            if (reader.TryGetString("Id", ref id)) joint.Id = id;
+            Value = joint;
 
             return base.Read(reader);
         }
