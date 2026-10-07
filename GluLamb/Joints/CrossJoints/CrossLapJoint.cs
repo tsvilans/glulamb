@@ -28,6 +28,15 @@ namespace GluLamb.Joints
         [JointParameter(Description = "Depth of the notch in the under beam, from its top face. The over beam takes the rest. 0 = halfway between the beams.", Unit = "length")]
         public double LapDepth { get; set; } = 0;
 
+        [JointParameter(Description = "Open sides of the over beam's notch: 0 = none, 1 = the side where the lap face runs out of the beam (it carries on until it leaves the underside, e.g. for a birdsmouth), 2 = both (the lap face cuts right through, like an end cut through the seat).")]
+        public int OpenSide { get; set; } = 0;
+
+        /// <summary>
+        /// The depth of the notch in the under beam, if set (null: halfway between the beams). A
+        /// depth of 0 or less leaves the under beam uncut, with the lap face on its top.
+        /// </summary>
+        protected virtual double? FixedLapDepth => LapDepth > 0 ? LapDepth : (double?)null;
+
         /// <summary>
         /// Minimum angle between the beams, below which they are treated as running alongside
         /// each other rather than crossing.
@@ -123,12 +132,13 @@ namespace GluLamb.Joints
             var lapOrigin = Interpolation.Lerp(underPlane.Origin, overPlane.Origin, underHeight / (overHeight + underHeight));
 
             // A set lap depth: the notch in the under beam, from its top face; the over beam takes the rest
-            if (LapDepth > 0)
+            var depth = FixedLapDepth;
+            if (depth.HasValue)
             {
                 var underFace = underPlane.Origin + normal * underHeight * 0.5;
-                lapOrigin += normal * ((underFace - lapOrigin) * normal - LapDepth);
-                if (LapDepth >= underHeight)
-                    result.Messages.Add($"{GetType().Name}: LapDepth ({LapDepth}) cuts through the under beam ({underHeight}).");
+                lapOrigin += normal * ((underFace - lapOrigin) * normal - depth.Value);
+                if (depth.Value >= underHeight)
+                    result.Messages.Add($"{GetType().Name}: the lap depth ({depth.Value}) cuts through the under beam ({underHeight}).");
             }
             var lapPlane = new Plane(lapOrigin, underSideDirection, overSideDirection);
             Position = lapPlane;
@@ -170,18 +180,74 @@ namespace GluLamb.Joints
                 Brep.CreateFromCornerPoints(underTop[2], underTop[3], underBase[3], underBase[2], tolerance),
             };
 
-            var overGeo = new[]
+            // The over beam's notch: the lap face between the under beam's sides, with a wall on
+            // each side (overBase[1]-[2] on underSide1, [3]-[0] on underSide0). An open side has
+            // no wall: the lap face runs on until it leaves the over beam's underside.
+            Brep[] overGeo;
+            if (OpenSide >= 2)
             {
-                Brep.CreateFromCornerPoints(overBase[0], overBase[1], overBase[2], overBase[3], tolerance),
-                Brep.CreateFromCornerPoints(overBase[1], overBase[2], overBottom[2], overBottom[1], tolerance),
-                Brep.CreateFromCornerPoints(overBase[3], overBase[0], overBottom[0], overBottom[3], tolerance),
-            };
+                // Both open: the lap face is a plane cut through the over beam
+                var cut = new JackRafterCut(over.Id, new Plane(lapOrigin, -normal));
+                overGeo = cut.GetCutters(over, tolerance).ToArray();
+                if (overGeo.Length == 0)
+                    result.Messages.Add($"{GetType().Name}: the lap face doesn't cut the over beam.");
+            }
+            else
+            {
+                int open = 0;   // +1: the underSide0 wall, -1: the underSide1 wall
+                if (OpenSide == 1)
+                {
+                    // Where the lap face leaves the over beam's underside
+                    var overUp = Utility.ClosestAxis(overPlane, normal);
+                    if (overUp * normal < 0) overUp.Reverse();
+                    var bottomFace = new Plane(overPlane.Origin - overUp * overHeight * 0.5, overUp);
+                    if (RX.PlanePlane(lapPlane, bottomFace, out Line exit))
+                    {
+                        var exitSide = (exit.PointAt(0.5) - lapOrigin) * underSideDirection;
+                        open = exitSide >= 0 ? 1 : -1;
+                        // Run the lap face out past the exit, square to the lap face
+                        var across = Vector3d.CrossProduct(exit.Direction, normal);
+                        across.Unitize();
+                        if (across * underSideDirection * open < 0) across.Reverse();
+                        var exitPlane = new Plane(exit.PointAt(0.5) + across * Added, across);
+                        if (open > 0)
+                        {
+                            ok &= RX.PlanePlanePlane(lapPlane, exitPlane, overSide0Added, out overBase[0]);
+                            ok &= RX.PlanePlanePlane(lapPlane, overSide1Added, exitPlane, out overBase[3]);
+                        }
+                        else
+                        {
+                            ok &= RX.PlanePlanePlane(lapPlane, overSide0Added, exitPlane, out overBase[1]);
+                            ok &= RX.PlanePlanePlane(lapPlane, exitPlane, overSide1Added, out overBase[2]);
+                        }
+                    }
+                    else
+                        result.Messages.Add($"{GetType().Name}: the lap face is parallel to the over beam, so no side can be opened.");
+                }
 
-            AddLap(result, under, underGeo, lapPlane, tolerance);
+                var faces = new List<Brep> { Brep.CreateFromCornerPoints(overBase[0], overBase[1], overBase[2], overBase[3], tolerance) };
+                if (open != -1)
+                    faces.Add(Brep.CreateFromCornerPoints(overBase[1], overBase[2], overBottom[2], overBottom[1], tolerance));
+                if (open != 1)
+                    faces.Add(Brep.CreateFromCornerPoints(overBase[3], overBase[0], overBottom[0], overBottom[3], tolerance));
+                overGeo = faces.ToArray();
+            }
+
+            if (!ok)
+            {
+                result.Status = JointStatus.Failed;
+                result.Messages.Add($"{GetType().Name}: could not open the side of the lap.");
+                return;
+            }
+
+            // A lap depth of 0 (a seat on top of the under beam) leaves the under beam uncut
+            if (!depth.HasValue || depth.Value > tolerance)
+                AddLap(result, under, underGeo, lapPlane, tolerance);
             AddLap(result, over, overGeo, new Plane(lapOrigin, overSideDirection, underSideDirection), tolerance);
 
             int created = result.Features.Count;
-            result.Status = created == 2 ? JointStatus.Ok : created == 1 ? JointStatus.Partial : JointStatus.Failed;
+            int expected = !depth.HasValue || depth.Value > tolerance ? 2 : 1;
+            result.Status = created == expected ? JointStatus.Ok : created > 0 ? JointStatus.Partial : JointStatus.Failed;
         }
 
         private void AddLap(JointResult result, Beam beam, Brep[] faces, Plane plane, double tolerance)
