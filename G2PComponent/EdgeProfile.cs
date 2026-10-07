@@ -111,14 +111,19 @@ namespace G2PComponents
         /// board, centred on its section, with X along the width and Y along the thickness, and
         /// the board's length, width and thickness. False if there is no Geometry.
         /// </summary>
-        public static bool Frame(IComponent component, RhinoDoc doc, out Plane section, out double length, out double width, out double thickness)
+        public static bool Frame(IComponent component, RhinoDoc doc, out Plane section, out double length, out double width, out double thickness) =>
+            Frame(component, component.Plane, doc, out section, out length, out width, out thickness);
+
+        /// <summary>
+        /// The board's frame as it would be with the given component plane.
+        /// </summary>
+        public static bool Frame(IComponent component, Plane plane, RhinoDoc doc, out Plane section, out double length, out double width, out double thickness)
         {
             section = Plane.Unset;
             length = width = thickness = 0;
             var geometry = Utility.GetMember(component, Detailing.Basic, doc).FirstOrDefault();
             if (geometry == null) return false;
 
-            var plane = component.Plane;
             var bounds = geometry.GetBoundingBox(plane);
             double dy = bounds.Max.Y - bounds.Min.Y, dz = bounds.Max.Z - bounds.Min.Z;
             var start = plane.PointAt(bounds.Min.X, (bounds.Min.Y + bounds.Max.Y) / 2, (bounds.Min.Z + bounds.Max.Z) / 2);
@@ -137,6 +142,41 @@ namespace G2PComponents
             // Keep the section's normal along the board
             if (section.ZAxis * plane.XAxis < 0)
                 section = new Plane(section.Origin, section.XAxis, -section.YAxis);
+            return true;
+        }
+
+        /// <summary>
+        /// Keeps the component's edge profile on the same physical edges when its plane changes
+        /// to newPlane (FlipComponentPlane, RollComponentPlane, TurnBasePlane): Edge1 and Edge2
+        /// swap if the width axis turns round, and Offset changes sign if the thickness axis does.
+        /// Call before the plane is changed. Returns false (with a message) only if the profile
+        /// couldn't be carried over, e.g. on a square section whose width axis changed.
+        /// </summary>
+        public static bool FollowPlane(IComponent component, Plane newPlane, RhinoDoc doc, List<string> messages)
+        {
+            var obj = doc.Objects.FindId(component.ID);
+            var profile = obj == null ? null : Read(obj.Attributes);
+            if (profile == null) return true;
+
+            if (!Frame(component, component.Plane, doc, out var before, out _, out _, out _)
+                || !Frame(component, newPlane, doc, out var after, out _, out _, out _))
+                return true;
+
+            var across = before.XAxis * after.XAxis;
+            if (Math.Abs(across) < 0.5)
+            {
+                messages.Add($"{component.ShortName}: the board's width axis changed, so its edge profile couldn't be carried over; check it with SetEdgeProfile.");
+                return false;
+            }
+            bool swap = across < 0;
+            bool negate = before.YAxis * after.YAxis < 0;
+            if (!swap && !negate) return true;
+
+            if (swap) (profile.Edge1, profile.Edge2) = (profile.Edge2, profile.Edge1);
+            if (negate) profile.Offset = -profile.Offset;
+            var attributes = obj.Attributes.Duplicate();
+            profile.Write(attributes);
+            doc.Objects.ModifyAttributes(obj, attributes, true);
             return true;
         }
 
