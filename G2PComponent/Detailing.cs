@@ -209,13 +209,22 @@ namespace G2PComponents
         private static IComponent Reload(IComponent component, RhinoDoc doc) =>
             Instantiation.InstancesFromObjects(new[] { component.ID }, Context.settings, doc).FirstOrDefault() ?? component;
 
+        /// <summary>
+        /// Adds the brep as the component's DetailedGeometry. D2P sets the colour of the layers of
+        /// the members it adds, so the colour given is the DetailedGeometry layer's own if it
+        /// exists (leaving it as it is), otherwise the component type's root layer's, which a new
+        /// layer takes. The object's attributes are those of the component's Geometry.
+        /// </summary>
         private static void Write(IComponent component, Brep brep, RhinoDoc doc)
         {
-            var layer = doc.Layers.FindIndex(component.Attributes.First().LayerIndex);
-            component.AddMember(new ComponentMember(
-                new LayerInfo(Detailed, layer?.Color ?? component.ComponentType.LayerColor),
-                new GeometryBase[] { brep },
-                component.Attributes.First().Duplicate()));
+            var existing = Layers.FindLayer(component, Detailed, out _);
+            var root = Layers.GetComponentTypeRootLayer(component, doc);
+            var colour = existing?.Color ?? root?.Color ?? component.ComponentType.LayerColor;
+
+            var geometryId = Utility.GetMemberIDs(component, Basic, doc).FirstOrDefault();
+            var attributes = doc.Objects.FindId(geometryId)?.Attributes.Duplicate() ?? doc.CreateDefaultAttributes();
+
+            component.AddMember(new ComponentMember(new LayerInfo(Detailed, colour), new GeometryBase[] { brep }, attributes));
             RHDoc.AddToRhinoDoc(component, doc, true);
         }
     }
