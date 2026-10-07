@@ -30,14 +30,33 @@ namespace G2PComponents.Commands
         // Parameters last used per joint type, so repeated joins keep their settings
         private static readonly Dictionary<string, Dictionary<string, object>> LastParameters = new();
 
+        // Search distances, kept between runs (0 = automatic)
+        private static double EndTolerance = 0;
+        private static double MergeDistance = 0;
+
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            ObjRef[] objRefs;
-            var rc = RhinoGet.GetMultipleObjects("Select components to join", true, ObjectType.AnyObject, out objRefs);
-            if (rc != Result.Success || objRefs == null || objRefs.Length == 0)
-                return rc;
+            // Search distances: how close to its end a beam must meet the others to count as
+            // ending there, and how close the beams' meeting points must be to be one joint
+            var getter = new GetObject();
+            getter.SetCommandPrompt("Select components to join");
+            getter.EnablePreSelect(true, true);
+            var endTolerance = new OptionDouble(EndTolerance, 0, double.MaxValue);
+            var mergeDistance = new OptionDouble(MergeDistance, 0, double.MaxValue);
+            getter.AddOptionDouble("EndTolerance", ref endTolerance, "Distance from a beam's end within which it counts as ending at the joint (0 = the largest section size)");
+            getter.AddOptionDouble("MergeDistance", ref mergeDistance, "Distance within which the beams' meeting points make one joint (0 = twice the end tolerance)");
 
-            var components = Instantiation.InstancesFromObjects(objRefs.Select(x => x.Object()), Context.settings, doc)
+            while (true)
+            {
+                var get = getter.GetMultiple(1, 0);
+                if (get == GetResult.Option) continue;
+                if (get != GetResult.Object) return Result.Cancel;
+                break;
+            }
+            EndTolerance = endTolerance.CurrentValue;
+            MergeDistance = mergeDistance.CurrentValue;
+
+            var components = Instantiation.InstancesFromObjects(getter.Objects().Select(x => x.Object()), Context.settings, doc)
                 .GroupBy(x => x.ID).Select(g => g.First()).ToList();
             if (components.Count < 2)
             {
@@ -56,10 +75,10 @@ namespace G2PComponents.Commands
                 return Result.Failure;
             }
 
-            var condition = Joining.Condition(beams);
+            var condition = Joining.Condition(beams, EndTolerance, MergeDistance);
             if (condition == null)
             {
-                RhinoApp.WriteLine("These components don't meet at one place.");
+                RhinoApp.WriteLine("These components don't meet at one place; try a larger MergeDistance.");
                 return Result.Failure;
             }
 

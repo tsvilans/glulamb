@@ -35,9 +35,11 @@ namespace G2PComponents
         /// The joint condition between the beams: where each pair comes closest, merged into one
         /// condition. A part counts as at the end of its beam if the joint is within endTolerance
         /// of the end (0: the largest section size of the beams, since a beam drawn to stop at
-        /// another's face ends half that beam's size from the other's centreline).
+        /// another's face ends half that beam's size from the other's centreline). The pairs' meeting
+        /// points are merged within mergeDistance (0: twice the end tolerance). A smaller end
+        /// tolerance turns beams that only just run past each other into a crossing.
         /// </summary>
-        public static JointX Condition(List<Beam> beams, double endTolerance = 0)
+        public static JointX Condition(List<Beam> beams, double endTolerance = 0, double mergeDistance = 0)
         {
             if (beams.Count < 1) return null;
             if (endTolerance <= 0)
@@ -51,7 +53,7 @@ namespace G2PComponents
                 for (int k = i + 1; k < beams.Count; ++k)
                     conditions.Add(JointUtil.ForceConnect(beams[i].Centreline, i, beams[k].Centreline, k, -1, endTolerance));
 
-            var merged = JointX.MergeJoints(conditions, endTolerance * 2);
+            var merged = JointX.MergeJoints(conditions, mergeDistance > 0 ? mergeDistance : endTolerance * 2);
             if (merged.Count != 1) return null;
 
             var jc = merged[0];
