@@ -61,7 +61,7 @@ namespace GluLamb.Joints
             up.Unitize();
             if (up * NearestSectionAxis(plane0, up) < 0) up.Reverse();
 
-            int oi = TopPart(plane0.Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, tolerance);
+            int oi = OverPart(beams, up, tolerance);
             int ui = 1 - oi;
 
             var under = beams[ui];
@@ -197,32 +197,38 @@ namespace GluLamb.Joints
                 int open = 0;   // +1: the underSide0 wall, -1: the underSide1 wall
                 if (OpenSide == 1)
                 {
-                    // Where the lap face leaves the over beam's underside
+                    // Where the lap face leaves the over beam's underside. The side stays closed
+                    // (with a message) if the lap face doesn't run out of the over beam.
                     var overUp = Utility.ClosestAxis(overPlane, normal);
                     if (overUp * normal < 0) overUp.Reverse();
                     var bottomFace = new Plane(overPlane.Origin - overUp * overHeight * 0.5, overUp);
-                    if (RX.PlanePlane(lapPlane, bottomFace, out Line exit))
+                    var opened = new Point3d[2];
+                    Line exit = Line.Unset;
+                    bool exits = Vector3d.CrossProduct(overUp, normal).Length > 1e-3
+                        && RX.PlanePlane(lapPlane, bottomFace, out exit);
+                    if (exits)
                     {
                         var exitSide = (exit.PointAt(0.5) - lapOrigin) * underSideDirection;
-                        open = exitSide >= 0 ? 1 : -1;
+                        int side = exitSide >= 0 ? 1 : -1;
                         // Run the lap face out past the exit, square to the lap face
                         var across = Vector3d.CrossProduct(exit.Direction, normal);
                         across.Unitize();
-                        if (across * underSideDirection * open < 0) across.Reverse();
+                        if (across * underSideDirection * side < 0) across.Reverse();
                         var exitPlane = new Plane(exit.PointAt(0.5) + across * Added, across);
-                        if (open > 0)
+                        exits = side > 0
+                            ? RX.PlanePlanePlane(lapPlane, exitPlane, overSide0Added, out opened[0])
+                                && RX.PlanePlanePlane(lapPlane, overSide1Added, exitPlane, out opened[1])
+                            : RX.PlanePlanePlane(lapPlane, overSide0Added, exitPlane, out opened[0])
+                                && RX.PlanePlanePlane(lapPlane, exitPlane, overSide1Added, out opened[1]);
+                        if (exits)
                         {
-                            ok &= RX.PlanePlanePlane(lapPlane, exitPlane, overSide0Added, out overBase[0]);
-                            ok &= RX.PlanePlanePlane(lapPlane, overSide1Added, exitPlane, out overBase[3]);
-                        }
-                        else
-                        {
-                            ok &= RX.PlanePlanePlane(lapPlane, overSide0Added, exitPlane, out overBase[1]);
-                            ok &= RX.PlanePlanePlane(lapPlane, exitPlane, overSide1Added, out overBase[2]);
+                            open = side;
+                            if (open > 0) { overBase[0] = opened[0]; overBase[3] = opened[1]; }
+                            else { overBase[1] = opened[0]; overBase[2] = opened[1]; }
                         }
                     }
-                    else
-                        result.Messages.Add($"{GetType().Name}: the lap face is parallel to the over beam, so no side can be opened.");
+                    if (!exits)
+                        result.Messages.Add($"{GetType().Name}: the lap face is parallel to the upper beam ({over.Id}), so no side was opened. Try Flip.");
                 }
 
                 var faces = new List<Brep> { Brep.CreateFromCornerPoints(overBase[0], overBase[1], overBase[2], overBase[3], tolerance) };
@@ -231,13 +237,6 @@ namespace GluLamb.Joints
                 if (open != 1)
                     faces.Add(Brep.CreateFromCornerPoints(overBase[3], overBase[0], overBottom[0], overBottom[3], tolerance));
                 overGeo = faces.ToArray();
-            }
-
-            if (!ok)
-            {
-                result.Status = JointStatus.Failed;
-                result.Messages.Add($"{GetType().Name}: could not open the side of the lap.");
-                return;
             }
 
             // A lap depth of 0 (a seat on top of the under beam) leaves the under beam uncut
@@ -249,6 +248,13 @@ namespace GluLamb.Joints
             int expected = !depth.HasValue || depth.Value > tolerance ? 2 : 1;
             result.Status = created == expected ? JointStatus.Ok : created > 0 ? JointStatus.Partial : JointStatus.Failed;
         }
+
+        /// <summary>
+        /// The index of the beam that goes on top (the over beam): the higher one along up, or
+        /// the first when they are level; Flip inverts that.
+        /// </summary>
+        protected virtual int OverPart(Beam[] beams, Vector3d up, double tolerance) =>
+            TopPart(beams[0].GetPlane(m_parts[0].Parameter).Origin, beams[1].GetPlane(m_parts[1].Parameter).Origin, up, tolerance);
 
         private void AddLap(JointResult result, Beam beam, Brep[] faces, Plane plane, double tolerance)
         {
