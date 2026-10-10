@@ -28,6 +28,11 @@ namespace G2PComponents.Commands
         public bool ExportBoM = true;
         public bool GroupByType = true;
         public bool MasterFile = false;
+        /// <summary>
+        /// DWG end view next to the front elevation (first-angle position), or
+        /// turned 90 degrees and placed next to the plan so its edges line up with it.
+        /// </summary>
+        public bool EndViewOnPlan = false;
 
         public ExportComponentsCommand()
         {
@@ -78,6 +83,7 @@ namespace G2PComponents.Commands
             var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
             var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
             var masterToggle = new OptionToggle(MasterFile, "No", "Yes");
+            var endViewToggle = new OptionToggle(EndViewOnPlan, "Elevation", "Plan");
 
             while (true)
             {
@@ -86,6 +92,7 @@ namespace G2PComponents.Commands
                 var groupOption = gs.AddOptionToggle("GroupByType", ref groupToggle);
                 var bomOption = gs.AddOptionToggle("ExportBoM", ref bomToggle);
                 var masterOption = gs.AddOptionToggle("MasterFile", ref masterToggle);
+                var endViewOption = gs.AddOptionToggle("EndView", ref endViewToggle);
 
                 var res = gs.Get();
                 if (res == GetResult.Option)
@@ -99,6 +106,8 @@ namespace G2PComponents.Commands
                         ExportBoM = bomToggle.CurrentValue;
                     else if (option.Index == masterOption)
                         MasterFile = masterToggle.CurrentValue;
+                    else if (option.Index == endViewOption)
+                        EndViewOnPlan = endViewToggle.CurrentValue;
 
                     continue;
                 }
@@ -341,11 +350,15 @@ namespace G2PComponents.Commands
 
             const double viewGap = 50;
             var elevationOffset = new Vector3d(0, local.Diagonal.Y + viewGap, 0);
-            var endViewOffset = elevationOffset + new Vector3d(local.Diagonal.X + viewGap, 0, 0);
+            var nextToPlan = new Vector3d(local.Diagonal.X + viewGap, 0, 0);
 
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
             Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
-            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, endViewOffset);
+            if (EndViewOnPlan)
+                // Turned clockwise so the part's Y runs up the page as in the plan, top face away from it
+                Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, nextToPlan, rotationDegrees: -90);
+            else
+                Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, elevationOffset + nextToPlan);
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
@@ -531,7 +544,8 @@ namespace G2PComponents.Commands
             Transform transform,
             Vector3d direction,
             Vector3d offset,
-            string baseLayerName = "tas::2D")
+            string baseLayerName = "tas::2D",
+            double rotationDegrees = 0)
         {
 
             var baseLayerId = doc.Layers.FindByFullPath(baseLayerName, -1);
@@ -583,10 +597,13 @@ namespace G2PComponents.Commands
                 //RhinoApp.WriteLine($"   -- Flattening...");
 
                 var flatten = Transform.PlanarProjection(Plane.WorldXY);
+                if (rotationDegrees != 0)
+                    flatten = Transform.Rotation(RhinoMath.ToRadians(rotationDegrees), Vector3d.ZAxis, Point3d.Origin) * flatten;
+
+                // Move the flattened drawing so its lower-left corner is at the origin
                 BoundingBox page_box = hld.BoundingBox(true);
-                var delta_2d = new Vector2d(0, 0);
-                delta_2d = delta_2d - new Vector2d(page_box.Min.X, page_box.Min.Y);
-                var delta_3d = Transform.Translation(new Vector3d(delta_2d.X, delta_2d.Y, 0.0));
+                page_box.Transform(flatten);
+                var delta_3d = Transform.Translation(new Vector3d(-page_box.Min.X, -page_box.Min.Y, 0.0));
                 flatten = delta_3d * flatten;
 
                 var h_attribs = new ObjectAttributes { Name = geometryName, LayerIndex = hiddenLayerId };
