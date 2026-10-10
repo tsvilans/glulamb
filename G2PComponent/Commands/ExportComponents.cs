@@ -27,7 +27,7 @@ namespace G2PComponents.Commands
 
         public bool ExportBoM = true;
         public bool GroupByType = true;
-        public bool MasterFile = true;
+        public bool MasterFile = false;
 
         public ExportComponentsCommand()
         {
@@ -75,8 +75,9 @@ namespace G2PComponents.Commands
             gs.AcceptNothing(true);
             
             var formatIndex = 0;
-            var groupToggle = new OptionToggle(true, "No", "Yes");
-            var bomToggle = new OptionToggle(true, "No", "Yes");
+            var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
+            var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
+            var masterToggle = new OptionToggle(MasterFile, "No", "Yes");
 
             while (true)
             {
@@ -84,6 +85,7 @@ namespace G2PComponents.Commands
                 var formatOption = gs.AddOptionList("Format", formatList, formatIndex);
                 var groupOption = gs.AddOptionToggle("GroupByType", ref groupToggle);
                 var bomOption = gs.AddOptionToggle("ExportBoM", ref bomToggle);
+                var masterOption = gs.AddOptionToggle("MasterFile", ref masterToggle);
 
                 var res = gs.Get();
                 if (res == GetResult.Option)
@@ -95,6 +97,8 @@ namespace G2PComponents.Commands
                         GroupByType = groupToggle.CurrentValue;
                     else if (option.Index == bomOption)
                         ExportBoM = bomToggle.CurrentValue;
+                    else if (option.Index == masterOption)
+                        MasterFile = masterToggle.CurrentValue;
 
                     continue;
                 }
@@ -138,6 +142,9 @@ namespace G2PComponents.Commands
             {
                 Directory.CreateDirectory(directory);
             }
+
+            // Parts collected for the master file, in the order they were exported
+            var masterParts = MasterFile && formatExtension != "dryrun" ? new List<MasterPart>() : null;
 
             foreach ((string name, (IComponent component, int count)) in components)
             {
@@ -206,10 +213,10 @@ namespace G2PComponents.Commands
                 switch (formatExtension)
                 {
                     case ("stp"):
-                        res = ExportStep(exportPath, geometries, name, bounds, transform);
+                        res = ExportStep(exportPath, geometries, name, bounds, transform, masterParts);
                         break;
                     case ("dwg"):
-                        res = ExportDwg(exportPath, geometries, name, bounds, transform);
+                        res = ExportDwg(exportPath, geometries, name, bounds, transform, masterParts);
                         break;
                     case ("dryrun"):
                         RhinoApp.WriteLine($"Exported {name} (dry run).");
@@ -224,18 +231,26 @@ namespace G2PComponents.Commands
                     return Result.Failure;
             }
 
+            if (masterParts != null && masterParts.Count > 0)
+            {
+                var masterPath = Path.Join(directory, $"master.{formatExtension}");
+                var sortedParts = masterParts
+                    .OrderBy(p => NameKey(p.Name).Prefix)
+                    .ThenBy(p => NameKey(p.Name).Number)
+                    .ToList();
+
+                if (WriteMasterFile(masterPath, formatExtension, sortedParts) != Result.Success)
+                {
+                    RhinoApp.WriteLine($"Could not write master file {masterPath}.");
+                    return Result.Failure;
+                }
+                RhinoApp.WriteLine($"Wrote master file with {sortedParts.Count} parts: {masterPath}");
+            }
+
             if (ExportBoM)
             {
                 // Export BoM
                 var bomPath = Path.Join(directory, $"bom.csv");
-
-                static (string Prefix, int Number) NameKey(string name)
-                {
-                    int dash = name.LastIndexOf('-');
-                    if (dash >= 0 && int.TryParse(name.AsSpan(dash + 1), out int n))
-                        return (name.Substring(0, dash), n);
-                    return (name, int.MaxValue); // no number: sort after numbered ones
-                }
 
                 var sorted = bom
                     .OrderBy(b => NameKey(b.Name).Prefix)
@@ -251,11 +266,34 @@ namespace G2PComponents.Commands
             return Result.Success;
         }
 
-        public Result ExportDwg(string dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null)
+        /// <summary>
+        /// Sort key that orders "Name-2" before "Name-10".
+        /// </summary>
+        static (string Prefix, int Number) NameKey(string name)
+        {
+            int dash = name.LastIndexOf('-');
+            if (dash >= 0 && int.TryParse(name.AsSpan(dash + 1), out int n))
+                return (name.Substring(0, dash), n);
+            return (name, int.MaxValue); // no number: sort after numbered ones
+        }
+
+        static Rhino.FileIO.FileDwgWriteOptions DwgOptions => new Rhino.FileIO.FileDwgWriteOptions()
+        {
+            Version = Rhino.FileIO.FileDwgWriteOptions.AutocadVersion.Acad2010,
+        };
+
+        static Rhino.FileIO.FileStpWriteOptions StpOptions => new Rhino.FileIO.FileStpWriteOptions()
+        {
+            Schema = Rhino.FileIO.FileStpWriteOptions.StepSchema.SF_203,
+            Export2dCurves = true,
+            ExportBlack = true,
+        };
+
+        public Result ExportDwg(string dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
         {
             transform = transform ?? Transform.Identity;
 
-            var doc = RhinoDoc.CreateHeadless("");
+            using var doc = RhinoDoc.CreateHeadless("");
             var attributes = RhinoDoc.ActiveDoc.CreateDefaultAttributes();
             attributes.Name = name;
 
@@ -297,21 +335,18 @@ namespace G2PComponents.Commands
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
             Create2dDrawing(doc, geometries, name, Transform.Multiply(Transform.Mirror(bounds.Center, Vector3d.XAxis), transform.Value), -Vector3d.YAxis, new Vector3d(0, 300, 0));
 
-            var dwgOptions = new Rhino.FileIO.FileDwgWriteOptions()
-            {
-                Version = Rhino.FileIO.FileDwgWriteOptions.AutocadVersion.Acad2010,
-            };
+            masterParts?.Add(MasterPart.FromDoc(doc, name));
 
-            if (Rhino.FileIO.FileDwg.Write(dwgPath, doc, dwgOptions))
+            if (Rhino.FileIO.FileDwg.Write(dwgPath, doc, DwgOptions))
                 return Result.Success;
             return Result.Failure;
         }
 
-        public Result ExportStep(string stepPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null)
+        public Result ExportStep(string stepPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
         {
             transform = transform ?? Transform.Identity;
 
-            var headless = RhinoDoc.CreateHeadless("");
+            using var headless = RhinoDoc.CreateHeadless("");
             var attributes = RhinoDoc.ActiveDoc.CreateDefaultAttributes();
             attributes.Name = name;
 
@@ -323,16 +358,116 @@ namespace G2PComponents.Commands
                 headless.Objects.Add(temp, attributes.Duplicate());
             }
 
-            var stpOptions = new Rhino.FileIO.FileStpWriteOptions()
-            {
-                Schema = Rhino.FileIO.FileStpWriteOptions.StepSchema.SF_203,
-                Export2dCurves = true,
-                ExportBlack = true,
-            };
+            masterParts?.Add(MasterPart.FromDoc(headless, name));
 
-            if (Rhino.FileIO.FileStp.Write(stepPath, headless, stpOptions))
+            if (Rhino.FileIO.FileStp.Write(stepPath, headless, StpOptions))
                 return Result.Success;
             return Result.Failure;
+        }
+
+        /// <summary>
+        /// Copy of everything that went into one exported file, kept so the
+        /// master file can be assembled without recomputing the drawings.
+        /// </summary>
+        public class MasterPart
+        {
+            public string Name;
+            public List<(GeometryBase Geometry, ObjectAttributes Attributes, string LayerPath, System.Drawing.Color LayerColor)> Objects = new();
+            public BoundingBox Bounds = BoundingBox.Empty;
+
+            public MasterPart(string name)
+            {
+                Name = name;
+            }
+
+            public static MasterPart FromDoc(RhinoDoc doc, string name)
+            {
+                var part = new MasterPart(name);
+                foreach (var obj in doc.Objects)
+                {
+                    var geometry = obj.Geometry?.Duplicate();
+                    if (geometry == null)
+                        continue;
+
+                    var layer = doc.Layers[obj.Attributes.LayerIndex];
+                    part.Objects.Add((geometry, obj.Attributes.Duplicate(), layer.FullPath, layer.Color));
+                    part.Bounds.Union(geometry.GetBoundingBox(true));
+                }
+                return part;
+            }
+        }
+
+        /// <summary>
+        /// Lays the exported parts out in a row along Y, each one grouped under
+        /// its name, and writes them to a single file in the export format.
+        /// </summary>
+        public Result WriteMasterFile(string path, string formatExtension, List<MasterPart> parts)
+        {
+            parts = parts.Where(p => p.Bounds.IsValid).ToList();
+            if (parts.Count == 0)
+                return Result.Failure;
+
+            using var doc = RhinoDoc.CreateHeadless("");
+
+            var gap = Math.Max(parts.Max(p => p.Bounds.Diagonal.Y) * 0.5, 10.0);
+            var labelHeight = gap * 0.3;
+
+            // The DWG drawings carry their own name labels; STEP drops text,
+            // so the STP master gets the name as curves under each part.
+            var addLabels = formatExtension == "stp";
+            var labelLayerIndex = addLabels ? doc.Layers.AddPath("Labels", System.Drawing.Color.Black) : -1;
+
+            var cursor = 0.0;
+            foreach (var part in parts)
+            {
+                var xform = Transform.Translation(-part.Bounds.Min.X, cursor - part.Bounds.Min.Y, 0);
+                var ids = new List<Guid>();
+
+                foreach (var (geometry, attributes, layerPath, layerColor) in part.Objects)
+                {
+                    var layerIndex = doc.Layers.FindByFullPath(layerPath, -1);
+                    if (layerIndex < 0)
+                        layerIndex = doc.Layers.AddPath(layerPath, layerColor);
+
+                    var temp = geometry.Duplicate();
+                    temp.Transform(xform);
+                    var attr = attributes.Duplicate();
+                    attr.LayerIndex = layerIndex;
+
+                    var id = doc.Objects.Add(temp, attr);
+                    if (id != Guid.Empty)
+                        ids.Add(id);
+                }
+
+                if (addLabels)
+                {
+                    var labelPlane = new Plane(new Point3d(0, cursor - labelHeight * 0.5, part.Bounds.Min.Z), Vector3d.ZAxis);
+                    var text = TextEntity.Create(part.Name, labelPlane, doc.DimStyles.Current, false, 0, 0);
+                    text.TextHeight = labelHeight;
+                    text.Justification = TextJustification.TopLeft;
+
+                    var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
+                    foreach (var curve in text.CreateCurves(doc.DimStyles.Current, false) ?? Array.Empty<Curve>())
+                    {
+                        var id = doc.Objects.AddCurve(curve, labelAttr);
+                        if (id != Guid.Empty)
+                            ids.Add(id);
+                    }
+                }
+
+                if (ids.Count > 0)
+                    doc.Groups.Add(part.Name, ids);
+
+                cursor += part.Bounds.Diagonal.Y + gap;
+            }
+
+            bool ok = formatExtension switch
+            {
+                "dwg" => Rhino.FileIO.FileDwg.Write(path, doc, DwgOptions),
+                "stp" => Rhino.FileIO.FileStp.Write(path, doc, StpOptions),
+                _ => false,
+            };
+            return ok ? Result.Success : Result.Failure;
         }
 
         RhinoViewport CreateView(RhinoDoc doc, Vector3d direction)
@@ -454,6 +589,7 @@ namespace G2PComponents.Commands
                     if (pt.IsValid)
                     {
                         pt.Transform(flatten);
+                        pt += offset;
                         switch (hld_pt.PointVisibility)
                         {
                             case HiddenLineDrawingPoint.Visibility.Visible:
