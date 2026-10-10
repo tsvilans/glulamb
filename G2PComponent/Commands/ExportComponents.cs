@@ -332,13 +332,20 @@ namespace G2PComponents.Commands
                 attr.Duplicate()
             );
 
+            // First-angle projection (ISO E) of the part in its local frame:
+            // front elevation seen from -Y, plan from above placed below it,
+            // end view from the left (-X) placed to the right of it.
+            var local = BoundingBox.Empty;
+            foreach (var geometry in geometries)
+                local.Union(geometry.GetBoundingBox(transform.Value));
+
+            const double viewGap = 50;
+            var elevationOffset = new Vector3d(0, local.Diagonal.Y + viewGap, 0);
+            var endViewOffset = elevationOffset + new Vector3d(local.Diagonal.X + viewGap, 0, 0);
+
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
-            Create2dDrawing(doc, geometries, name, Transform.Multiply(Transform.Mirror(bounds.Center, Vector3d.XAxis), transform.Value), -Vector3d.YAxis, new Vector3d(0, 250, 0));
-            // End view, unfolded: reflected through the local XY plane before rotating it into view
-            var endView = Transform.Rotation(RhinoMath.ToRadians(90), Vector3d.XAxis, bounds.Center)
-                * Transform.Mirror(bounds.Center, Vector3d.ZAxis)
-                * transform.Value;
-            Create2dDrawing(doc, geometries, name, endView, Vector3d.XAxis, new Vector3d(-150, 0, 0));
+            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
+            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, endViewOffset);
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
