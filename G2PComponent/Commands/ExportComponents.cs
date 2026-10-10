@@ -333,7 +333,12 @@ namespace G2PComponents.Commands
             );
 
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
-            Create2dDrawing(doc, geometries, name, Transform.Multiply(Transform.Mirror(bounds.Center, Vector3d.XAxis), transform.Value), -Vector3d.YAxis, new Vector3d(0, 300, 0));
+            Create2dDrawing(doc, geometries, name, Transform.Multiply(Transform.Mirror(bounds.Center, Vector3d.XAxis), transform.Value), -Vector3d.YAxis, new Vector3d(0, 250, 0));
+            // End view, unfolded: reflected through the local XY plane before rotating it into view
+            var endView = Transform.Rotation(RhinoMath.ToRadians(90), Vector3d.XAxis, bounds.Center)
+                * Transform.Mirror(bounds.Center, Vector3d.ZAxis)
+                * transform.Value;
+            Create2dDrawing(doc, geometries, name, endView, Vector3d.XAxis, new Vector3d(-150, 0, 0));
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
@@ -412,10 +417,11 @@ namespace G2PComponents.Commands
             var gap = Math.Max(parts.Max(p => p.Bounds.Diagonal.Y) * 0.5, 10.0);
             var labelHeight = gap * 0.3;
 
-            // The DWG drawings carry their own name labels; STEP drops text,
-            // so the STP master gets the name as curves under each part.
-            var addLabels = formatExtension == "stp";
-            var labelLayerIndex = addLabels ? doc.Layers.AddPath("Labels", System.Drawing.Color.Black) : -1;
+            // Each part gets its name under it: as text in the DWG, and as
+            // curves in the STP since STEP drops text.
+            var labelLayerIndex = doc.Layers.AddPath("Labels", System.Drawing.Color.Black);
+            var labelStyle = doc.DimStyles.Current.Duplicate("MasterLabel", Guid.NewGuid(), Guid.Empty);
+            labelStyle.TextHeight = labelHeight;
 
             var cursor = 0.0;
             foreach (var part in parts)
@@ -434,25 +440,48 @@ namespace G2PComponents.Commands
                     var attr = attributes.Duplicate();
                     attr.LayerIndex = layerIndex;
 
-                    var id = doc.Objects.Add(temp, attr);
+                    var id = temp is TextEntity textEntity
+                        ? doc.Objects.AddText(textEntity, attr)
+                        : doc.Objects.Add(temp, attr);
                     if (id != Guid.Empty)
                         ids.Add(id);
                 }
 
-                if (addLabels)
-                {
-                    var labelPlane = new Plane(new Point3d(0, cursor - labelHeight * 0.5, part.Bounds.Min.Z), Vector3d.ZAxis);
-                    var text = TextEntity.Create(part.Name, labelPlane, doc.DimStyles.Current, false, 0, 0);
-                    text.TextHeight = labelHeight;
-                    text.Justification = TextJustification.TopLeft;
+                // Label sits in the gap under the part, top-left at its corner
+                var labelCorner = new Point3d(0, cursor - gap * 0.1, part.Bounds.Min.Z);
+                var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
 
-                    var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
-                    foreach (var curve in text.CreateCurves(doc.DimStyles.Current, false) ?? Array.Empty<Curve>())
+                if (formatExtension == "stp")
+                {
+                    var text = TextEntity.Create(part.Name, Plane.WorldXY, labelStyle, false, 0, 0);
+                    var curves = text?.CreateCurves(labelStyle, false) ?? Array.Empty<Curve>();
+
+                    var curveBounds = BoundingBox.Empty;
+                    foreach (var curve in curves)
+                        curveBounds.Union(curve.GetBoundingBox(true));
+
+                    var move = Transform.Translation(labelCorner - new Point3d(curveBounds.Min.X, curveBounds.Max.Y, 0));
+                    foreach (var curve in curves)
                     {
+                        curve.Transform(move);
                         var id = doc.Objects.AddCurve(curve, labelAttr);
                         if (id != Guid.Empty)
                             ids.Add(id);
                     }
+                }
+                else
+                {
+                    var id = doc.Objects.AddText(
+                        part.Name,
+                        new Plane(labelCorner, Vector3d.ZAxis),
+                        labelHeight,
+                        "Martian Mono",
+                        false,
+                        false,
+                        TextJustification.TopLeft,
+                        labelAttr);
+                    if (id != Guid.Empty)
+                        ids.Add(id);
                 }
 
                 if (ids.Count > 0)
