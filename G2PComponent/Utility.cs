@@ -203,7 +203,11 @@ namespace G2PComponents
             var layerIdx = Layers.FindLayerIndexByFullPath(component, name);
             if (layerIdx < 0) return Enumerable.Empty<Guid>();
 
-            return Objects.ObjectIDsByLayer(component, layerIdx, doc);
+            // By the component's group rather than by name (as Objects.ObjectIDsByLayer does), so
+            // instances that share a name don't get each other's members
+            var group = component.GroupIdx;
+            if (group < 0) return Objects.ObjectIDsByLayer(component, layerIdx, doc);
+            return doc.Groups.GroupMembers(group).Where(o => o.Attributes.LayerIndex == layerIdx).Select(o => o.Id).ToList();
         }
 
         public static Plane FlipBasePlane(Brep brep, Plane plane, bool aroundX = true)

@@ -50,6 +50,11 @@ namespace GluLamb
         public static int SetAcute(int c) => c |= (1 << (int)JointCaseBits.ObliqueAcuteBit);
 
         public int ElementIndex = -1;
+        /// <summary>
+        /// Identifier of the beam this part belongs to (Beam.Id). If empty, IJointContext
+        /// implementations may fall back to ElementIndex.
+        /// </summary>
+        public string BeamId = null;
         public int JointIndex = -1;
         public double Parameter = 0;
         public int Case = 0;
@@ -71,6 +76,7 @@ namespace GluLamb
         {
             if (Case == other.Case 
                 && ElementIndex == other.ElementIndex
+                && BeamId == other.BeamId
                 //&& Parameter == other.Parameter
                 //&& JointIndex == other.JointIndex
                 ) { return true; }
@@ -79,7 +85,7 @@ namespace GluLamb
 
         public override int GetHashCode()
         {
-            return ElementIndex.GetHashCode() ^ Case.GetHashCode();
+            return ElementIndex.GetHashCode() ^ Case.GetHashCode() ^ (BeamId?.GetHashCode() ?? 0);
         }
 
         public JointPartX DuplicateJointPart()
@@ -87,11 +93,13 @@ namespace GluLamb
             return new JointPartX()
             {
                 ElementIndex = ElementIndex,
+                BeamId = BeamId,
                 Case = Case,
                 JointIndex = JointIndex,
                 Direction = Direction,
                 Parameter = Parameter,
-                Geometry = Geometry.Select(x => x.DuplicateBrep()).ToList()
+                Geometry = Geometry.Select(x => x.DuplicateBrep()).ToList(),
+                Data = Data == null ? new ArchivableDictionary() : Data.Clone()
             };
         }
 
@@ -102,6 +110,12 @@ namespace GluLamb
         public static double PerpendicularThreshold = RhinoMath.ToRadians(45);
 
         public Plane Position;
+
+        /// <summary>
+        /// Short, legible id of the joint, e.g. the Grasshopper tree path it is on. Set once; what
+        /// the joint connects is in its parts.
+        /// </summary>
+        public string Id;
         public List<JointPartX> Parts;
 
         public JointX() : this(new List<JointPartX>(), Plane.Unset) { }
@@ -114,7 +128,32 @@ namespace GluLamb
         public JointX(List<JointPartX> parts, Point3d position)
         {
             this.Parts = parts;
-            this.Position = new Plane(position, Vector3d.ZAxis);
+            this.Position = ConditionPlane(parts, position);
+        }
+
+        /// <summary>
+        /// A plane for a joint condition from its parts' directions, so it says something about
+        /// the joint before it is constructed: X along the first part's direction (out of the beam
+        /// at an end, along it in the middle); Z the normal of the plane of the joint, from the
+        /// first part not parallel to the first. With one part, or only parallel ones, Z is the
+        /// first part's direction (e.g. the end cut plane). World Z only if no part has a direction.
+        /// </summary>
+        public static Plane ConditionPlane(IList<JointPartX> parts, Point3d origin)
+        {
+            var x = parts != null && parts.Count > 0 ? parts[0].Direction : Vector3d.Unset;
+            if (!x.IsValid || !x.Unitize())
+                return new Plane(origin, Vector3d.ZAxis);
+
+            for (int i = 1; i < parts.Count; ++i)
+            {
+                var d = parts[i].Direction;
+                if (!d.IsValid) continue;
+                var z = Vector3d.CrossProduct(x, d);
+                if (z.Length > 1e-3 * d.Length)
+                    return new Plane(origin, x, Vector3d.CrossProduct(z, x));
+            }
+
+            return new Plane(origin, x);
         }
 
         public override string ToString() => $"Joint ({GetType().Name})";
@@ -127,6 +166,7 @@ namespace GluLamb
         public virtual JointX DuplicateJoint()
         {
             return new JointX() {
+                Id = Id,
                 Position = Position,
                 Parts = Parts.Select(x => x.DuplicateJointPart()).ToList()
             };
@@ -162,7 +202,7 @@ namespace GluLamb
                     {
                         // corner or splice joint
                         double dot = joint.Parts[0].Direction * joint.Parts[1].Direction;
-                        double angle = Math.Acos(dot);
+                        double angle = Math.Acos(Math.Max(-1.0, Math.Min(1.0, dot)));
 
                         if (angle < perpendicularThreshold)
                         {

@@ -37,7 +37,9 @@ namespace GluLamb.GH.Components
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.CreateTopology;
         public override Guid ComponentGuid => new Guid("62EF7D36-3052-48D6-BC82-3DB4B8606217");
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
+        // Retired with the legacy Element/Joint system; kept so existing definitions still open.
+        public override GH_Exposure Exposure => GH_Exposure.hidden;
+        public override bool Obsolete => true;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {

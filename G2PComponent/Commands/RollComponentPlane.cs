@@ -70,6 +70,7 @@ namespace G2PComponents.Commands
                 rhObject.Object().Select(true, true);
             }
 
+            var messages = new List<string>();
             var components = Instantiation.InstancesFromObjects(go.Objects().Select(x => x.Object()), Context.settings, doc);
             foreach (var component in components)
             {
@@ -79,12 +80,17 @@ namespace G2PComponents.Commands
                 if (brep == null) continue;
 
                 var flippedPlane = Utility.RollBaseplane(brep, plane);
+                // The edge profile stays on the same physical edges
+                EdgeProfile.FollowPlane(component, flippedPlane, doc, messages);
+
                 var label = component.Label.Duplicate() as TextEntity;
                 label.Plane = flippedPlane;
 
                 doc.Objects.Replace(component.ID, label);
             }
 
+            foreach (var message in messages)
+                RhinoApp.WriteLine($"-- {message}");
             return Result.Success;
         }
     }

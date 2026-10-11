@@ -320,6 +320,14 @@ namespace GluLamb.GH.Components
             CrossSectionOrientation orientation = ParseGlulamOrientation(r_orientation, crv);
             AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, orientation.ToString());
 
+            if (orientation is VectorOrientation vectorOrientation)
+            {
+                if (crv.IsLinear() && crv.TangentAtStart.IsParallelTo((Vector3d)vectorOrientation.GetDriver()) != 0)
+                {
+                    orientation = new VectorOrientation(Vector3d.YAxis);
+                }
+            }
+
             var beam = new Beam() { 
                 Centreline = crv, 
                 Orientation = orientation, 

@@ -11,7 +11,7 @@ namespace GluLamb
 { 
     public class Lamella
     {
-        public Guid GlulamId;
+        public string GlulamId;
         public Glulam Glulam = null;
 
         private int stackPositionX;
@@ -44,11 +44,11 @@ namespace GluLamb
         public Plane Plane; // Local lamella space to glulam stack space
         public Mesh Mesh;
 
-        public Lamella() : this(Guid.NewGuid())
+        public Lamella() : this(Beam.NewId())
         {
         }
 
-        public Lamella(Guid glulam_id) : this(glulam_id, null)
+        public Lamella(string glulam_id) : this(glulam_id, null)
         {
         }
 
@@ -56,7 +56,7 @@ namespace GluLamb
         {
         }
 
-        public Lamella(Guid glulam_id, Glulam glulam, double thickness = 10.0, int spx = -1, int spy = -1)
+        public Lamella(string glulam_id, Glulam glulam, double thickness = 10.0, int spx = -1, int spy = -1)
         {
             Thickness = 10.0;
             stackPositionX = spx;

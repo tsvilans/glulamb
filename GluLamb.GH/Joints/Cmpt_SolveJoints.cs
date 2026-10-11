@@ -43,7 +43,9 @@ namespace GluLamb.GH.Components
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.Joint;
         public override Guid ComponentGuid => new Guid("b43a7437-972c-49d3-8f90-cadeb725381a");
-        public override GH_Exposure Exposure => GH_Exposure.primary;
+        // Superseded by Construct Joints; kept so existing definitions still open.
+        public override GH_Exposure Exposure => GH_Exposure.hidden;
+        public override bool Obsolete => true;
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -72,7 +74,7 @@ namespace GluLamb.GH.Components
             if (!DA.GetDataTree(0, out GH_Structure<IGH_Goo> beamTree)) return;
             if (!DA.GetDataTree(1, out GH_Structure<IGH_Goo> jointTree)) return;
             if (!DA.GetDataTree(2, out GH_Structure<GH_String> typesTree)) return;
-            if (!DA.GetData(3, ref settings))
+            DA.GetData(3, ref settings);
 
             foreach (var path in beamTree.Paths)
             {

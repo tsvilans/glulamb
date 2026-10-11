@@ -52,6 +52,7 @@ namespace GluLamb.GH.Components
 
         bool monochrome = false;
         bool fullName = false;
+        bool freeEnds = false;
 
         List<JointCondition> JointConditions = new List<JointCondition>();
         Dictionary<int, Plane> JointOrigins = null;
@@ -72,6 +73,30 @@ namespace GluLamb.GH.Components
         {
             Menu_AppendItem(menu, "Monochrome", ToggleMonochrome, true, monochrome);
             Menu_AppendItem(menu, "Full name", ToggleFullName, true, fullName);
+            Menu_AppendItem(menu, "Free ends", ToggleFreeEnds, true, freeEnds)
+                .ToolTipText = "Also make single-beam (E) conditions at curve ends that aren't in any joint.";
+        }
+
+        private void ToggleFreeEnds(object sender, EventArgs e)
+        {
+            RecordUndoEvent("Free ends");
+            freeEnds = !freeEnds;
+            Message = freeEnds ? "Free ends" : null;
+            ExpireSolution(true);
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            writer.SetBoolean("FreeEnds", freeEnds);
+            return base.Write(writer);
+        }
+
+        public override bool Read(GH_IReader reader)
+        {
+            if (reader.ItemExists("FreeEnds"))
+                freeEnds = reader.GetBoolean("FreeEnds");
+            Message = freeEnds ? "Free ends" : null;
+            return base.Read(reader);
         }
 
         private void ToggleMonochrome(object sender, EventArgs e)
@@ -131,6 +156,8 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Merge distance", "M", "Distance within which to merge joint conditions.", GH_ParamAccess.item, 50);
             pManager.AddNumberParameter("End tolerance", "ET", "Distance within which to consider a joint at the end of an element.", GH_ParamAccess.item, 10);
             pManager.AddNumberParameter("Perp threshold", "PT", "Angle threshold at which to consider a joint a splice, corner, or graft.", GH_ParamAccess.item, JointX.PerpendicularThreshold);
+            pManager.AddVectorParameter("Post direction", "PD", "Where three or more beams end at one joint, the one most along this direction (within 45°) is put first, as the post. A zero vector keeps the input order.", GH_ParamAccess.item, Vector3d.ZAxis);
+            pManager[6].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -155,6 +182,9 @@ namespace GluLamb.GH.Components
 
             double csThreshold = JointX.PerpendicularThreshold;
             DA.GetData("Perp threshold", ref csThreshold);
+
+            var postDirection = Vector3d.ZAxis;
+            DA.GetData("Post direction", ref postDirection);
 
             JointOrigins = new Dictionary<int, Plane>();
             JointLines = new Dictionary<int, Line>();
@@ -203,9 +233,52 @@ namespace GluLamb.GH.Components
 
             Joints = JointX.MergeJoints(Joints, mergeDistance);
 
+            // Post first: where only beam ends meet, the joint can't tell the post from the beams
+            if (postDirection.Unitize())
+                foreach (var jc in Joints.Where(j => j.Parts.Count >= 3 && j.Parts.All(p => JointPartX.IsAtEnd(p.Case))))
+                {
+                    var post = jc.Parts.OrderByDescending(p => Math.Abs(p.Direction * postDirection) / Math.Max(p.Direction.Length, 1e-9)).First();
+                    if (Math.Abs(post.Direction * postDirection) / Math.Max(post.Direction.Length, 1e-9) < Math.Cos(Math.PI * 0.25)) continue;
+                    jc.Parts.Remove(post);
+                    jc.Parts.Insert(0, post);
+                }
+
+            // Merging adds parts, so frame each condition from all of them
+            foreach (var jc in Joints)
+                jc.Position = JointX.ConditionPlane(jc.Parts, jc.Position.Origin);
+
+            // Single-beam conditions at curve ends that no joint uses
+            if (freeEnds)
+            {
+                var used = new HashSet<(int, bool)>(Joints.SelectMany(j => j.Parts)
+                    .Where(p => JointPartX.IsAtEnd(p.Case))
+                    .Select(p => (p.ElementIndex, JointPartX.End1(p.Case))));
+
+                int id = Joints.Count;
+                foreach (var path in curves.Paths)
+                {
+                    if (curves[path].Count < 1 || curves[path][0]?.Value == null) continue;
+                    var index = path.Indices[0];
+                    var curve = curves[path][0].Value;
+
+                    foreach (var atEnd1 in new[] { false, true })
+                    {
+                        if (used.Contains((index, atEnd1))) continue;
+
+                        var t = atEnd1 ? curve.Domain.Max : curve.Domain.Min;
+                        ClassifyJointPosition(curve, t, out int s, out Vector3d v, endTolerance);
+                        Joints.Add(new JointX(
+                            new List<JointPartX> { new JointPartX() { Case = s, ElementIndex = index, JointIndex = id, Parameter = t, Direction = v } },
+                            curve.PointAt(t)));
+                        id++;
+                    }
+                }
+            }
+
             for (int i = 0; i < Joints.Count; ++i)
             {
                 var jc = Joints[i];
+                jc.Id = i.ToString();   // the path it is output on
                 JointOrigins.Add(i, jc.Position);
 
                 var jointType = JointX.ClassifyJoint(jc, csThreshold);

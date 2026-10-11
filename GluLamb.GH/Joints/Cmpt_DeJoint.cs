@@ -51,10 +51,12 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddPlaneParameter("Position", "P", "Location of joint.", GH_ParamAccess.tree);
+            pManager.AddPlaneParameter("Position", "P", "Joint plane. For a constructed joint, the plane its type works out (e.g. the cut plane or the lap plane); for a joint condition, X along the first beam's direction and Z normal to the plane of the joint (or along the beam, for one beam).", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Element IDs", "E", "Indices of the connected beams.", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Cases", "C", "Numbers representing the case of each joint part.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Parameters", "P", "Parameters for each beam at which the joint occurs.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Type", "T", "Joint type id for constructed joints; the condition's class (E, T, L, X...) for joint conditions.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Id", "Id", "Joint id (for joints from Construct Joints, the tree path they are on).", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -65,6 +67,8 @@ namespace GluLamb.GH.Components
             var caseTree = new DataTree<int>();
             var parameterTree = new DataTree<double>();
             var positionTree = new DataTree<Plane>();
+            var typeTree = new DataTree<string>();
+            var idTree = new DataTree<string>();
 
             for (int i = 0; i < joints.Paths.Count; ++i)
             {
@@ -76,19 +80,36 @@ namespace GluLamb.GH.Components
 
                 for (int j = 0; j < branch.Count; ++j)
                 {
-                    var ghJoint = branch[j] as GH_Joint;
-                    if (ghJoint == null) continue;
+                    // A joint condition (Classify Joints, Point Joints), or a constructed joint
+                    // (Construct Joints), whose position is the one the joint type worked out
+                    IEnumerable<JointPartX> parts;
+                    Plane position;
+                    string type, id;
+                    if (branch[j] is GH_Joint ghJoint && ghJoint.Value != null)
+                    {
+                        parts = ghJoint.Value.Parts;
+                        position = ghJoint.Value.Position;
+                        type = JointX.ClassifyJoint(ghJoint.Value, JointX.PerpendicularThreshold);
+                        id = ghJoint.Value.Id;
+                    }
+                    else if (branch[j]?.ScriptVariable() is GluLamb.Joints.IJoint joint)
+                    {
+                        parts = joint.Parts;
+                        position = joint.Position;
+                        type = joint.TypeId;
+                        id = joint.Id;
+                    }
+                    else continue;
 
-                    var joint = ghJoint.Value;
-                    if (joint == null) continue;
-
-                    foreach (var part in joint.Parts)
+                    foreach (var part in parts)
                     {
                         elementIndexTree.Add(part.ElementIndex, path);
                         caseTree.Add(part.Case, path);
                         parameterTree.Add(part.Parameter, path);
                     }
-                    positionTree.Add(joint.Position, path);
+                    positionTree.Add(position, path);
+                    typeTree.Add(type, path);
+                    idTree.Add(id ?? "", path);
 
                     //path = path.Increment(path.Indices.Length - 1);
                     path = path.Increment(0);
@@ -100,6 +121,8 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(1, elementIndexTree);
             DA.SetDataTree(2, caseTree);
             DA.SetDataTree(3, parameterTree);
+            DA.SetDataTree(5, idTree);
+            DA.SetDataTree(4, typeTree);
         }
     }
 }
