@@ -613,12 +613,13 @@ namespace G2PComponents.Commands
             var cursor = 0.0;
             foreach (var part in parts)
             {
-                var addLabel = !part.Objects.Any(o => o.Geometry is TextEntity);
-                if (addLabel)
+                // Room for a master label under parts that bring no text of their own
+                if (!part.Objects.Any(o => o.Geometry is TextEntity))
                     cursor += LabelHeight + LabelGap;
 
                 var xform = Transform.Translation(-part.Bounds.Min.X, cursor - part.Bounds.Min.Y, 0);
                 var ids = new List<Guid>();
+                var textCount = 0;
 
                 foreach (var (geometry, attributes, layerPath, layerColor) in part.Objects)
                 {
@@ -631,12 +632,33 @@ namespace G2PComponents.Commands
                     var attr = attributes.Duplicate();
                     attr.LayerIndex = layerIndex;
 
-                    var id = temp is TextEntity textEntity
-                        ? doc.Objects.AddText(textEntity, attr)
-                        : doc.Objects.Add(temp, attr);
+                    Guid id;
+                    if (temp is TextEntity textEntity)
+                    {
+                        // Re-created rather than copied: the copy keeps the source
+                        // document's dimension style and does not come through
+                        id = doc.Objects.AddText(
+                            textEntity.PlainText,
+                            textEntity.Plane,
+                            textEntity.TextHeight,
+                            textEntity.Font?.QuartetName ?? "Martian Mono",
+                            false,
+                            false,
+                            textEntity.Justification,
+                            attr);
+                        if (id != Guid.Empty)
+                            textCount++;
+                    }
+                    else
+                    {
+                        id = doc.Objects.Add(temp, attr);
+                    }
+
                     if (id != Guid.Empty)
                         ids.Add(id);
                 }
+
+                var addLabel = textCount == 0;
 
                 // Label sits under the part, top-left at its corner
                 var labelCorner = new Point3d(0, cursor - LabelGap, part.Bounds.Min.Z);
