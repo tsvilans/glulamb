@@ -41,14 +41,22 @@ namespace G2PComponents.Commands
         public double LabelGap = 10;
         const double LabelHeight = 10;
         /// <summary>
-        /// DWG end view next to the front elevation (first-angle position), or
-        /// turned 90 degrees and placed next to the plan so its edges line up with it.
+        /// DWG end view next to the plan, turned so its edges line up with the
+        /// plan's, or next to the top view.
         /// </summary>
-        public bool EndViewOnPlan = false;
+        public bool EndViewOnPlan = true;
         /// <summary>
         /// DWG view arrangement: first angle (ISO E, European) or third angle (ISO A, American).
         /// </summary>
         public bool ThirdAngle = false;
+        /// <summary>
+        /// DWG shows the other three long faces rolled out under the plan instead of the top view.
+        /// </summary>
+        public bool RolledSides = false;
+        /// <summary>
+        /// DWG gets an isometric view (visible edges only) to the right of the other views.
+        /// </summary>
+        public bool Isometric = false;
 
         public ExportComponentsCommand()
         {
@@ -98,8 +106,6 @@ namespace G2PComponents.Commands
             var formatIndex = 0;
             var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
             var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
-            var endViewToggle = new OptionToggle(EndViewOnPlan, "Elevation", "Plan");
-            var projectionToggle = new OptionToggle(ThirdAngle, "FirstAngle", "ThirdAngle");
 
             while (true)
             {
@@ -108,8 +114,7 @@ namespace G2PComponents.Commands
                 var groupOption = gs.AddOptionToggle("GroupByType", ref groupToggle);
                 var bomOption = gs.AddOptionToggle("ExportBoM", ref bomToggle);
                 var masterOption = gs.AddOptionList("MasterFile", MasterFileModes, MasterFile);
-                var projectionOption = gs.AddOptionToggle("Projection", ref projectionToggle);
-                var endViewOption = gs.AddOptionToggle("EndView", ref endViewToggle);
+                var viewsOption = gs.AddOption("Views");
                 var spacingOption = gs.AddOption("Spacing");
 
                 var res = gs.Get();
@@ -124,10 +129,8 @@ namespace G2PComponents.Commands
                         ExportBoM = bomToggle.CurrentValue;
                     else if (option.Index == masterOption)
                         MasterFile = option.CurrentListOptionIndex;
-                    else if (option.Index == projectionOption)
-                        ThirdAngle = projectionToggle.CurrentValue;
-                    else if (option.Index == endViewOption)
-                        EndViewOnPlan = endViewToggle.CurrentValue;
+                    else if (option.Index == viewsOption)
+                        GetViews();
                     else if (option.Index == spacingOption)
                         GetSpacing();
 
@@ -342,6 +345,41 @@ namespace G2PComponents.Commands
             LabelGap = labelGap.CurrentValue;
         }
 
+        /// <summary>
+        /// Sub-prompt for the DWG view settings. Escape leaves them as they were.
+        /// </summary>
+        void GetViews()
+        {
+            var go = new GetOption();
+            go.SetCommandPrompt("DWG views (Enter to go back)");
+            go.AcceptNothing(true);
+
+            var projection = new OptionToggle(ThirdAngle, "FirstAngle", "ThirdAngle");
+            var endView = new OptionToggle(EndViewOnPlan, "Top", "Plan");
+            var rolledSides = new OptionToggle(RolledSides, "No", "Yes");
+            var isometric = new OptionToggle(Isometric, "No", "Yes");
+
+            go.AddOptionToggle("Projection", ref projection);
+            go.AddOptionToggle("EndView", ref endView);
+            go.AddOptionToggle("RolledSides", ref rolledSides);
+            go.AddOptionToggle("Isometric", ref isometric);
+
+            while (true)
+            {
+                var res = go.Get();
+                if (res == GetResult.Option)
+                    continue;
+                if (res != GetResult.Nothing)
+                    return;
+                break;
+            }
+
+            ThirdAngle = projection.CurrentValue;
+            EndViewOnPlan = endView.CurrentValue;
+            RolledSides = rolledSides.CurrentValue;
+            Isometric = isometric.CurrentValue;
+        }
+
         static (string Prefix, int Number) NameKey(string name)
         {
             int dash = name.LastIndexOf('-');
@@ -383,32 +421,71 @@ namespace G2PComponents.Commands
             var height = bounds.Diagonal.Z;
             var length = bounds.Diagonal.X;
 
-            // The plan sits at the origin. First angle (ISO E) draws each view on
-            // the side opposite the one it is seen from: front elevation above the
-            // plan, left end view to the right. Third angle (ISO A) draws each view
-            // on the side it is seen from: front elevation below the plan, right
-            // end view to the right.
+            // The plan (looking down -Z on the face) is the principal or "front"
+            // view and sits at the origin; the top view looks along -Y and the end
+            // views along X. First angle (ISO E) draws each view on the side
+            // opposite the one it is seen from, third angle (ISO A) on the side it
+            // is seen from. Views beside the plan are turned so that the edge on
+            // the fold line between them is the same edge in both.
             var local = BoundingBox.Empty;
             foreach (var geometry in geometries)
                 local.Union(geometry.GetBoundingBox(transform.Value));
 
-            var elevationOffset = ThirdAngle
-                ? new Vector3d(0, -(local.Diagonal.Z + ViewGap), 0)
-                : new Vector3d(0, local.Diagonal.Y + ViewGap, 0);
             var nextToPlan = new Vector3d(local.Diagonal.X + ViewGap, 0, 0);
             var endViewDirection = ThirdAngle ? -Vector3d.XAxis : Vector3d.XAxis;
 
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
-            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
-            if (EndViewOnPlan)
+
+            if (RolledSides)
+            {
+                // The part rolled a quarter turn at a time about its long axis, each
+                // face seen from above and stacked under the plan so neighbouring
+                // faces share an edge. Sides are numbered from the plan face.
+                var sideTops = new List<double> { local.Diagonal.Y };
+                var stripHeights = new[] { local.Diagonal.Z, local.Diagonal.Y, local.Diagonal.Z };
+                var y = 0.0;
+                for (int i = 1; i <= 3; i++)
+                {
+                    y -= stripHeights[i - 1] + ViewGap;
+                    var roll = Transform.Rotation(RhinoMath.ToRadians(-90 * i), Vector3d.XAxis, local.Center) * transform.Value;
+                    Create2dDrawing(doc, geometries, name, roll, -Vector3d.ZAxis, new Vector3d(0, y, 0));
+                    sideTops.Add(y + stripHeights[i - 1]);
+                }
+
+                for (int i = 0; i < sideTops.Count; i++)
+                    doc.Objects.AddText($"{i + 1}", new Plane(new Point3d(-LabelGap, sideTops[i], 0), Vector3d.ZAxis),
+                        LabelHeight, "Martian Mono", false, false, TextJustification.TopRight, attr.Duplicate());
+            }
+            else
+            {
+                // Top view (seen from +Y): below the plan in first angle, above it in third
+                var topOffset = ThirdAngle
+                    ? new Vector3d(0, local.Diagonal.Y + ViewGap, 0)
+                    : new Vector3d(0, -(local.Diagonal.Z + ViewGap), 0);
+                Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.YAxis, topOffset, rotationDegrees: 180);
+
+                if (!EndViewOnPlan)
+                    Create2dDrawing(doc, geometries, name, transform.Value, endViewDirection, topOffset + nextToPlan, rotationDegrees: 180);
+            }
+
+            if (EndViewOnPlan || RolledSides)
                 // Turned so the part's Y runs up the page as in the plan, with the top
                 // face away from the plan in first angle and towards it in third angle
                 Create2dDrawing(doc, geometries, name, transform.Value, endViewDirection, nextToPlan, rotationDegrees: ThirdAngle ? 90 : -90);
-            else
-                Create2dDrawing(doc, geometries, name, transform.Value, endViewDirection, elevationOffset + nextToPlan);
+
+            var drawingBounds = BoundingBox.Empty;
+            foreach (var obj in doc.Objects)
+                drawingBounds.Union(obj.Geometry.GetBoundingBox(true));
+
+            if (Isometric)
+            {
+                // Seen from the front-right corner, above the plan face
+                var isoOffset = new Vector3d(drawingBounds.Max.X + ViewGap, 0, 0);
+                Create2dDrawing(doc, geometries, name, transform.Value, new Vector3d(-1, 1, -1), isoOffset, includeHidden: false);
+            }
 
             // Labels go under the lowest view
-            var labelTop = ThirdAngle ? elevationOffset.Y - LabelGap : -LabelGap;
+            var labelTop = Math.Min(drawingBounds.Min.Y, 0) - LabelGap;
 
             doc.Objects.AddText(
                 name,
@@ -634,7 +711,8 @@ namespace G2PComponents.Commands
             Vector3d direction,
             Vector3d offset,
             string baseLayerName = "tas::2D",
-            double rotationDegrees = 0)
+            double rotationDegrees = 0,
+            bool includeHidden = true)
         {
 
             var baseLayerId = doc.Layers.FindByFullPath(baseLayerName, -1);
@@ -656,7 +734,7 @@ namespace G2PComponents.Commands
             {
                 AbsoluteTolerance = doc.ModelAbsoluteTolerance,
                 IncludeTangentEdges = false,
-                IncludeHiddenCurves = true
+                IncludeHiddenCurves = includeHidden
             };
 
             var attr = doc.CreateDefaultAttributes();
