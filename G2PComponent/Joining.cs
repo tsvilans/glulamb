@@ -109,6 +109,7 @@ namespace G2PComponents
             label.SetUserString("JointType", joint.TypeId);
             label.SetUserString("Parts", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ShortName)));
             label.SetUserString("Instances", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ID)));
+            label.SetUserString(ExtensionsKey, FormatExtensions(beams, components, result));
             foreach (var kv in JointParameters.Get(joint))
                 label.SetUserString(kv.Key, Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture));
 
@@ -252,6 +253,52 @@ namespace G2PComponents
                 return name.Split(s.JointDelimiter).Contains(component.ShortName);
             });
             return Instantiation.InstancesFromObjects(labels, s, doc);
+        }
+
+        public const string ExtensionsKey = "Extensions";
+
+        /// <summary>
+        /// The points each beam has to reach for the joint, as "instance:x,y,z" entries joined by
+        /// '|': the ends of its extended centreline, for the ends that need extending. "none" if
+        /// no beam does. World points, so they stay right whatever happens to the component plane.
+        /// </summary>
+        private static string FormatExtensions(List<Beam> beams, List<IComponent> components, JointResult result)
+        {
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            string Point(Point3d p) => string.Join(",", new[] { p.X, p.Y, p.Z }.Select(x => x.ToString("R", c)));
+
+            var entries = new List<string>();
+            for (int i = 0; i < beams.Count; ++i)
+            {
+                if (!result.Extensions.TryGetValue(beams[i].Id, out var e)) continue;
+                var curve = Extended(beams[i], result).Centreline;
+                if (e.Start > 0) entries.Add($"{components[i].ID}:{Point(curve.PointAtStart)}");
+                if (e.End > 0) entries.Add($"{components[i].ID}:{Point(curve.PointAtEnd)}");
+            }
+            return entries.Count == 0 ? "none" : string.Join("|", entries);
+        }
+
+        /// <summary>
+        /// The points the component has to reach for a joint (see FormatExtensions). Null if the
+        /// joint was stored before extensions were recorded.
+        /// </summary>
+        public static List<Point3d> ExtensionsFor(IComponent joint, IComponent component, RhinoDoc doc)
+        {
+            var text = doc.Objects.FindId(joint.ID)?.Attributes.GetUserString(ExtensionsKey);
+            if (string.IsNullOrEmpty(text)) return null;
+            var points = new List<Point3d>();
+            if (text == "none") return points;
+
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            var id = component.ID.ToString();
+            foreach (var entry in text.Split('|'))
+            {
+                var parts = entry.Split(':');
+                if (parts.Length != 2 || parts[0] != id) continue;
+                var xyz = parts[1].Split(',').Select(x => double.Parse(x, c)).ToArray();
+                if (xyz.Length == 3) points.Add(new Point3d(xyz[0], xyz[1], xyz[2]));
+            }
+            return points;
         }
 
         private static Beam Extended(Beam beam, JointResult result)
