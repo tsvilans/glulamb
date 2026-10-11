@@ -39,7 +39,10 @@ namespace G2PComponents.Commands
         public double ViewGap = 50;
         /// <summary>Gap between a part and its name label.</summary>
         public double LabelGap = 10;
-        const double LabelHeight = 10;
+        /// <summary>Text height of a part's name label.</summary>
+        public double LabelHeight = 10;
+        /// <summary>Text height of the dimensions line under the name in a DWG.</summary>
+        public double DimensionsHeight = 5;
         /// <summary>
         /// DWG end view next to the plan, turned so its edges line up with the
         /// plan's, or next to the top view.
@@ -325,10 +328,14 @@ namespace G2PComponents.Commands
             var masterGap = new OptionDouble(MasterGap, 0, 1e6);
             var viewGap = new OptionDouble(ViewGap, 0, 1e6);
             var labelGap = new OptionDouble(LabelGap, 0, 1e6);
+            var labelHeight = new OptionDouble(LabelHeight, 0.01, 1e6);
+            var dimensionsHeight = new OptionDouble(DimensionsHeight, 0.01, 1e6);
 
             go.AddOptionDouble("MasterGap", ref masterGap, "Gap between parts in the master file");
             go.AddOptionDouble("ViewGap", ref viewGap, "Gap between projections");
             go.AddOptionDouble("LabelGap", ref labelGap, "Gap between a part and its label");
+            go.AddOptionDouble("LabelHeight", ref labelHeight, "Text height of the name label");
+            go.AddOptionDouble("DimensionsHeight", ref dimensionsHeight, "Text height of the dimensions");
 
             while (true)
             {
@@ -343,6 +350,8 @@ namespace G2PComponents.Commands
             MasterGap = masterGap.CurrentValue;
             ViewGap = viewGap.CurrentValue;
             LabelGap = labelGap.CurrentValue;
+            LabelHeight = labelHeight.CurrentValue;
+            DimensionsHeight = dimensionsHeight.CurrentValue;
         }
 
         /// <summary>
@@ -506,8 +515,8 @@ namespace G2PComponents.Commands
 
             doc.Objects.AddText(
                 $"{width:0.#} x {height:0.#} x {length:0.#}",
-                new Plane(new Point3d(0, labelTop - 90, 0), Vector3d.ZAxis),
-                5,
+                new Plane(new Point3d(0, labelTop - LabelGap - LabelHeight, 0), Vector3d.ZAxis),
+                DimensionsHeight,
                 "Martian Mono",
                 false,
                 false,
