@@ -31,6 +31,8 @@ namespace G2PComponents.Commands
         /// 0: no master file, 1: master file and the part files, 2: master file only.
         /// </summary>
         public int MasterFile = 0;
+        /// <summary>Index into the Format list, kept between runs.</summary>
+        public int FormatIndex = 0;
         static readonly string[] MasterFileModes = { "No", "Yes", "Only" };
 
         /// <summary>Gap between parts (label included) in the master file.</summary>
@@ -107,7 +109,7 @@ namespace G2PComponents.Commands
             gs.SetCommandPrompt("Export options");
             gs.AcceptNothing(true);
             
-            var formatIndex = 0;
+            var formatIndex = FormatIndex;
             var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
             var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
 
@@ -126,7 +128,7 @@ namespace G2PComponents.Commands
                 {
                     var option = gs.Option();
                     if (option.Index == formatOption)
-                        formatIndex = option.CurrentListOptionIndex;
+                        FormatIndex = formatIndex = option.CurrentListOptionIndex;
                     else if (option.Index == groupOption)
                         GroupByType = groupToggle.CurrentValue;
                     else if (option.Index == bomOption)
@@ -544,7 +546,8 @@ namespace G2PComponents.Commands
 
         public Result ExportStep(string? stepPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
         {
-            using var headless = Create3dDoc(geometries, name, transform ?? Transform.Identity);
+            // STP is a geometry export only: no text
+            using var headless = Create3dDoc(geometries, name, transform ?? Transform.Identity, includeText: false);
             masterParts?.Add(MasterPart.FromDoc(headless, name));
 
             if (stepPath == null || Rhino.FileIO.FileStp.Write(stepPath, headless, StpOptions))
@@ -565,7 +568,7 @@ namespace G2PComponents.Commands
         /// <summary>
         /// Headless document with the part's 3D geometry in its local frame.
         /// </summary>
-        static RhinoDoc Create3dDoc(IEnumerable<GeometryBase> geometries, string name, Transform transform)
+        static RhinoDoc Create3dDoc(IEnumerable<GeometryBase> geometries, string name, Transform transform, bool includeText = true)
         {
             var headless = RhinoDoc.CreateHeadless("");
             var attributes = headless.CreateDefaultAttributes();
@@ -573,6 +576,9 @@ namespace G2PComponents.Commands
 
             foreach (var geometry in geometries)
             {
+                if (!includeText && geometry is TextEntity)
+                    continue;
+
                 var temp = geometry.Duplicate();
                 temp.Transform(transform);
                 headless.Objects.Add(temp, attributes.Duplicate());
@@ -624,17 +630,16 @@ namespace G2PComponents.Commands
 
             using var doc = RhinoDoc.CreateHeadless("");
 
-            // Parts without a label of their own (STP, 3DM) get their name under
-            // them: as text, or as curves in the STP since STEP drops text.
-            var labelLayerIndex = doc.Layers.AddPath("Labels", System.Drawing.Color.Black);
-            var labelStyle = doc.DimStyles.Current.Duplicate("MasterLabel", Guid.NewGuid(), Guid.Empty);
-            labelStyle.TextHeight = LabelHeight;
+            // Parts without a label of their own (3DM) get their name under them.
+            // STP is geometry only, so it gets no labels.
+            var labelled = formatExtension != "stp";
+            var labelLayerIndex = labelled ? doc.Layers.AddPath("Labels", System.Drawing.Color.Black) : -1;
 
             var cursor = 0.0;
             foreach (var part in parts)
             {
                 // Room for a master label under parts that bring no text of their own
-                if (!part.Objects.Any(o => o.Geometry is TextEntity))
+                if (labelled && !part.Objects.Any(o => o.Geometry is TextEntity))
                     cursor += LabelHeight + LabelGap;
 
                 var xform = Transform.Translation(-part.Bounds.Min.X, cursor - part.Bounds.Min.Y, 0);
@@ -678,32 +683,11 @@ namespace G2PComponents.Commands
                         ids.Add(id);
                 }
 
-                var addLabel = textCount == 0;
-
-                // Label sits under the part, top-left at its corner
-                var labelCorner = new Point3d(0, cursor - LabelGap, part.Bounds.Min.Z);
-                var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
-
-                if (addLabel && formatExtension == "stp")
+                if (labelled && textCount == 0)
                 {
-                    var text = TextEntity.Create(part.Name, Plane.WorldXY, labelStyle, false, 0, 0);
-                    var curves = text?.CreateCurves(labelStyle, false) ?? Array.Empty<Curve>();
-
-                    var curveBounds = BoundingBox.Empty;
-                    foreach (var curve in curves)
-                        curveBounds.Union(curve.GetBoundingBox(true));
-
-                    var move = Transform.Translation(labelCorner - new Point3d(curveBounds.Min.X, curveBounds.Max.Y, 0));
-                    foreach (var curve in curves)
-                    {
-                        curve.Transform(move);
-                        var id = doc.Objects.AddCurve(curve, labelAttr);
-                        if (id != Guid.Empty)
-                            ids.Add(id);
-                    }
-                }
-                else if (addLabel)
-                {
+                    // Label sits under the part, top-left at its corner
+                    var labelCorner = new Point3d(0, cursor - LabelGap, part.Bounds.Min.Z);
+                    var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
                     var id = doc.Objects.AddText(
                         part.Name,
                         new Plane(labelCorner, Vector3d.ZAxis),
