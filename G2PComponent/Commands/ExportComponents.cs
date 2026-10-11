@@ -100,7 +100,8 @@ namespace G2PComponents.Commands
             RhinoApp.WriteLine($"Got {allComponents.Count} total components, {components.Count} unique elements.");
 
             var bom = new List<BomLine>();
-            var formatList = new string[] { "DWG", "STP", "3DM", "DryRun" };
+            // 3DM is the 3D model like STP; 3DMDrawing is the DWG's projections in a 3dm
+            var formatList = new string[] { "DWG", "STP", "3DM", "3DMDrawing", "DryRun" };
 
             var gs = new GetOption();
             gs.SetCommandPrompt("Export options");
@@ -155,6 +156,7 @@ namespace G2PComponents.Commands
             if (string.IsNullOrWhiteSpace(exportFormat))
                 return Result.Failure;
             var formatExtension = exportFormat.ToLower();
+            var fileExtension = formatExtension == "3dmdrawing" ? "3dm" : formatExtension;
 
             // Select export directory.
             SelectFolderDialog dialog = new SelectFolderDialog
@@ -245,11 +247,11 @@ namespace G2PComponents.Commands
                     {
                         Directory.CreateDirectory(typeDirectory);
                     }
-                    exportPath = Path.Join(typeDirectory, $"{name}.{formatExtension}");
+                    exportPath = Path.Join(typeDirectory, $"{name}.{fileExtension}");
                 }
                 else
                 {
-                    exportPath = Path.Join(directory, $"{name}.{formatExtension}");
+                    exportPath = Path.Join(directory, $"{name}.{fileExtension}");
                 }
 
                 Result res;
@@ -263,6 +265,9 @@ namespace G2PComponents.Commands
                         break;
                     case ("dwg"):
                         res = ExportDwg(exportPath, geometries, name, bounds, transform, masterParts);
+                        break;
+                    case ("3dmdrawing"):
+                        res = ExportDwg(exportPath, geometries, name, bounds, transform, masterParts, as3dm: true);
                         break;
                     case ("dryrun"):
                         RhinoApp.WriteLine($"Exported {name} (dry run).");
@@ -279,7 +284,7 @@ namespace G2PComponents.Commands
 
             if (masterParts != null && masterParts.Count > 0)
             {
-                var masterPath = Path.Join(directory, $"master.{formatExtension}");
+                var masterPath = Path.Join(directory, $"master.{fileExtension}");
                 var sortedParts = masterParts
                     .OrderBy(p => NameKey(p.Name).Prefix)
                     .ThenBy(p => NameKey(p.Name).Number)
@@ -409,7 +414,7 @@ namespace G2PComponents.Commands
             ExportBlack = true,
         };
 
-        public Result ExportDwg(string? dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
+        public Result ExportDwg(string? dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null, bool as3dm = false)
         {
             transform = transform ?? Transform.Identity;
 
@@ -443,7 +448,7 @@ namespace G2PComponents.Commands
             var nextToPlan = new Vector3d(local.Diagonal.X + ViewGap, 0, 0);
             var endViewDirection = ThirdAngle ? -Vector3d.XAxis : Vector3d.XAxis;
 
-            Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
+            Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero, includeText: true);
 
             if (RolledSides)
             {
@@ -526,7 +531,13 @@ namespace G2PComponents.Commands
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
-            if (dwgPath == null || Rhino.FileIO.FileDwg.Write(dwgPath, doc, DwgOptions))
+            if (dwgPath == null)
+                return Result.Success;
+
+            var written = as3dm
+                ? doc.Write3dmFile(dwgPath, new Rhino.FileIO.FileWriteOptions())
+                : Rhino.FileIO.FileDwg.Write(dwgPath, doc, DwgOptions);
+            if (written)
                 return Result.Success;
             return Result.Failure;
         }
@@ -716,7 +727,7 @@ namespace G2PComponents.Commands
             {
                 "dwg" => Rhino.FileIO.FileDwg.Write(path, doc, DwgOptions),
                 "stp" => Rhino.FileIO.FileStp.Write(path, doc, StpOptions),
-                "3dm" => doc.Write3dmFile(path, new Rhino.FileIO.FileWriteOptions()),
+                "3dm" or "3dmdrawing" => doc.Write3dmFile(path, new Rhino.FileIO.FileWriteOptions()),
                 _ => false,
             };
             return ok ? Result.Success : Result.Failure;
@@ -752,7 +763,8 @@ namespace G2PComponents.Commands
             Vector3d offset,
             string baseLayerName = "tas::2D",
             double rotationDegrees = 0,
-            bool includeHidden = true)
+            bool includeHidden = true,
+            bool includeText = false)
         {
 
             var baseLayerId = doc.Layers.FindByFullPath(baseLayerName, -1);
@@ -784,12 +796,13 @@ namespace G2PComponents.Commands
             var vp = CreateView(doc, direction);
             hld_params.SetViewport(vp);
 
+            var texts = new List<TextEntity>();
             foreach (var geometry in geometries)
             {
                 if (geometry != null)
                 {
                     if (geometry is TextEntity textEntity)
-                        doc.Objects.AddText(textEntity, attr);
+                        texts.Add(textEntity);
                     else
                         hld_params.AddGeometry(geometry, transform, geometryName);
                 }
@@ -812,6 +825,20 @@ namespace G2PComponents.Commands
                 page_box.Transform(flatten);
                 var delta_3d = Transform.Translation(new Vector3d(-page_box.Min.X, -page_box.Min.Y, 0.0));
                 flatten = delta_3d * flatten;
+
+                // Text in the part's geometry (e.g. markings) is placed as seen from
+                // above, so it only belongs in a plan drawn without rotation
+                if (includeText)
+                {
+                    foreach (var text in texts)
+                    {
+                        var temp = (TextEntity)text.Duplicate();
+                        temp.Transform(transform);
+                        temp.Transform(delta_3d);
+                        temp.Translate(offset - new Vector3d(0, 0, temp.Plane.OriginZ));
+                        doc.Objects.AddText(temp, attr);
+                    }
+                }
 
                 var h_attribs = new ObjectAttributes { Name = geometryName, LayerIndex = hiddenLayerId };
                 var v_attribs = new ObjectAttributes { Name = geometryName, LayerIndex = visibleLayerId };
