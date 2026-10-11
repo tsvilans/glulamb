@@ -479,9 +479,15 @@ namespace G2PComponents.Commands
 
             if (Isometric)
             {
-                // Seen from the front-right corner, above the plan face
+                // Seen from the front-right corner, above the plan face: the part is
+                // turned so that corner direction points up, then drawn like the plan
+                var toCamera = new Vector3d(1, -1, 1);
+                var isoRight = Vector3d.CrossProduct(-toCamera, Vector3d.ZAxis);
+                var isoUp = Vector3d.CrossProduct(toCamera, isoRight);
+                var isoTurn = Transform.PlaneToPlane(new Plane(local.Center, isoRight, isoUp), Plane.WorldXY) * transform.Value;
+
                 var isoOffset = new Vector3d(drawingBounds.Max.X + ViewGap, 0, 0);
-                Create2dDrawing(doc, geometries, name, transform.Value, new Vector3d(-1, 1, -1), isoOffset, includeHidden: false);
+                Create2dDrawing(doc, geometries, name, isoTurn, -Vector3d.ZAxis, isoOffset, includeHidden: false);
             }
 
             // Labels go under the lowest view
@@ -689,16 +695,19 @@ namespace G2PComponents.Commands
         {
             var vp = new RhinoViewport();
 
-            vp.ChangeToParallelProjection(true);
-
             Point3d target = new Point3d(0, 0, 0);
             direction.Unitize();
 
-            vp.CameraUp = Math.Abs(direction * Vector3d.ZAxis) < 1e-06 ? Vector3d.YAxis : Vector3d.ZAxis;
+            // Z up for every view except those looking straight up or down,
+            // which get Y up (the up vector must not be parallel to the view)
+            vp.CameraUp = Math.Abs(Math.Abs(direction * Vector3d.ZAxis) - 1) < 1e-06 ? Vector3d.YAxis : Vector3d.ZAxis;
             vp.SetCameraDirection(direction, false);
             vp.SetCameraTarget(target, false);
 
             vp.SetCameraLocation(target - direction * 1e5, false);
+
+            // Last, so nothing above can leave the view in perspective
+            vp.ChangeToParallelProjection(true);
 
             return vp;
         }
