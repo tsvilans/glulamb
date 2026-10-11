@@ -27,7 +27,19 @@ namespace G2PComponents.Commands
 
         public bool ExportBoM = true;
         public bool GroupByType = true;
-        public bool MasterFile = false;
+        /// <summary>
+        /// 0: no master file, 1: master file and the part files, 2: master file only.
+        /// </summary>
+        public int MasterFile = 0;
+        static readonly string[] MasterFileModes = { "No", "Yes", "Only" };
+
+        /// <summary>Gap between parts (label included) in the master file.</summary>
+        public double MasterGap = 100;
+        /// <summary>Gap between the projections in a DWG.</summary>
+        public double ViewGap = 50;
+        /// <summary>Gap between a part and its name label.</summary>
+        public double LabelGap = 10;
+        const double LabelHeight = 10;
         /// <summary>
         /// DWG end view next to the front elevation (first-angle position), or
         /// turned 90 degrees and placed next to the plan so its edges line up with it.
@@ -73,7 +85,7 @@ namespace G2PComponents.Commands
             RhinoApp.WriteLine($"Got {allComponents.Count} total components, {components.Count} unique elements.");
 
             var bom = new List<BomLine>();
-            var formatList = new string[] { "DWG", "STP", "DryRun" };
+            var formatList = new string[] { "DWG", "STP", "3DM", "DryRun" };
 
             var gs = new GetOption();
             gs.SetCommandPrompt("Export options");
@@ -82,7 +94,6 @@ namespace G2PComponents.Commands
             var formatIndex = 0;
             var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
             var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
-            var masterToggle = new OptionToggle(MasterFile, "No", "Yes");
             var endViewToggle = new OptionToggle(EndViewOnPlan, "Elevation", "Plan");
 
             while (true)
@@ -91,8 +102,9 @@ namespace G2PComponents.Commands
                 var formatOption = gs.AddOptionList("Format", formatList, formatIndex);
                 var groupOption = gs.AddOptionToggle("GroupByType", ref groupToggle);
                 var bomOption = gs.AddOptionToggle("ExportBoM", ref bomToggle);
-                var masterOption = gs.AddOptionToggle("MasterFile", ref masterToggle);
+                var masterOption = gs.AddOptionList("MasterFile", MasterFileModes, MasterFile);
                 var endViewOption = gs.AddOptionToggle("EndView", ref endViewToggle);
+                var spacingOption = gs.AddOption("Spacing");
 
                 var res = gs.Get();
                 if (res == GetResult.Option)
@@ -105,9 +117,11 @@ namespace G2PComponents.Commands
                     else if (option.Index == bomOption)
                         ExportBoM = bomToggle.CurrentValue;
                     else if (option.Index == masterOption)
-                        MasterFile = masterToggle.CurrentValue;
+                        MasterFile = option.CurrentListOptionIndex;
                     else if (option.Index == endViewOption)
                         EndViewOnPlan = endViewToggle.CurrentValue;
+                    else if (option.Index == spacingOption)
+                        GetSpacing();
 
                     continue;
                 }
@@ -153,7 +167,8 @@ namespace G2PComponents.Commands
             }
 
             // Parts collected for the master file, in the order they were exported
-            var masterParts = MasterFile && formatExtension != "dryrun" ? new List<MasterPart>() : null;
+            var masterParts = MasterFile > 0 && formatExtension != "dryrun" ? new List<MasterPart>() : null;
+            var masterOnly = masterParts != null && MasterFile == 2;
 
             foreach ((string name, (IComponent component, int count)) in components)
             {
@@ -203,8 +218,13 @@ namespace G2PComponents.Commands
 
                 bom.Add(new BomLine(name, count, length, width, height));
 
-                string exportPath;
-                if (GroupByType)
+                // No path: the part is only collected for the master file
+                string? exportPath;
+                if (masterOnly)
+                {
+                    exportPath = null;
+                }
+                else if (GroupByType)
                 {
                     var typeDirectory = Path.Join(directory, component.TypeID);
                     if (!Directory.Exists(typeDirectory))
@@ -223,6 +243,9 @@ namespace G2PComponents.Commands
                 {
                     case ("stp"):
                         res = ExportStep(exportPath, geometries, name, bounds, transform, masterParts);
+                        break;
+                    case ("3dm"):
+                        res = Export3dm(exportPath, geometries, name, bounds, transform, masterParts);
                         break;
                     case ("dwg"):
                         res = ExportDwg(exportPath, geometries, name, bounds, transform, masterParts);
@@ -278,6 +301,39 @@ namespace G2PComponents.Commands
         /// <summary>
         /// Sort key that orders "Name-2" before "Name-10".
         /// </summary>
+        /// <summary>
+        /// Sub-prompt for the spacing settings, so they stay off the main prompt.
+        /// Escape leaves them as they were.
+        /// </summary>
+        void GetSpacing()
+        {
+            var go = new GetOption();
+            go.SetCommandPrompt("Spacing (Enter to go back)");
+            go.AcceptNothing(true);
+
+            var masterGap = new OptionDouble(MasterGap, 0, 1e6);
+            var viewGap = new OptionDouble(ViewGap, 0, 1e6);
+            var labelGap = new OptionDouble(LabelGap, 0, 1e6);
+
+            go.AddOptionDouble("MasterGap", ref masterGap, "Gap between parts in the master file");
+            go.AddOptionDouble("ViewGap", ref viewGap, "Gap between projections");
+            go.AddOptionDouble("LabelGap", ref labelGap, "Gap between a part and its label");
+
+            while (true)
+            {
+                var res = go.Get();
+                if (res == GetResult.Option)
+                    continue;
+                if (res != GetResult.Nothing)
+                    return;
+                break;
+            }
+
+            MasterGap = masterGap.CurrentValue;
+            ViewGap = viewGap.CurrentValue;
+            LabelGap = labelGap.CurrentValue;
+        }
+
         static (string Prefix, int Number) NameKey(string name)
         {
             int dash = name.LastIndexOf('-');
@@ -298,7 +354,7 @@ namespace G2PComponents.Commands
             ExportBlack = true,
         };
 
-        public Result ExportDwg(string dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
+        public Result ExportDwg(string? dwgPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
         {
             transform = transform ?? Transform.Identity;
 
@@ -321,8 +377,8 @@ namespace G2PComponents.Commands
 
             doc.Objects.AddText(
                 name,
-                new Plane(new Point3d(0, -10, 0), Vector3d.ZAxis),
-                10,
+                new Plane(new Point3d(0, -LabelGap, 0), Vector3d.ZAxis),
+                LabelHeight,
                 "Martian Mono",
                 false,
                 false,
@@ -332,7 +388,7 @@ namespace G2PComponents.Commands
 
             doc.Objects.AddText(
                 $"{width:0.#} x {height:0.#} x {length:0.#}",
-                new Plane(new Point3d(0, -100, 0), Vector3d.ZAxis),
+                new Plane(new Point3d(0, -LabelGap - 90, 0), Vector3d.ZAxis),
                 5,
                 "Martian Mono",
                 false,
@@ -348,9 +404,8 @@ namespace G2PComponents.Commands
             foreach (var geometry in geometries)
                 local.Union(geometry.GetBoundingBox(transform.Value));
 
-            const double viewGap = 50;
-            var elevationOffset = new Vector3d(0, local.Diagonal.Y + viewGap, 0);
-            var nextToPlan = new Vector3d(local.Diagonal.X + viewGap, 0, 0);
+            var elevationOffset = new Vector3d(0, local.Diagonal.Y + ViewGap, 0);
+            var nextToPlan = new Vector3d(local.Diagonal.X + ViewGap, 0, 0);
 
             Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
             Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
@@ -362,32 +417,47 @@ namespace G2PComponents.Commands
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
-            if (Rhino.FileIO.FileDwg.Write(dwgPath, doc, DwgOptions))
+            if (dwgPath == null || Rhino.FileIO.FileDwg.Write(dwgPath, doc, DwgOptions))
                 return Result.Success;
             return Result.Failure;
         }
 
-        public Result ExportStep(string stepPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
+        public Result ExportStep(string? stepPath, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
         {
-            transform = transform ?? Transform.Identity;
+            using var headless = Create3dDoc(geometries, name, transform ?? Transform.Identity);
+            masterParts?.Add(MasterPart.FromDoc(headless, name));
 
-            using var headless = RhinoDoc.CreateHeadless("");
-            var attributes = RhinoDoc.ActiveDoc.CreateDefaultAttributes();
+            if (stepPath == null || Rhino.FileIO.FileStp.Write(stepPath, headless, StpOptions))
+                return Result.Success;
+            return Result.Failure;
+        }
+
+        public Result Export3dm(string? path, IEnumerable<GeometryBase> geometries, string name, BoundingBox bounds, Transform? transform = null, List<MasterPart>? masterParts = null)
+        {
+            using var headless = Create3dDoc(geometries, name, transform ?? Transform.Identity);
+            masterParts?.Add(MasterPart.FromDoc(headless, name));
+
+            if (path == null || headless.Write3dmFile(path, new Rhino.FileIO.FileWriteOptions()))
+                return Result.Success;
+            return Result.Failure;
+        }
+
+        /// <summary>
+        /// Headless document with the part's 3D geometry in its local frame.
+        /// </summary>
+        static RhinoDoc Create3dDoc(IEnumerable<GeometryBase> geometries, string name, Transform transform)
+        {
+            var headless = RhinoDoc.CreateHeadless("");
+            var attributes = headless.CreateDefaultAttributes();
             attributes.Name = name;
-
 
             foreach (var geometry in geometries)
             {
                 var temp = geometry.Duplicate();
-                temp.Transform(transform.Value);
+                temp.Transform(transform);
                 headless.Objects.Add(temp, attributes.Duplicate());
             }
-
-            masterParts?.Add(MasterPart.FromDoc(headless, name));
-
-            if (Rhino.FileIO.FileStp.Write(stepPath, headless, StpOptions))
-                return Result.Success;
-            return Result.Failure;
+            return headless;
         }
 
         /// <summary>
@@ -434,18 +504,19 @@ namespace G2PComponents.Commands
 
             using var doc = RhinoDoc.CreateHeadless("");
 
-            var gap = Math.Max(parts.Max(p => p.Bounds.Diagonal.Y) * 0.5, 10.0);
-            var labelHeight = gap * 0.3;
-
-            // Each part gets its name under it: as text in the DWG, and as
-            // curves in the STP since STEP drops text.
+            // Parts without a label of their own (STP, 3DM) get their name under
+            // them: as text, or as curves in the STP since STEP drops text.
             var labelLayerIndex = doc.Layers.AddPath("Labels", System.Drawing.Color.Black);
             var labelStyle = doc.DimStyles.Current.Duplicate("MasterLabel", Guid.NewGuid(), Guid.Empty);
-            labelStyle.TextHeight = labelHeight;
+            labelStyle.TextHeight = LabelHeight;
 
             var cursor = 0.0;
             foreach (var part in parts)
             {
+                var addLabel = !part.Objects.Any(o => o.Geometry is TextEntity);
+                if (addLabel)
+                    cursor += LabelHeight + LabelGap;
+
                 var xform = Transform.Translation(-part.Bounds.Min.X, cursor - part.Bounds.Min.Y, 0);
                 var ids = new List<Guid>();
 
@@ -467,11 +538,11 @@ namespace G2PComponents.Commands
                         ids.Add(id);
                 }
 
-                // Label sits in the gap under the part, top-left at its corner
-                var labelCorner = new Point3d(0, cursor - gap * 0.1, part.Bounds.Min.Z);
+                // Label sits under the part, top-left at its corner
+                var labelCorner = new Point3d(0, cursor - LabelGap, part.Bounds.Min.Z);
                 var labelAttr = new ObjectAttributes { Name = part.Name, LayerIndex = labelLayerIndex };
 
-                if (formatExtension == "stp")
+                if (addLabel && formatExtension == "stp")
                 {
                     var text = TextEntity.Create(part.Name, Plane.WorldXY, labelStyle, false, 0, 0);
                     var curves = text?.CreateCurves(labelStyle, false) ?? Array.Empty<Curve>();
@@ -489,12 +560,12 @@ namespace G2PComponents.Commands
                             ids.Add(id);
                     }
                 }
-                else
+                else if (addLabel)
                 {
                     var id = doc.Objects.AddText(
                         part.Name,
                         new Plane(labelCorner, Vector3d.ZAxis),
-                        labelHeight,
+                        LabelHeight,
                         "Martian Mono",
                         false,
                         false,
@@ -507,13 +578,14 @@ namespace G2PComponents.Commands
                 if (ids.Count > 0)
                     doc.Groups.Add(part.Name, ids);
 
-                cursor += part.Bounds.Diagonal.Y + gap;
+                cursor += part.Bounds.Diagonal.Y + MasterGap;
             }
 
             bool ok = formatExtension switch
             {
                 "dwg" => Rhino.FileIO.FileDwg.Write(path, doc, DwgOptions),
                 "stp" => Rhino.FileIO.FileStp.Write(path, doc, StpOptions),
+                "3dm" => doc.Write3dmFile(path, new Rhino.FileIO.FileWriteOptions()),
                 _ => false,
             };
             return ok ? Result.Success : Result.Failure;
