@@ -45,6 +45,10 @@ namespace G2PComponents.Commands
         /// turned 90 degrees and placed next to the plan so its edges line up with it.
         /// </summary>
         public bool EndViewOnPlan = false;
+        /// <summary>
+        /// DWG view arrangement: first angle (ISO E, European) or third angle (ISO A, American).
+        /// </summary>
+        public bool ThirdAngle = false;
 
         public ExportComponentsCommand()
         {
@@ -95,6 +99,7 @@ namespace G2PComponents.Commands
             var groupToggle = new OptionToggle(GroupByType, "No", "Yes");
             var bomToggle = new OptionToggle(ExportBoM, "No", "Yes");
             var endViewToggle = new OptionToggle(EndViewOnPlan, "Elevation", "Plan");
+            var projectionToggle = new OptionToggle(ThirdAngle, "FirstAngle", "ThirdAngle");
 
             while (true)
             {
@@ -103,6 +108,7 @@ namespace G2PComponents.Commands
                 var groupOption = gs.AddOptionToggle("GroupByType", ref groupToggle);
                 var bomOption = gs.AddOptionToggle("ExportBoM", ref bomToggle);
                 var masterOption = gs.AddOptionList("MasterFile", MasterFileModes, MasterFile);
+                var projectionOption = gs.AddOptionToggle("Projection", ref projectionToggle);
                 var endViewOption = gs.AddOptionToggle("EndView", ref endViewToggle);
                 var spacingOption = gs.AddOption("Spacing");
 
@@ -118,6 +124,8 @@ namespace G2PComponents.Commands
                         ExportBoM = bomToggle.CurrentValue;
                     else if (option.Index == masterOption)
                         MasterFile = option.CurrentListOptionIndex;
+                    else if (option.Index == projectionOption)
+                        ThirdAngle = projectionToggle.CurrentValue;
                     else if (option.Index == endViewOption)
                         EndViewOnPlan = endViewToggle.CurrentValue;
                     else if (option.Index == spacingOption)
@@ -375,9 +383,36 @@ namespace G2PComponents.Commands
             var height = bounds.Diagonal.Z;
             var length = bounds.Diagonal.X;
 
+            // The plan sits at the origin. First angle (ISO E) draws each view on
+            // the side opposite the one it is seen from: front elevation above the
+            // plan, left end view to the right. Third angle (ISO A) draws each view
+            // on the side it is seen from: front elevation below the plan, right
+            // end view to the right.
+            var local = BoundingBox.Empty;
+            foreach (var geometry in geometries)
+                local.Union(geometry.GetBoundingBox(transform.Value));
+
+            var elevationOffset = ThirdAngle
+                ? new Vector3d(0, -(local.Diagonal.Z + ViewGap), 0)
+                : new Vector3d(0, local.Diagonal.Y + ViewGap, 0);
+            var nextToPlan = new Vector3d(local.Diagonal.X + ViewGap, 0, 0);
+            var endViewDirection = ThirdAngle ? -Vector3d.XAxis : Vector3d.XAxis;
+
+            Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
+            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
+            if (EndViewOnPlan)
+                // Turned so the part's Y runs up the page as in the plan, with the top
+                // face away from the plan in first angle and towards it in third angle
+                Create2dDrawing(doc, geometries, name, transform.Value, endViewDirection, nextToPlan, rotationDegrees: ThirdAngle ? 90 : -90);
+            else
+                Create2dDrawing(doc, geometries, name, transform.Value, endViewDirection, elevationOffset + nextToPlan);
+
+            // Labels go under the lowest view
+            var labelTop = ThirdAngle ? elevationOffset.Y - LabelGap : -LabelGap;
+
             doc.Objects.AddText(
                 name,
-                new Plane(new Point3d(0, -LabelGap, 0), Vector3d.ZAxis),
+                new Plane(new Point3d(0, labelTop, 0), Vector3d.ZAxis),
                 LabelHeight,
                 "Martian Mono",
                 false,
@@ -388,7 +423,7 @@ namespace G2PComponents.Commands
 
             doc.Objects.AddText(
                 $"{width:0.#} x {height:0.#} x {length:0.#}",
-                new Plane(new Point3d(0, -LabelGap - 90, 0), Vector3d.ZAxis),
+                new Plane(new Point3d(0, labelTop - 90, 0), Vector3d.ZAxis),
                 5,
                 "Martian Mono",
                 false,
@@ -396,24 +431,6 @@ namespace G2PComponents.Commands
                 TextJustification.TopLeft,
                 attr.Duplicate()
             );
-
-            // First-angle projection (ISO E) of the part in its local frame:
-            // front elevation seen from -Y, plan from above placed below it,
-            // end view from the left (-X) placed to the right of it.
-            var local = BoundingBox.Empty;
-            foreach (var geometry in geometries)
-                local.Union(geometry.GetBoundingBox(transform.Value));
-
-            var elevationOffset = new Vector3d(0, local.Diagonal.Y + ViewGap, 0);
-            var nextToPlan = new Vector3d(local.Diagonal.X + ViewGap, 0, 0);
-
-            Create2dDrawing(doc, geometries, name, transform.Value, -Vector3d.ZAxis, Vector3d.Zero);
-            Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.YAxis, elevationOffset);
-            if (EndViewOnPlan)
-                // Turned clockwise so the part's Y runs up the page as in the plan, top face away from it
-                Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, nextToPlan, rotationDegrees: -90);
-            else
-                Create2dDrawing(doc, geometries, name, transform.Value, Vector3d.XAxis, elevationOffset + nextToPlan);
 
             masterParts?.Add(MasterPart.FromDoc(doc, name));
 
