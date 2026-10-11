@@ -109,7 +109,9 @@ namespace G2PComponents
             label.SetUserString("JointType", joint.TypeId);
             label.SetUserString("Parts", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ShortName)));
             label.SetUserString("Instances", string.Join(",", joint.Parts.Select(p => components[p.ElementIndex].ID)));
-            label.SetUserString(ExtensionsKey, FormatExtensions(beams, components, result));
+            label.SetUserString(ExtensionsKey, FormatExtensions(beams, components, result, plane));
+            foreach (var kv in result.Extensions)
+                label.SetUserString($"Extend.{kv.Key}", Convert.ToString(Math.Round(Math.Max(kv.Value.Start, kv.Value.End), 1), System.Globalization.CultureInfo.InvariantCulture));
             foreach (var kv in JointParameters.Get(joint))
                 label.SetUserString(kv.Key, Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture));
 
@@ -260,12 +262,18 @@ namespace G2PComponents
         /// <summary>
         /// The points each beam has to reach for the joint, as "instance:x,y,z" entries joined by
         /// '|': the ends of its extended centreline, for the ends that need extending. "none" if
-        /// no beam does. World points, so they stay right whatever happens to the component plane.
+        /// no beam does. The points are in the joint component's plane, so they move with the
+        /// joint (and the assembly), don't depend on the beams' component planes being flipped
+        /// later, and stay put when a beam is extended, so extending again changes nothing.
         /// </summary>
-        private static string FormatExtensions(List<Beam> beams, List<IComponent> components, JointResult result)
+        private static string FormatExtensions(List<Beam> beams, List<IComponent> components, JointResult result, Plane plane)
         {
             var c = System.Globalization.CultureInfo.InvariantCulture;
-            string Point(Point3d p) => string.Join(",", new[] { p.X, p.Y, p.Z }.Select(x => x.ToString("R", c)));
+            string Point(Point3d p)
+            {
+                plane.RemapToPlaneSpace(p, out var q);
+                return string.Join(",", new[] { q.X, q.Y, q.Z }.Select(x => x.ToString("R", c)));
+            }
 
             var entries = new List<string>();
             for (int i = 0; i < beams.Count; ++i)
@@ -279,7 +287,8 @@ namespace G2PComponents
         }
 
         /// <summary>
-        /// The points the component has to reach for a joint (see FormatExtensions). Null if the
+        /// The points the component has to reach for a joint (see FormatExtensions), in world
+        /// coordinates from where the joint component is now. Null if the
         /// joint was stored before extensions were recorded.
         /// </summary>
         public static List<Point3d> ExtensionsFor(IComponent joint, IComponent component, RhinoDoc doc)
@@ -291,12 +300,13 @@ namespace G2PComponents
 
             var c = System.Globalization.CultureInfo.InvariantCulture;
             var id = component.ID.ToString();
+            var plane = joint.Plane;
             foreach (var entry in text.Split('|'))
             {
                 var parts = entry.Split(':');
                 if (parts.Length != 2 || parts[0] != id) continue;
                 var xyz = parts[1].Split(',').Select(x => double.Parse(x, c)).ToArray();
-                if (xyz.Length == 3) points.Add(new Point3d(xyz[0], xyz[1], xyz[2]));
+                if (xyz.Length == 3) points.Add(plane.PointAt(xyz[0], xyz[1], xyz[2]));
             }
             return points;
         }
