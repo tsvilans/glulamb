@@ -1,6 +1,6 @@
 # Joint system and G2P: open items
 
-Kept up to date as items are done or added. Last updated 2026-10-11.
+Kept up to date as items are done or added. Last updated 2026-10-24.
 
 ## G2P (Rhino plug-in)
 
@@ -18,6 +18,8 @@ Kept up to date as items are done or added. Last updated 2026-10-11.
 
 - LapDepth (absolute depth in the lower beam) on t-housed, t-dovetail and anything else that assumes a midpoint plane; check the backcut cross laps' existing depth control.
 - Mitre / butt splice: an option to line up a chosen face when the two sections differ (the cut is on the centrelines' bisector).
+- Divide For Length: check whether splice-lap trims a splice overlap that is longer than its lap.
+- Three-beam nodes: TT (two arms from opposite sides) is split into two T joints; consider a dedicated double-T joint, and finer classes for the remaining 3J nodes.
 - Birdsmouth: a rafter whose centreline is below the plate's centre is untested; the seat may go on the wrong face.
 - K tenon: nothing holds the second arm.
 - Four-way split: generate the plate itself (the original only cut the slots); Grasshopper inputs for the inner and outer surfaces.
@@ -35,4 +37,4 @@ Kept up to date as items are done or added. Last updated 2026-10-11.
 - Retire the legacy joint classes (`Joints/Defaults`, the old `*X` classes) once the ports are confirmed.
 - Rethink or retire the remaining Element-based Grasshopper components.
 - BTLx export moves to a separate extension that combines the BTLx wrapper with GluLamb types; `Btlx/BtlxWriter.cs` is only a proof of concept.
-- Icons for the new components and commands.
+- Icons for the new components and commands. Divide For Length borrows the Split Beam icon.
