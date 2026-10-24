@@ -53,6 +53,7 @@ namespace GluLamb.GH.Components
         bool monochrome = false;
         bool fullName = false;
         bool freeEnds = false;
+        bool splitDoubleT = true;
 
         List<JointCondition> JointConditions = new List<JointCondition>();
         Dictionary<int, Plane> JointOrigins = null;
@@ -66,6 +67,9 @@ namespace GluLamb.GH.Components
             {"T", Color.FromArgb(255, 255, 0)},
             {"X", Color.FromArgb(255, 200, 96)},
             {"L", Color.FromArgb(60, 255, 200)},
+            {"S", Color.FromArgb(200, 160, 255)},
+            {"K", Color.FromArgb(0, 200, 255)},
+            {"TT", Color.FromArgb(255, 120, 200)},
             {"3J", Color.FromArgb(0, 200, 255)}
           };
 
@@ -75,19 +79,38 @@ namespace GluLamb.GH.Components
             Menu_AppendItem(menu, "Full name", ToggleFullName, true, fullName);
             Menu_AppendItem(menu, "Free ends", ToggleFreeEnds, true, freeEnds)
                 .ToolTipText = "Also make single-beam (E) conditions at curve ends that aren't in any joint.";
+            Menu_AppendItem(menu, "Split double T", ToggleSplitDoubleT, true, splitDoubleT)
+                .ToolTipText = "Where two beams end on the side of a third from opposite sides (TT), make two T conditions instead of one three-beam condition.";
         }
 
         private void ToggleFreeEnds(object sender, EventArgs e)
         {
             RecordUndoEvent("Free ends");
             freeEnds = !freeEnds;
-            Message = freeEnds ? "Free ends" : null;
+            UpdateMessage();
             ExpireSolution(true);
+        }
+
+        private void ToggleSplitDoubleT(object sender, EventArgs e)
+        {
+            RecordUndoEvent("Split double T");
+            splitDoubleT = !splitDoubleT;
+            UpdateMessage();
+            ExpireSolution(true);
+        }
+
+        private void UpdateMessage()
+        {
+            var flags = new List<string>();
+            if (freeEnds) flags.Add("Free ends");
+            if (!splitDoubleT) flags.Add("Whole TT");
+            Message = flags.Count > 0 ? string.Join(", ", flags) : null;
         }
 
         public override bool Write(GH_IWriter writer)
         {
             writer.SetBoolean("FreeEnds", freeEnds);
+            writer.SetBoolean("SplitDoubleT", splitDoubleT);
             return base.Write(writer);
         }
 
@@ -95,7 +118,9 @@ namespace GluLamb.GH.Components
         {
             if (reader.ItemExists("FreeEnds"))
                 freeEnds = reader.GetBoolean("FreeEnds");
-            Message = freeEnds ? "Free ends" : null;
+            if (reader.ItemExists("SplitDoubleT"))
+                splitDoubleT = reader.GetBoolean("SplitDoubleT");
+            UpdateMessage();
             return base.Read(reader);
         }
 
@@ -122,6 +147,20 @@ namespace GluLamb.GH.Components
             jointCase = length < end_tolerance ? JointPartX.SetAtEnd(jointCase) : JointPartX.SetAtMiddle(jointCase);
             
             direction = (JointPartX.End0(jointCase) && JointPartX.IsAtEnd(jointCase)) ? -c.TangentAt(t) : c.TangentAt(t);
+        }
+
+        /// <summary>
+        /// Whether two curves overlap end to end (an overlapping splice, e.g. from Divide For Length):
+        /// the end of each nearer the connection lies on the other, and they run the same way.
+        /// Create Topology puts such a connection in the middle of the overlap, which can be
+        /// further from the ends than the end tolerance.
+        /// </summary>
+        static bool IsEndOverlap(Curve c0, double t0, Curve c1, double t1, double tolerance, double angleThreshold)
+        {
+            var e0 = t0 > c0.Domain.Mid ? c0.PointAtEnd : c0.PointAtStart;
+            var e1 = t1 > c1.Domain.Mid ? c1.PointAtEnd : c1.PointAtStart;
+            if (!c1.ClosestPoint(e0, out _, tolerance) || !c0.ClosestPoint(e1, out _, tolerance)) return false;
+            return Math.Abs(c0.TangentAt(t0) * c1.TangentAt(t1)) > Math.Cos(angleThreshold);
         }
 
         public override void DrawViewportMeshes(IGH_PreviewArgs args)
@@ -219,6 +258,12 @@ namespace GluLamb.GH.Components
                 ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
                 ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
 
+                if ((JointPartX.IsAtMiddle(s0) || JointPartX.IsAtMiddle(s1)) && IsEndOverlap(c0, t0, c1, t1, endTolerance, csThreshold))
+                {
+                    ClassifyJointPosition(c0, t0, out s0, out v0, double.MaxValue);
+                    ClassifyJointPosition(c1, t1, out s1, out v1, double.MaxValue);
+                }
+
                 var jc = new JointX(
                     new List<JointPartX>
                     {
@@ -242,6 +287,20 @@ namespace GluLamb.GH.Components
                     jc.Parts.Remove(post);
                     jc.Parts.Insert(0, post);
                 }
+
+            // Two beams ending on a third from opposite sides: two T conditions sharing the through beam
+            if (splitDoubleT)
+                Joints = Joints.SelectMany(jc =>
+                {
+                    if (JointX.ClassifyJoint(jc, csThreshold) != "TT") return new[] { jc };
+                    var through = jc.Parts.First(p => JointPartX.IsAtMiddle(p.Case));
+                    return jc.Parts.Where(p => p != through).Select(arm => new JointX(new List<JointPartX>
+                    {
+                        arm,
+                        new JointPartX() { Case = through.Case, ElementIndex = through.ElementIndex, BeamId = through.BeamId,
+                            JointIndex = through.JointIndex, Parameter = through.Parameter, Direction = through.Direction },
+                    }, jc.Position.Origin)).ToArray();
+                }).ToList();
 
             // Merging adds parts, so frame each condition from all of them
             foreach (var jc in Joints)

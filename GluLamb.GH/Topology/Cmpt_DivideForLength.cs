@@ -53,7 +53,8 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Connected parameters", "CT", "Curve parameters matching the connected elements, from Create Topology (CT) or Classify Joints (CP).", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Max length", "L", "Maximum length of a piece, extensions included.", GH_ParamAccess.item, scale * 12.0);
             pManager.AddNumberParameter("Clearance", "CL", "Minimum distance from a cut to a joint or to a curve end.", GH_ParamAccess.item, scale * 0.5);
-            pManager.AddNumberParameter("Splice allowance", "SA", "Extra length each piece needs at a cut, e.g. the splice's overlap. Leave at 0 to account for it in the max length instead.", GH_ParamAccess.item, 0.0);
+            pManager.AddNumberParameter("Splice overlap", "SO","How far each piece runs past a cut, trimmed from the original curve so it follows it exactly. Create Topology finds the overlaps as splices. " +
+                "Counted in the piece length; the clearance is at least this. At 0 the pieces only touch, and any splice extension is added later as a straight line.", GH_ParamAccess.item, 0.0);
             pManager.AddNumberParameter("Extensions", "E", "Optional extensions {start, end} per curve path, e.g. from a first Construct Joints. The end pieces count them in their length.", GH_ParamAccess.tree);
 
             pManager[1].Optional = true;
@@ -65,7 +66,7 @@ namespace GluLamb.GH.Components
         {
             pManager.AddCurveParameter("Curves", "C", "Divided curve elements, one per branch, renumbered from 0. Plug into Create Topology.", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Source", "S", "Index of the input element each piece came from.", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Lengths", "L", "Length of each piece, extensions and splice allowances included.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Lengths", "L", "Length of each piece, extensions and splice overlaps included.", GH_ParamAccess.tree);
             pManager.AddPointParameter("Cuts", "X", "Cut positions.", GH_ParamAccess.list);
         }
 
@@ -78,7 +79,7 @@ namespace GluLamb.GH.Components
             double maxLength = 0, clearance = 0, allowance = 0;
             DA.GetData("Max length", ref maxLength);
             DA.GetData("Clearance", ref clearance);
-            DA.GetData("Splice allowance", ref allowance);
+            DA.GetData("Splice overlap", ref allowance);
             DA.GetDataTree(6, out GH_Structure<GH_Number> extensionTree);
 
             if (maxLength <= 0)
@@ -138,7 +139,13 @@ namespace GluLamb.GH.Components
                     cuts = new double[0];
                 }
 
-                var pieces = LengthDivision.Divide(curve, cuts);
+                var pieces = LengthDivision.Divide(curve, cuts, allowance);
+                if (pieces == null)
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Element {index}: the curve could not be trimmed at the cuts; it is left whole.");
+                    cuts = new double[0];
+                    pieces = new[] { curve.DuplicateCurve() };
+                }
                 var lengths = LengthDivision.PieceLengths(curve.GetLength(), cuts, allowance, e0, e1);
 
                 for (int i = 0; i < pieces.Length; ++i)

@@ -19,7 +19,7 @@ namespace GluLamb
         /// <param name="jointParameters">Curve parameters of existing joints. Cuts keep at least the clearance away from them.</param>
         /// <param name="maxLength">Maximum piece length, extensions included.</param>
         /// <param name="clearance">Minimum distance from a cut to a joint or to a curve end.</param>
-        /// <param name="spliceAllowance">Extra length each piece needs at a cut (the splice's overlap or cut allowance).</param>
+        /// <param name="spliceAllowance">How far each piece runs past a cut (the splice's overlap), counted in its length.</param>
         /// <param name="startExtension">How far the first piece is extended at the curve start.</param>
         /// <param name="endExtension">How far the last piece is extended at the curve end.</param>
         public static double[] FindCuts(Curve curve, IEnumerable<double> jointParameters, double maxLength, double clearance,
@@ -32,18 +32,33 @@ namespace GluLamb
         }
 
         /// <summary>
-        /// Splits a curve at the arc-length positions from FindCuts.
+        /// Splits a curve at the arc-length positions from FindCuts. Each piece runs past each cut
+        /// by the overlap, trimmed from the original curve so that it follows it exactly (like
+        /// Beam.Trim), rather than being extended afterwards.
         /// </summary>
-        public static Curve[] Divide(Curve curve, double[] cuts)
+        public static Curve[] Divide(Curve curve, double[] cuts, double overlap = 0)
         {
             if (cuts == null || cuts.Length < 1) return new[] { curve.DuplicateCurve() };
 
-            var parameters = new List<double>();
-            foreach (var s in cuts)
-                if (curve.LengthParameter(s, out double t))
-                    parameters.Add(t);
+            double length = curve.GetLength();
+            overlap = Math.Max(0, overlap);
 
-            return curve.Split(parameters) ?? new[] { curve.DuplicateCurve() };
+            var pieces = new List<Curve>();
+            for (int i = 0; i <= cuts.Length; ++i)
+            {
+                double s0 = i == 0 ? 0 : cuts[i - 1] - overlap;
+                double s1 = i == cuts.Length ? length : cuts[i] + overlap;
+
+                double t0 = curve.Domain.Min, t1 = curve.Domain.Max;
+                if (s0 > 0 && !curve.LengthParameter(s0, out t0)) return null;
+                if (s1 < length && !curve.LengthParameter(s1, out t1)) return null;
+
+                var piece = curve.Trim(t0, t1);
+                if (piece == null) return null;
+                pieces.Add(piece);
+            }
+
+            return pieces.ToArray();
         }
 
         /// <summary>
@@ -57,8 +72,9 @@ namespace GluLamb
             if (length <= 0 || maxLength <= 0) return null;
             if (length + startExtension + endExtension <= maxLength) return new double[0];
 
-            clearance = Math.Max(0, clearance);
             spliceAllowance = Math.Max(0, spliceAllowance);
+            // The overlapping pieces must not reach over a neighbouring joint
+            clearance = Math.Max(clearance, spliceAllowance);
 
             var allowed = AllowedIntervals(length, joints, clearance);
             if (allowed.Count < 1) return null;

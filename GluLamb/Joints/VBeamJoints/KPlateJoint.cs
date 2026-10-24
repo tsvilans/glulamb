@@ -111,7 +111,9 @@ namespace GluLamb.Joints
             if (middle.Count != 1) return 0.0;
             // The arms must be in one plane with the sill; otherwise it is a post (glulamb.post-beams)
             var ends = condition.Parts.Where(x => JointPartX.IsAtEnd(x.Case)).ToList();
-            return PostBeamsJoint.ArmsInPlane(middle[0].Direction, ends[0].Direction, ends[1].Direction) ? 1.0 : 0.0;
+            // ...and come from the same side of it; from opposite sides it is a double T (TT)
+            return PostBeamsJoint.ArmsInPlane(middle[0].Direction, ends[0].Direction, ends[1].Direction) &&
+                PostBeamsJoint.ArmsOnOneSide(middle[0].Direction, ends[0].Direction, ends[1].Direction) ? 1.0 : 0.0;
         }
 
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)

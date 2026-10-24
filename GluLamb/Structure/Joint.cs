@@ -229,6 +229,16 @@ namespace GluLamb
                     }
 
                     break;
+                case 3:
+                    // Two beams ending on the side of a third: K (from one side) or TT (from opposite sides)
+                    var middle = joint.Parts.Where(x => JointPartX.IsAtMiddle(x.Case)).ToList();
+                    var ends = joint.Parts.Where(x => JointPartX.IsAtEnd(x.Case)).ToList();
+                    if (middle.Count == 1 && ends.Count == 2 &&
+                        Joints.PostBeamsJoint.ArmsInPlane(middle[0].Direction, ends[0].Direction, ends[1].Direction))
+                        type = Joints.PostBeamsJoint.ArmsOnOneSide(middle[0].Direction, ends[0].Direction, ends[1].Direction) ? "K" : "TT";
+                    else
+                        type = "3J";
+                    break;
                 default:
                     type = $"{joint.Parts.Count}J";
                     break;
