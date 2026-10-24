@@ -39,6 +39,7 @@ static class Program
             TestOffsetGlulam();
             TestFitSection();
             TestLayup();
+            TestCompanion();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -472,6 +473,39 @@ static class Program
 
         glulam.Data.Layup = Layup.Homogeneous("T14", "Larch");
         Check(glulam.Data.Grade == "T14" && glulam.Data.Species == "Larch", "layup: homogeneous grade/species wrong");
+    }
+
+    /// <summary>
+    /// A glulam has its own id (kept by duplicates), exact-fit blanks are one lamella of exactly
+    /// the needed section with the smallest volume, and Layup.FromGrades picks the right layup.
+    /// </summary>
+    static void TestCompanion()
+    {
+        var beam = new Beam { Centreline = new LineCurve(Point3d.Origin, new Point3d(3000, 0, 0)), Width = 100, Height = 200, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var glulam = Glulam.CreateGlulam(beam, beam.Orientation, GluLamb.Standards.Standard.Eurocode);
+        Check(glulam.Id != beam.Id && !string.IsNullOrEmpty(glulam.Id), "companion: glulam has the beam's id");
+        Check(glulam.DuplicateGlulam().Id == glulam.Id, "companion: duplicate changed the glulam's id");
+
+        var rng = new Random(10);
+        var beams = Enumerable.Range(0, 4).Select(i => Copy(MakeBeam(new Arc(new Circle(Plane.WorldXY, 6000), new Interval(0, 0.6)).ToNurbsCurve(), 100, 203, Vector3d.ZAxis), Vector3d.ZAxis, rng, 0.3, i % 2 == 1, false)).ToList();
+        var exact = BeamClustering.Cluster(beams, Tol, 0, 24, null, GluLamb.Standards.Standard.Eurocode, 0, 0, true);
+        var layered = BeamClustering.Cluster(beams, Tol, 0, 24, null, GluLamb.Standards.Standard.Eurocode, 0, 40);
+        var e = exact.Clusters[0];
+        Console.WriteLine($"Exact fit: {e.Blank.Width:0.##} x {e.Blank.Height:0.##} ({e.Blank.Data.NumWidth} x {e.Blank.Data.NumHeight} lamellae), volume {e.Volume / 1e9:0.0000} m3 " +
+            $"against {layered.Clusters[0].Volume / 1e9:0.0000} m3 in 40 mm lamellae; warnings: {exact.Warnings.Count}");
+        Check(exact.Clusters.Count == 1 && e.Blank.Data.NumWidth == 1 && e.Blank.Data.NumHeight == 1 && e.Blank.Height < 205 && exact.Warnings.Count == 0, "companion: exact fit not one exact lamella");
+        Check(e.Volume < layered.Clusters[0].Volume, "companion: exact fit not the smaller volume");
+        Check(exact.PlacedBlanks.All(x => x.Id == e.Blank.Id) && beams.All(b => b.Id != e.Blank.Id), "companion: placed blanks don't share the blank's own id");
+
+        Check(Layup.FromGrades(new[] { "T22" }) is HomogeneousLayup, "companion: one grade not homogeneous");
+        Check(Layup.FromGrades(new[] { "T22", "T14" }, 2) is CombinedLayup, "companion: two grades with an outer count not combined");
+        var layers = Layup.FromGrades(new[] { "T14", "T18", "T22" });
+        glulam.Data.LamHeight = 25;
+        glulam.FitSection(100, 150);
+        glulam.Data.Layup = layers;
+        var grades = string.Join(" ", Enumerable.Range(0, glulam.Data.NumHeight).Select(j => glulam.Data.Lamellae[0, j].Grade));
+        Console.WriteLine($"Layers T14 T18 T22 over {glulam.Data.NumHeight} lamellae: {grades}");
+        Check(grades == "T14 T14 T18 T18 T22 T22", "companion: layered layup wrong");
     }
 
     static void TestTiming(int count, double lengthTolerance)

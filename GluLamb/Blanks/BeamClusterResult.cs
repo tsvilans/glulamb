@@ -53,6 +53,11 @@ namespace GluLamb.Blanks
         /// How far the blank extends the reference's centreline at its start and end.
         /// </summary>
         public BeamExtension Extension;
+
+        /// <summary>
+        /// Volume of the blank (length x width x height).
+        /// </summary>
+        public double Volume => Blank?.GetVolume() ?? 0;
     }
 
     public class BeamClusterResult

@@ -60,6 +60,8 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Lamella Width", "LW", "Lamella width for the blanks. 0: from the standard (Eurocode), made to fit the section exactly. " +
                 "With a lamella size, the blank's section is rounded up to whole lamellae.", GH_ParamAccess.item, 0.0);
             pManager.AddNumberParameter("Lamella Height", "LH", "Lamella height (thickness) for the blanks. 0: from the standard (Eurocode).", GH_ParamAccess.item, 0.0);
+            pManager.AddBooleanParameter("Exact Fit", "EF", "Ignore the lamella sizes and the standard: each blank is one lamella of exactly its section, " +
+                "the smallest blank for its beams (e.g. to compare groupings by volume when lamella sizes are unknown).", GH_ParamAccess.item, false);
 
             pManager[4].Optional = true;
         }
@@ -75,6 +77,7 @@ namespace GluLamb.GH.Components
             pManager.AddBooleanParameter("Partial", "P", "Whether each beam is cut from a longer blank, in the structure of Beams.", GH_ParamAccess.tree);
             pManager.AddGenericParameter("Placed Blanks", "PB", "Each beam's blank, moved onto the beam, in the structure of Beams. " +
                 "Beams that share a blank get copies with the same id.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Volume", "V", "Volume of each blank (length x width x height).", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -91,8 +94,13 @@ namespace GluLamb.GH.Components
             double lamellaWidth = 0, lamellaHeight = 0;
             DA.GetData(5, ref lamellaWidth);
             DA.GetData(6, ref lamellaHeight);
-            Plausibility.LamellaSize(this, "Lamella Width", lamellaWidth);
-            Plausibility.LamellaSize(this, "Lamella Height", lamellaHeight);
+            bool exactFit = false;
+            DA.GetData(7, ref exactFit);
+            if (!exactFit)
+            {
+                Plausibility.LamellaSize(this, "Lamella Width", lamellaWidth);
+                Plausibility.LamellaSize(this, "Lamella Height", lamellaHeight);
+            }
 
             // Flatten, remembering where each beam came from
             var beams = new List<Beam>();
@@ -122,7 +130,7 @@ namespace GluLamb.GH.Components
             BeamClusterResult result;
             try
             {
-                result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions, Standards.Standard.Eurocode, lamellaWidth, lamellaHeight);
+                result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions, Standards.Standard.Eurocode, lamellaWidth, lamellaHeight, exactFit);
             }
             catch (ArgumentException e)
             {
@@ -165,6 +173,7 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(4, deviationOut);
             DA.SetDataTree(5, partialOut);
             DA.SetDataTree(6, placedOut);
+            DA.SetDataList(7, result.Clusters.Select(x => x.Volume));
         }
     }
 }

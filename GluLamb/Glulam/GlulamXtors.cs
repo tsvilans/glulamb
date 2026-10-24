@@ -38,7 +38,9 @@ namespace GluLamb
         /// <summary>
         /// Create a glulam from a beam, with lamellae sized by the standard for the beam's curvature.
         /// A glulam has no section offsets, so its centreline is the beam's section centreline
-        /// (BeamOps.SectionCentreline). It gets a copy of the orientation, and keeps the beam's id and frames.
+        /// (BeamOps.SectionCentreline). It gets a copy of the orientation. A glulam is the material
+        /// companion of a beam (and can serve several), so it gets its own id, not the beam's, and
+        /// none of the beam's frames.
         /// </summary>
         static public Glulam CreateGlulam(Beam beam, CrossSectionOrientation orientation, Standards.Standard standard= Standards.Standard.None)
         {
@@ -67,8 +69,6 @@ namespace GluLamb
                 glulam.Data.Compute(beam, standard);
             }
 
-            glulam.Id = source.Id;
-            glulam.Frames = source.Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(source.Frames);
             return glulam;
         }
 

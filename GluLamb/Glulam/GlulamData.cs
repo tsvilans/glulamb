@@ -129,6 +129,17 @@ namespace GluLamb
         }
 
         /// <summary>
+        /// Set the species of every lamella, keeping their grades.
+        /// </summary>
+        public void SetSpecies(string species)
+        {
+            if (string.IsNullOrWhiteSpace(species)) return;
+            Populate();
+            foreach (Stick lamella in Lamellae)
+                lamella.Species = species.Trim();
+        }
+
+        /// <summary>
         /// The lamellae's grade if they are all the same, "Mixed" if not, or empty if none is given.
         /// </summary>
         public string Grade

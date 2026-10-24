@@ -52,13 +52,15 @@ namespace GluLamb.Blanks
         /// <param name="lamellaWidth">Lamella width for the blanks, or 0 for the standard's (made to fit the section exactly).
         /// With a lamella size, the blank's section is rounded up to whole lamellae.</param>
         /// <param name="lamellaHeight">Lamella height (thickness) for the blanks, or 0 for the standard's.</param>
+        /// <param name="exactFit">Ignore the lamella sizes and the standard: each blank is one lamella of exactly
+        /// its section, the smallest blank for its beams (e.g. for comparing groupings by volume).</param>
         public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null,
-            Standards.Standard standard = Standards.Standard.Eurocode, double lamellaWidth = 0, double lamellaHeight = 0)
+            Standards.Standard standard = Standards.Standard.Eurocode, double lamellaWidth = 0, double lamellaHeight = 0, bool exactFit = false)
         {
             if (!(tolerance > 0))
                 throw new ArgumentOutOfRangeException(nameof(tolerance), "Tolerance must be greater than zero.");
             foreach (var (size, name) in new[] { (lamellaWidth, nameof(lamellaWidth)), (lamellaHeight, nameof(lamellaHeight)) })
-                if (size > 0 && size < GlulamData.MinLamellaSize)
+                if (!exactFit && size > 0 && size < GlulamData.MinLamellaSize)
                     throw new ArgumentOutOfRangeException(name, $"Lamella size {size:0.###} is below the minimum {GlulamData.MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -252,8 +254,17 @@ namespace GluLamb.Blanks
                     OffsetX = refBeam.OffsetX,
                     OffsetY = refBeam.OffsetY
                 };
-                var blank = Glulam.CreateGlulam(section, section.Orientation, standard);
-                if (lamellaWidth > 0 || lamellaHeight > 0)
+                Glulam blank;
+                if (exactFit)
+                {
+                    var centreline = BeamOps.SectionCentreline(section, out var orientation);
+                    blank = Glulam.CreateGlulam(centreline, orientation, new GlulamData(1, 1, width, height));
+                }
+                else
+                    blank = Glulam.CreateGlulam(section, section.Orientation, standard);
+                blank.Id = section.Id;
+
+                if (!exactFit && (lamellaWidth > 0 || lamellaHeight > 0))
                 {
                     if (lamellaWidth > 0) blank.Data.LamWidth = lamellaWidth;
                     if (lamellaHeight > 0) blank.Data.LamHeight = lamellaHeight;
