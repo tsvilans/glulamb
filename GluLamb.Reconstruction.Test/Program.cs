@@ -73,6 +73,9 @@ namespace GluLamb.Reconstruction.Test
                 MeshCase("straight", straight, outDir);
                 MeshCase("curved", curved, outDir);
                 MeshCase("twisted", twisted, outDir);
+                MeshCase("straight-joints", straight, outDir, true);
+                MeshCase("curved-joints", curved, outDir, true);
+                MeshCase("twisted-joints", twisted, outDir, true);
 
                 BrepCase("straight-joints", straight, outDir);
                 BrepCase("curved-joints", curved, outDir);
@@ -136,10 +139,12 @@ namespace GluLamb.Reconstruction.Test
             Check(!twisted.TryGetPlanarOrientation(arc, RhinoMath.ToRadians(1), out _), "twisting vectors don't");
         }
 
-        static void MeshCase(string name, Beam beam, string outDir)
+        static void MeshCase(string name, Beam beam, string outDir, bool joints = false)
         {
             Console.WriteLine($"Mesh: {name}");
-            var brep = beam.ToBrep();
+            bool cut = false;
+            var brep = joints ? WithJoints(beam, out cut, true) : beam.ToBrep();
+            if (joints) Console.WriteLine($"  {(cut ? "scarf, laps and notch cut" : "joints NOT cut (Boolean failed)")}");
             var mesh = new Mesh();
             foreach (var m in Mesh.CreateFromBrep(brep, new MeshingParameters { MaximumEdgeLength = 200, SimplePlanes = false }))
                 mesh.Append(m);
@@ -154,6 +159,16 @@ namespace GluLamb.Reconstruction.Test
             Check(result.Success, $"reconstructed ({watch.Elapsed.TotalSeconds:0.0} s, {result.Edges.Count} edges)");
             if (!result.Success) return;
 
+            if (System.Environment.GetEnvironmentVariable("RECON_DEBUG") == "1")
+            {
+                foreach (var set in new[] { result.InitialPoints, result.FittedPoints })
+                    Console.WriteLine("  points off: " + string.Join(" ", set.Select(p => { beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
+                Console.WriteLine("  weights: " + string.Join(" ", result.Weights.Select(w => w.ToString("0.0"))));
+                var c = result.Beam.Centreline;
+                Console.WriteLine("  final off: " + string.Join(" ", c.DivideByCount(20, true).Select(t => { var p = c.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
+                var plain = MeshBeam.Reconstruct(mesh, new MeshBeamOptions { EdgeCorrection = false }).Beam.Centreline;
+                Console.WriteLine("  without edge correction: " + string.Join(" ", plain.DivideByCount(20, true).Select(t => { var p = plain.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
+            }
             Compare(beam, result.Beam, 10, 10, new Interval(0.1, 0.9));
             Write(outDir, name + "-mesh", mesh, beam, result.Beam, result.Edges, result.Sections.Select(s => s.Outline));
         }
@@ -226,7 +241,7 @@ namespace GluLamb.Reconstruction.Test
         /// <summary>
         /// The beam's Brep with joints cut into it: a lap at each end and a notch in the middle.
         /// </summary>
-        static Brep WithJoints(Beam beam, out bool cut)
+        static Brep WithJoints(Beam beam, out bool cut, bool scarf = false)
         {
             var brep = beam.ToBrep();
             var curve = beam.Centreline;
@@ -243,7 +258,20 @@ namespace GluLamb.Reconstruction.Test
                 cutters.Add(box.ToBrep());
             }
 
-            Cut(150, 300, 0.5, true);            // lap at the start
+            if (scarf)
+            {
+                // Scarf (a long splice) at the start: the top cut away on a slope, from 35% of the
+                // height at the end to the full height 900 mm in
+                var p0 = beam.GetPlane(curve.Domain.Min);
+                double h = beam.Height, w = beam.Width, run = 900, drop = 0.65 * h;
+                var origin = p0.Origin + p0.YAxis * (h / 2 - drop);
+                var slope = p0.ZAxis * run + p0.YAxis * drop;
+                double slopeLength = slope.Length;
+                var box = new Box(new Plane(origin, p0.XAxis, slope), new Interval(-w, w), new Interval(-slopeLength, 2 * slopeLength), new Interval(-2 * h, 0));
+                cutters.Add(box.ToBrep());
+            }
+            else
+                Cut(150, 300, 0.5, true);        // lap at the start
             Cut(length - 200, 400, 0.4, false);  // lap at the end
             Cut(length * 0.4, 160, 0.25, true);  // notch for a crossing beam
 

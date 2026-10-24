@@ -13,16 +13,26 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
    meet within 15° into polylines.
 2. Main axes: area-weighted PCA. Of the two minor axes, Y is the one the beam bends along.
 3. Start: centres of sections across the main axis, then of sections normal to the spline through
-   them, a few times over. `InitialCentreline.Arc` is the Python version's arc through three
+   them, a few times over. Atypical sections are left out (see below), and the ends are run out
+   smoothly from the rest. `InitialCentreline.Arc` is the Python version's arc through three
    section centres.
-4. Fit: L-BFGS over the spline's points. The error is the distance from each of 30 samples
-   (10–90% along) to the centre of the section hull at that sample. A second pass fits the two end
-   points on their own and is kept if the error over all samples goes down.
-5. Sections at 10 samples (10–90%) give the frames, the width and the height (the largest, measured
+4. Typical section: the median size of the sections along the middle of the start curve. A
+   section counts as typical if its extents are within `TypicalTolerance` (5%) of it. Tapers,
+   joints and end cuts make sections atypical.
+5. Fit: L-BFGS over the spline's points. The error is, over 40 samples (2–98% along), each
+   sample's weight times its distance to the centre of the section hull there. A sample's weight is
+   how typical its section is, so atypical samples count little or not at all. The error also has a
+   penalty on changes of curvature (`Smoothness`), which is zero for straight lines and arcs. Near
+   an end, where there is little to fit to, this carries the rest of the beam's shape through. The
+   weights are found again after each of three rounds.
+6. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
    both ways from the centreline). The centreline is run out to the ends of the mesh.
+7. Edge correction: the longest run of parallel sharp edges (as for Breps) usually runs through the
+   ends untouched by joints. The centreline is moved by where those edges sit in its sections
+   (`EdgeCorrection`, `Refinements`), measured in frames lined up with the edges themselves.
 
-The section's Y-axis (height) is its direction of largest spread. Twist is taken from the sections
-between 10% and 90%; past them it stays as it is at the last section.
+The section's Y-axis (height) is its direction of largest spread. Twist is taken from the typical
+sections; past the last one it stays as it is there.
 
 ## Blank from a Brep (`BrepBlank`)
 
@@ -52,5 +62,7 @@ The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from
 ## Tests
 
 `GluLamb.Reconstruction.Test` runs headless through Rhino.Inside. It reconstructs synthetic
-straight, curved and twisted beams from their meshes, and from their Breps with joints cut in, then
-compares the results with the beams they came from. It writes a `.3dm` of each case to `--out`.
+straight, curved and twisted beams from their meshes (plain, and with a scarf, laps and a notch)
+and from their Breps with joints cut in, then compares the results with the beams they came from.
+It writes a `.3dm` of each case to `--out`. Set `RECON_DEBUG=1` to print the fit's points, weights
+and deviations along the length.

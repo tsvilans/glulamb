@@ -46,6 +46,19 @@ namespace GluLamb.Reconstruction
         /// Position, so that a section centred on the centreline covers the hull.</summary>
         public double Width, Height;
 
+        /// <summary>Extent of the hull along its own principal axes, measured both ways from its
+        /// centre: a measure of the section's size that doesn't depend on where the centreline is,
+        /// for comparing sections.</summary>
+        public double Major, Minor;
+
+        /// <summary>
+        /// How far this section's size is from a reference section's, as the larger relative
+        /// difference of the two extents (0: the same).
+        /// </summary>
+        public double DifferenceFrom(Section reference) => Math.Max(
+            Math.Abs(Major / reference.Major - 1),
+            Math.Abs(Minor / reference.Minor - 1));
+
         public Polyline Outline
         {
             get
@@ -156,12 +169,17 @@ namespace GluLamb.Reconstruction
             if (!y.Unitize()) return false;
             var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
 
-            double width = 0, height = 0;
+            double width = 0, height = 0, major = 0, minor = 0;
+            var x = Vector3d.CrossProduct(y, normal);
             foreach (var p in hull)
             {
                 var d = p - origin;
                 width = Math.Max(width, Math.Abs(d * plane.XAxis));
                 height = Math.Max(height, Math.Abs(d * plane.YAxis));
+
+                var e = p - centre;
+                major = Math.Max(major, Math.Abs(e * y));
+                minor = Math.Max(minor, Math.Abs(e * x));
             }
 
             section = new Section
@@ -171,7 +189,9 @@ namespace GluLamb.Reconstruction
                 Plane = plane,
                 Hull = hull,
                 Width = width * 2,
-                Height = height * 2
+                Height = height * 2,
+                Major = major * 2,
+                Minor = minor * 2
             };
             return true;
         }

@@ -92,18 +92,28 @@ namespace GluLamb.Reconstruction.Numerics
                 double step = s.Count == 0 ? Math.Min(1.0, 1.0 / Math.Sqrt(Dot(g, g))) : 1.0;
 
                 // Backtracking line search (Armijo)
+                // The objectives here are only piecewise smooth (a section can lose a corner), so a
+                // finite-difference slope can overstate what a step gains; if no step meets the
+                // Armijo condition, the best step that lowers f at all is taken
                 var xNew = new double[n];
-                double fNew = double.PositiveInfinity;
+                var xBest = new double[n];
+                double fNew = double.PositiveInfinity, fBest = fx;
                 bool found = false;
                 for (int ls = 0; ls < 30; ++ls)
                 {
                     for (int i = 0; i < n; ++i) xNew[i] = x[i] + step * d[i];
                     fNew = Eval(f, xNew);
                     if (fNew <= fx + 1e-4 * step * slope) { found = true; break; }
+                    if (fNew < fBest) { fBest = fNew; Array.Copy(xNew, xBest, n); }
                     step *= 0.5;
                 }
 
-                if (!found) { result.Message = "Line search failed"; break; }
+                if (!found)
+                {
+                    if (fBest >= fx) { result.Message = "Line search failed"; break; }
+                    Array.Copy(xBest, xNew, n);
+                    fNew = fBest;
+                }
 
                 var gNew = Gradient(f, xNew, fNew);
 

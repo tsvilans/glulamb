@@ -1,4 +1,4 @@
-/*
+﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -46,7 +46,7 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddNumberParameter("Allowance", "A", "Extra material on each side of the section.", GH_ParamAccess.item, defaults.Allowance);
             pManager.AddNumberParameter("End Allowance", "EA", "Extra length at each end.", GH_ParamAccess.item, defaults.EndAllowance);
             pManager.AddNumberParameter("Cluster Threshold", "T", "How parallel edges must be to be grouped: mean angle (radians) plus " +
-                "the spread of their distances divided by 100 mm.", GH_ParamAccess.item, defaults.ClusterThreshold);
+                "the spread of their distances divided by 100 mm.", GH_ParamAccess.item, defaults.Clustering.ClusterThreshold);
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
         }
 
@@ -68,7 +68,7 @@ namespace GluLamb.Reconstruction.GH
             var options = new BrepBlankOptions();
             DA.GetData(1, ref options.Allowance);
             DA.GetData(2, ref options.EndAllowance);
-            DA.GetData(3, ref options.ClusterThreshold);
+            DA.GetData(3, ref options.Clustering.ClusterThreshold);
             DA.GetData(4, ref options.SimplifyOrientation);
 
             var result = BrepBlank.Reconstruct(brep, options);
