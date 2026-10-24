@@ -37,6 +37,7 @@ static class Program
             TestLengthChain();
             TestSections();
             TestOffsetGlulam();
+            TestFitSection();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -391,6 +392,48 @@ static class Program
             try { asBeam.OffsetX = 5; } catch (InvalidOperationException) { threw = true; }
             Check(threw, $"offset glulam ({name}): setting an offset didn't throw");
         }
+    }
+
+    /// <summary>
+    /// FitSection rounds sections up to whole lamellae; Width/Height can't be set; the minimum
+    /// lamella size; a curve too tight for the standard is flagged; Cluster Beams with a lamella size.
+    /// </summary>
+    static void TestFitSection()
+    {
+        var straight = new Beam { Centreline = new LineCurve(Point3d.Origin, new Point3d(3000, 0, 0)), Width = 100, Height = 205, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var glulam = Glulam.CreateGlulam(straight, straight.Orientation, GluLamb.Standards.Standard.Eurocode);
+        glulam.Data.LamWidth = 120;
+        glulam.Data.LamHeight = 40;
+        var size = glulam.FitSection(100, 205);
+        Console.WriteLine($"FitSection 100 x 205 with 120 x 40 lamellae: {size.Width} x {size.Height} ({glulam.Data.NumWidth} x {glulam.Data.NumHeight})");
+        Check(size.Width == 120 && size.Height == 240 && glulam.Height == 240, "fit section: 100 x 205 should round up to 120 x 240");
+
+        size = glulam.FitSection(120, 200 + 1e-8);
+        Check(size.Height == 200, $"fit section: 200 (plus a hair) should stay 5 lamellae, got {size.Height}");
+
+        bool threw = false;
+        try { glulam.Width = 50; } catch (InvalidOperationException) { threw = true; }
+        Check(threw, "fit section: setting Width didn't throw");
+
+        threw = false;
+        glulam.Data.LamHeight = 2;
+        try { glulam.FitSection(120, 200); } catch (ArgumentOutOfRangeException) { threw = true; }
+        Check(threw, "fit section: lamellae under the minimum weren't rejected");
+
+        // Radius 500, 200 deep: the standard wants lamellae of about 2 mm, under the 5 mm minimum
+        var tight = new Beam { Centreline = new Arc(new Circle(Plane.WorldXY, 500), new Interval(0, 1.5)).ToNurbsCurve(), Width = 100, Height = 200, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var tightGlulam = Glulam.CreateGlulam(tight, tight.Orientation, GluLamb.Standards.Standard.Eurocode);
+        var warnings = tightGlulam.Data.Warnings();
+        Console.WriteLine($"Tight curve: lamellae {tightGlulam.Data.LamWidth:0.##} x {tightGlulam.Data.LamHeight:0.##}, standard {tightGlulam.Data.MaxLamWidth:0.##} x {tightGlulam.Data.MaxLamHeight:0.##}: {string.Join(" ", warnings)}");
+        Check(tightGlulam.Data.ExceedsStandard && warnings.Count > 0, "fit section: a curve too tight for the standard wasn't flagged");
+
+        // Cluster Beams with 40 mm lamellae: blank heights in whole lamellae
+        var rng = new Random(9);
+        var beams = Enumerable.Range(0, 3).Select(i => Copy(MakeBeam(new Arc(new Circle(Plane.WorldXY, 6000), new Interval(0, 0.6)).ToNurbsCurve(), 100, 203, Vector3d.ZAxis), Vector3d.ZAxis, rng, 0.3, i == 1, false)).ToList();
+        var r = BeamClustering.Cluster(beams, Tol, 0, 24, null, GluLamb.Standards.Standard.Eurocode, 0, 40);
+        var blank = r.Clusters[0].Blank;
+        Console.WriteLine($"Cluster with 40 mm lamellae: {r.Clusters.Count} blank, {blank.Width:0.##} x {blank.Height:0.##} ({blank.Data.NumWidth} x {blank.Data.NumHeight} lamellae of {blank.Data.LamWidth:0.##} x {blank.Data.LamHeight:0.##})");
+        Check(r.Clusters.Count == 1 && blank.Height == 240 && blank.Width >= 100, "fit section: cluster blank not 240 deep in 40 mm lamellae");
     }
 
     static void TestTiming(int count, double lengthTolerance)

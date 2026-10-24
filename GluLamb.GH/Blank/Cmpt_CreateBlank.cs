@@ -119,19 +119,29 @@ namespace GluLamb.GH.Components
             if (!hasDimensions)
             {
                 glulam = Glulam.CreateGlulam(beam, beam.Orientation, Standards.Standard.Eurocode);
-                if (glulam.Data.LamellaCountCapped)
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Too tightly curved for Eurocode lamellae within " +
-                        $"{GlulamData.MaxNumWidth} x {GlulamData.MaxNumHeight} lamellae; the lamellae are thicker than the standard allows.");
             }
             else
             {
-                var Nx = (int)Math.Ceiling(beam.Width / lamellaWidth);
-                var Ny = (int)Math.Ceiling(beam.Height / lamellaHeight);
+                Plausibility.LamellaSize(this, "LamellaWidth", lamellaWidth);
+                Plausibility.LamellaSize(this, "LamellaHeight", lamellaHeight);
 
-                // A glulam has no offsets: it goes along the beam's section centreline
-                var centreline = BeamOps.SectionCentreline(beam, out var orientation);
-                glulam = Glulam.CreateGlulam(centreline, orientation, new GlulamData(Nx, Ny, lamellaWidth, lamellaHeight));
+                // The standard's limits, then the given lamellae, with the section rounded up to whole ones
+                glulam = Glulam.CreateGlulam(beam, beam.Orientation, Standards.Standard.Eurocode);
+                glulam.Data.LamWidth = lamellaWidth;
+                glulam.Data.LamHeight = lamellaHeight;
+                try
+                {
+                    glulam.FitSection(beam.Width, beam.Height);
+                }
+                catch (ArgumentOutOfRangeException e)
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, e.Message);
+                    return;
+                }
             }
+
+            foreach (var warning in glulam.Data.Warnings())
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, warning);
 
             DA.SetData("Glulam", new GH_Glulam(glulam));
         }

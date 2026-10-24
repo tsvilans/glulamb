@@ -82,22 +82,43 @@ namespace GluLamb
         /// <summary>
         /// Get total width of glulam.
         /// </summary>
+        /// <remarks>
+        /// Made of whole lamellae, so it can't be set: use FitSection.
+        /// </remarks>
         public override double Width
         {
             get
             {
                 return Data.LamWidth * Data.NumWidth;
             }
+            set => throw new InvalidOperationException("A glulam's width is made of whole lamellae; use FitSection.");
         }
         /// <summary>
         /// Get total height of glulam.
         /// </summary>
+        /// <remarks>
+        /// Made of whole lamellae, so it can't be set: use FitSection.
+        /// </remarks>
         public override double Height
         {
             get
             {
                 return Data.LamHeight * Data.NumHeight;
             }
+            set => throw new InvalidOperationException("A glulam's height is made of whole lamellae; use FitSection.");
+        }
+
+        /// <summary>
+        /// Make the section at least width x height from whole lamellae of the current lamella size
+        /// (GlulamData.FitSection).
+        /// </summary>
+        /// <returns>The section's width and height.</returns>
+        public (double Width, double Height) FitSection(double width, double height)
+        {
+            var size = Data.FitSection(width, height);
+            m_section_corners = null;
+            m_lamella_centers = null;
+            return size;
         }
 
         public Dictionary<string, object> GetProperties()

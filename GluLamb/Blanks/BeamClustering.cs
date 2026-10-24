@@ -49,11 +49,17 @@ namespace GluLamb.Blanks
         /// <param name="samples">Number of stations along each beam.</param>
         /// <param name="extensions">Optional extensions per beam that the blank must also cover.</param>
         /// <param name="standard">Standard for the blanks' lamella thickness (from their curvature).</param>
+        /// <param name="lamellaWidth">Lamella width for the blanks, or 0 for the standard's (made to fit the section exactly).
+        /// With a lamella size, the blank's section is rounded up to whole lamellae.</param>
+        /// <param name="lamellaHeight">Lamella height (thickness) for the blanks, or 0 for the standard's.</param>
         public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null,
-            Standards.Standard standard = Standards.Standard.Eurocode)
+            Standards.Standard standard = Standards.Standard.Eurocode, double lamellaWidth = 0, double lamellaHeight = 0)
         {
             if (!(tolerance > 0))
                 throw new ArgumentOutOfRangeException(nameof(tolerance), "Tolerance must be greater than zero.");
+            foreach (var (size, name) in new[] { (lamellaWidth, nameof(lamellaWidth)), (lamellaHeight, nameof(lamellaHeight)) })
+                if (size > 0 && size < GlulamData.MinLamellaSize)
+                    throw new ArgumentOutOfRangeException(name, $"Lamella size {size:0.###} is below the minimum {GlulamData.MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int count = beams.Count;
@@ -247,9 +253,14 @@ namespace GluLamb.Blanks
                     OffsetY = refBeam.OffsetY
                 };
                 var blank = Glulam.CreateGlulam(section, section.Orientation, standard);
-                if (blank.Data.LamellaCountCapped)
-                    result.Warnings.Add($"Blank {clusterIndex}: too tightly curved for {standard} lamellae within " +
-                        $"{GlulamData.MaxNumWidth} x {GlulamData.MaxNumHeight} lamellae; its lamellae are thicker than the standard allows.");
+                if (lamellaWidth > 0 || lamellaHeight > 0)
+                {
+                    if (lamellaWidth > 0) blank.Data.LamWidth = lamellaWidth;
+                    if (lamellaHeight > 0) blank.Data.LamHeight = lamellaHeight;
+                    blank.FitSection(width, height);
+                }
+                foreach (var warning in blank.Data.Warnings())
+                    result.Warnings.Add($"Blank {clusterIndex}: {warning}");
 
                 // Reference first, then the rest in input order
                 var ordered = new List<int> { reference };

@@ -43,5 +43,7 @@ namespace GluLamb
                 Species = species;
             Reference = reference;
         }
+
+        public Stick Duplicate() => (Stick)MemberwiseClone();
     }
 }

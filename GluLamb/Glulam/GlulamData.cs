@@ -95,6 +95,81 @@ namespace GluLamb
         /// </summary>
         public bool LamellaCountCapped;
 
+        /// <summary>
+        /// The largest lamella width and height the standard allows for the curvature, from Compute
+        /// (0: not computed).
+        /// </summary>
+        public double MaxLamWidth, MaxLamHeight;
+
+        /// <summary>
+        /// The smallest lamella dimension, in model units (default 5 mm). Compute doesn't go below it
+        /// (the lamellae are then thicker than the standard allows), and FitSection rejects thinner lamellae.
+        /// </summary>
+        public static double MinLamellaSize
+        {
+            get => m_minLamellaSize ?? Globals.FromMillimeters(5.0);
+            set => m_minLamellaSize = value;
+        }
+        static double? m_minLamellaSize;
+
+        /// <summary>
+        /// Whether the lamellae are thicker than the standard allows for the curvature (see MaxLamWidth, MaxLamHeight).
+        /// </summary>
+        public bool ExceedsStandard =>
+            (MaxLamWidth > 0 && LamWidth > MaxLamWidth * (1 + 1e-9)) || (MaxLamHeight > 0 && LamHeight > MaxLamHeight * (1 + 1e-9));
+
+        /// <summary>
+        /// Problems with the lamellae, as messages: the count cap, thicker than the standard allows,
+        /// thinner than the minimum.
+        /// </summary>
+        public List<string> Warnings()
+        {
+            var warnings = new List<string>();
+            if (LamellaCountCapped)
+                warnings.Add($"The lamella count is capped at {MaxNumWidth} x {MaxNumHeight} (a guard against a tiny or bad curve).");
+            if (ExceedsStandard)
+                warnings.Add($"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thicker than the standard allows for the curvature " +
+                    $"({(MaxLamWidth > 0 ? MaxLamWidth.ToString("0.###") : "-")} x {(MaxLamHeight > 0 ? MaxLamHeight.ToString("0.###") : "-")}).");
+            if (LamWidth < MinLamellaSize || LamHeight < MinLamellaSize)
+                warnings.Add($"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thinner than the minimum {MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
+            return warnings;
+        }
+
+        /// <summary>
+        /// Make the section at least width x height from whole lamellae of the current lamella size:
+        /// the lamella counts are rounded up (and capped at MaxNumWidth, MaxNumHeight). Lamellae keep
+        /// their data where they still exist; new ones copy their nearest neighbour.
+        /// </summary>
+        /// <returns>The section's width and height.</returns>
+        public (double Width, double Height) FitSection(double width, double height)
+        {
+            if (!(LamWidth >= MinLamellaSize) || !(LamHeight >= MinLamellaSize))
+                throw new ArgumentOutOfRangeException(nameof(LamWidth),
+                    $"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thinner than the minimum {MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
+
+            // A hair under a whole lamella doesn't add another
+            int needWidth = Math.Max(1, (int)Math.Ceiling(width / LamWidth - 1e-9));
+            int needHeight = Math.Max(1, (int)Math.Ceiling(height / LamHeight - 1e-9));
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
+            Resize(Math.Min(MaxNumWidth, needWidth), Math.Min(MaxNumHeight, needHeight));
+
+            return (LamWidth * NumWidth, LamHeight * NumHeight);
+        }
+
+        /// <summary>
+        /// Change the lamella counts, keeping the lamellae that still exist; new ones copy their nearest neighbour.
+        /// </summary>
+        void Resize(int numWidth, int numHeight)
+        {
+            var old = Lamellae;
+            Lamellae = new Stick[numWidth, numHeight];
+            if (old == null || old.Length == 0) return;
+
+            for (int i = 0; i < numWidth; ++i)
+                for (int j = 0; j < numHeight; ++j)
+                    Lamellae[i, j] = old[Math.Min(i, old.GetLength(0) - 1), Math.Min(j, old.GetLength(1) - 1)]?.Duplicate();
+        }
+
         public static GlulamData Default
         { get { return new GlulamData(); } }
 
@@ -127,11 +202,13 @@ namespace GluLamb
             data.SectionAlignment = SectionAlignment;
             data.InterpolationType = InterpolationType;
             data.LamellaCountCapped = LamellaCountCapped;
+            data.MaxLamWidth = MaxLamWidth;
+            data.MaxLamHeight = MaxLamHeight;
             // New lamellae, so that changing one copy's species doesn't change the other's
             data.Lamellae = new Stick[NumWidth, NumHeight];
             for (int i = 0; i < NumWidth; ++i)
                 for (int j = 0; j < NumHeight; ++j)
-                    data.Lamellae[i, j] = Lamellae[i, j] == null ? null : new Stick(Lamellae[i, j].Reference, Lamellae[i, j].Species);
+                    data.Lamellae[i, j] = Lamellae[i, j]?.Duplicate();
 
             return data;
         }
@@ -212,6 +289,12 @@ namespace GluLamb
                     tempLamHeight = NoStandard.Instance.CalculateLaminationThickness(maxKY);
                     break;
             }
+
+            // What the standard allows; lamellae aren't made thinner than the minimum
+            MaxLamWidth = tempLamWidth;
+            MaxLamHeight = tempLamHeight;
+            tempLamWidth = Math.Max(tempLamWidth, MinLamellaSize);
+            tempLamHeight = Math.Max(tempLamHeight, MinLamellaSize);
 
             // Check that the lamination dimensions don't exceed the total dimensions
             tempLamWidth = Math.Min(tempLamWidth, beamWidth);

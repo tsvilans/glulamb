@@ -57,6 +57,9 @@ namespace GluLamb.GH.Components
                 "and the shorter ones are cut from the blank (their shape still within Tolerance). 0: only beams of the same length share a blank.", GH_ParamAccess.item, 0.0);
             pManager.AddIntegerParameter("Samples", "S", "Number of stations compared along each beam.", GH_ParamAccess.item, 24);
             pManager.AddNumberParameter("Extensions", "E", "Optional extensions {start, end} per beam path, e.g. from Construct Joints. The blank covers them.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Lamella Width", "LW", "Lamella width for the blanks. 0: from the standard (Eurocode), made to fit the section exactly. " +
+                "With a lamella size, the blank's section is rounded up to whole lamellae.", GH_ParamAccess.item, 0.0);
+            pManager.AddNumberParameter("Lamella Height", "LH", "Lamella height (thickness) for the blanks. 0: from the standard (Eurocode).", GH_ParamAccess.item, 0.0);
 
             pManager[4].Optional = true;
         }
@@ -85,6 +88,11 @@ namespace GluLamb.GH.Components
             DA.GetData(2, ref lengthTolerance);
             DA.GetData(3, ref samples);
             DA.GetDataTree(4, out GH_Structure<GH_Number> extensionTree);
+            double lamellaWidth = 0, lamellaHeight = 0;
+            DA.GetData(5, ref lamellaWidth);
+            DA.GetData(6, ref lamellaHeight);
+            Plausibility.LamellaSize(this, "Lamella Width", lamellaWidth);
+            Plausibility.LamellaSize(this, "Lamella Height", lamellaHeight);
 
             // Flatten, remembering where each beam came from
             var beams = new List<Beam>();
@@ -114,7 +122,7 @@ namespace GluLamb.GH.Components
             BeamClusterResult result;
             try
             {
-                result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions);
+                result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions, Standards.Standard.Eurocode, lamellaWidth, lamellaHeight);
             }
             catch (ArgumentException e)
             {
