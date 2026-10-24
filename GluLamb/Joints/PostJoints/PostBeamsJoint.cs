@@ -75,6 +75,18 @@ namespace GluLamb.Joints
             return Math.Abs(n0 * n1) > Math.Cos(Rhino.RhinoMath.ToRadians(30));
         }
 
+        /// <summary>
+        /// Whether two arms come from the same side of the beam they meet, rather than from
+        /// opposite sides. Arm directions point towards the joint, as in JointPartX.Direction.
+        /// </summary>
+        public static bool ArmsOnOneSide(Vector3d tangent, Vector3d arm0, Vector3d arm1)
+        {
+            if (!tangent.Unitize()) return true;
+            var p0 = arm0 - (arm0 * tangent) * tangent;
+            var p1 = arm1 - (arm1 * tangent) * tangent;
+            return p0 * p1 > 0;
+        }
+
         protected override void ConstructCore(Beam[] beams, IJointContext context, JointResult result)
         {
             int post = Enumerable.Range(0, 3).FirstOrDefault(i => JointPartX.IsAtMiddle(m_parts[i].Case));
