@@ -93,8 +93,12 @@ namespace GluLamb
             get; set;
         }
 
-        public double OffsetX { get; set; }
-        public double OffsetY { get; set; }
+        /// <summary>
+        /// Offset of the section from the centreline, along the section's X- and Y-axes (e.g. to
+        /// line up a face with a reference line). A Glulam has none: see BeamOps.SectionCentreline.
+        /// </summary>
+        public virtual double OffsetX { get; set; }
+        public virtual double OffsetY { get; set; }
 
         public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation { get; set; }

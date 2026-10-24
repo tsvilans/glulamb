@@ -128,9 +128,9 @@ namespace GluLamb.GH.Components
                 var Nx = (int)Math.Ceiling(beam.Width / lamellaWidth);
                 var Ny = (int)Math.Ceiling(beam.Height / lamellaHeight);
 
-                glulam = Glulam.CreateGlulam(beam.Centreline, beam.Orientation, new GlulamData(Nx, Ny, lamellaWidth, lamellaHeight));
-                glulam.OffsetX = beam.OffsetX;
-                glulam.OffsetY = beam.OffsetY;
+                // A glulam has no offsets: it goes along the beam's section centreline
+                var centreline = BeamOps.SectionCentreline(beam, out var orientation);
+                glulam = Glulam.CreateGlulam(centreline, orientation, new GlulamData(Nx, Ny, lamellaWidth, lamellaHeight));
             }
 
             DA.SetData("Glulam", new GH_Glulam(glulam));

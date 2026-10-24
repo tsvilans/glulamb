@@ -36,6 +36,7 @@ static class Program
             TestLengthBands(true);
             TestLengthChain();
             TestSections();
+            TestOffsetGlulam();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -353,6 +354,43 @@ static class Program
         var shared = r.Clusters[Blank("100x200")].Blank;
         Check(shared.Width >= 102 && shared.Height >= 203, "sections: blank smaller than a member");
         Check(r.Clusters.Count == 4, $"sections: expected 4 blanks, got {r.Clusters.Count}");
+    }
+
+    /// <summary>
+    /// A glulam made from an offset beam goes along the beam's section centres, with no offsets,
+    /// for a curved beam and for a straight beam whose section twists.
+    /// </summary>
+    static void TestOffsetGlulam()
+    {
+        var curve = Curve.CreateInterpolatedCurve(new[] { new Point3d(0, 0, 0), new Point3d(2000, 700, 300), new Point3d(4000, 400, 900), new Point3d(5500, -300, 1300) }, 3);
+        var curved = new Beam { Centreline = curve, Width = 100, Height = 300, OffsetX = 30, OffsetY = -50, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+
+        var line = new LineCurve(Point3d.Origin, new Point3d(4000, 0, 0));
+        var twist = new VectorListOrientation(line, new[] { 0.0, 4000.0 }, new[] { Vector3d.ZAxis, Vector3d.YAxis });
+        var twisted = new Beam { Centreline = line, Width = 100, Height = 300, OffsetX = 0, OffsetY = 100, Orientation = twist };
+
+        foreach (var (name, beam) in new[] { ("curved", curved), ("twisted", twisted) })
+        {
+            var glulam = Glulam.CreateGlulam(beam, beam.Orientation, GluLamb.Standards.Standard.Eurocode);
+            Beam asBeam = glulam;
+            double worst = 0, worstAngle = 0;
+            foreach (var t in beam.Centreline.DivideByCount(50, true))
+            {
+                var plane = beam.GetPlane(t);
+                var centre = plane.PointAt(beam.OffsetX, beam.OffsetY);
+                glulam.Centreline.ClosestPoint(centre, out double tg);
+                worst = Math.Max(worst, centre.DistanceTo(glulam.Centreline.PointAt(tg)));
+                worstAngle = Math.Max(worstAngle, Vector3d.VectorAngle(plane.YAxis, glulam.GetPlane(tg).YAxis));
+            }
+            Console.WriteLine($"Offset glulam ({name}): {glulam.GetType().Name}, centreline off the section centres by {worst:0.000}, Y-axes by {Rhino.RhinoMath.ToDegrees(worstAngle):0.00} deg");
+            Check(asBeam.OffsetX == 0 && asBeam.OffsetY == 0, $"offset glulam ({name}): has offsets");
+            Check(worst < 0.1, $"offset glulam ({name}): centreline {worst:0.000} off the section centres");
+            Check(worstAngle < Rhino.RhinoMath.ToRadians(0.5), $"offset glulam ({name}): orientation off by {Rhino.RhinoMath.ToDegrees(worstAngle):0.00} deg");
+
+            bool threw = false;
+            try { asBeam.OffsetX = 5; } catch (InvalidOperationException) { threw = true; }
+            Check(threw, $"offset glulam ({name}): setting an offset didn't throw");
+        }
     }
 
     static void TestTiming(int count, double lengthTolerance)

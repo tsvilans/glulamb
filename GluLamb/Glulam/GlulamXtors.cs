@@ -37,12 +37,19 @@ namespace GluLamb
         }
         /// <summary>
         /// Create a glulam from a beam, with lamellae sized by the standard for the beam's curvature.
-        /// The glulam gets a copy of the orientation, and keeps the beam's id, frames and section offsets.
+        /// A glulam has no section offsets, so its centreline is the beam's section centreline
+        /// (BeamOps.SectionCentreline). It gets a copy of the orientation, and keeps the beam's id and frames.
         /// </summary>
         static public Glulam CreateGlulam(Beam beam, CrossSectionOrientation orientation, Standards.Standard standard= Standards.Standard.None)
         {
             Glulam glulam;
-            orientation = (orientation ?? beam.Orientation)?.Duplicate();
+
+            // The beam as seen by the glulam: section centreline, no offsets
+            var oriented = orientation == null || orientation == beam.Orientation ? beam
+                : new Beam { Centreline = beam.Centreline, Orientation = orientation, OffsetX = beam.OffsetX, OffsetY = beam.OffsetY };
+            var centreline = BeamOps.SectionCentreline(oriented, out orientation);
+            var source = beam;
+            beam = new Beam { Centreline = centreline, Orientation = orientation, Width = source.Width, Height = source.Height };
 
             if (beam.Centreline.IsLinear(Tolerance))
             {
@@ -60,10 +67,8 @@ namespace GluLamb
                 glulam.Data.Compute(beam, standard);
             }
 
-            glulam.Id = beam.Id;
-            glulam.Frames = beam.Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(beam.Frames);
-            glulam.OffsetX = beam.OffsetX;
-            glulam.OffsetY = beam.OffsetY;
+            glulam.Id = source.Id;
+            glulam.Frames = source.Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(source.Frames);
             return glulam;
         }
 

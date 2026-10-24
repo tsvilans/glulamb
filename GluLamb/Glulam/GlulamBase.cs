@@ -60,6 +60,26 @@ namespace GluLamb
         public Func<double, Point3d[]> CornerGenerator;
 
         /// <summary>
+        /// A glulam has no section offsets: its centreline is the centre of its section, and
+        /// Glulam.CreateGlulam(beam) moves an offset beam's section onto it. Always 0; kept so
+        /// that old code still compiles. Setting anything other than 0 throws.
+        /// </summary>
+        [Obsolete("A glulam's centreline is the centre of its section, so it has no offsets. Use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline.")]
+        public override double OffsetX
+        {
+            get => 0;
+            set { if (value != 0) throw new InvalidOperationException("A glulam has no section offsets; use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline."); }
+        }
+
+        /// <inheritdoc cref="OffsetX"/>
+        [Obsolete("A glulam's centreline is the centre of its section, so it has no offsets. Use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline.")]
+        public override double OffsetY
+        {
+            get => 0;
+            set { if (value != 0) throw new InvalidOperationException("A glulam has no section offsets; use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline."); }
+        }
+
+        /// <summary>
         /// Get total width of glulam.
         /// </summary>
         public override double Width
@@ -126,8 +146,6 @@ namespace GluLamb
             glulam.Centreline = Centreline.DuplicateCurve();
             glulam.Orientation = Orientation.Duplicate();
             glulam.Data = Data.Duplicate();
-            glulam.OffsetX = OffsetX;
-            glulam.OffsetY = OffsetY;
             CopyIdentityTo(glulam);
             return glulam;
         }
@@ -400,8 +418,9 @@ namespace GluLamb
             double x = Width;
             double y = Height;
 
-            offsetX = OffsetX;
-            offsetY = OffsetY;
+            // A glulam has no section offsets
+            offsetX = 0;
+            offsetY = 0;
             return;
 
             //double x0 = 0, y0 = 0;
@@ -462,7 +481,7 @@ namespace GluLamb
             double y = Height;
             double hx = Width * 0.5, hy = Height * 0.5;
 
-            double x0 = -hx + OffsetX, x1 = hx + OffsetX, y0 = -hy + OffsetY, y1 = hy + OffsetY;
+            double x0 = -hx, x1 = hx, y0 = -hy, y1 = hy;
 
             int numCorners = 4;
 

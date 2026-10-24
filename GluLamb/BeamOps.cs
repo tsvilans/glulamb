@@ -11,6 +11,39 @@ namespace GluLamb
 {
     public static class BeamOps
     {
+        /// <summary>
+        /// The curve through the centres of a beam's sections: its centreline moved by its section
+        /// offsets along its own frames (so twisted beams are handled too). Without offsets, a copy
+        /// of the centreline.
+        /// </summary>
+        /// <param name="beam">The beam.</param>
+        /// <param name="orientation">A copy of the beam's orientation, remapped onto the returned curve.</param>
+        public static Curve SectionCentreline(Beam beam, out CrossSectionOrientation orientation)
+        {
+            orientation = beam.Orientation?.Duplicate();
+            var curve = beam.Centreline;
+            if (beam.OffsetX == 0 && beam.OffsetY == 0) return curve.DuplicateCurve();
+
+            Curve section;
+            var start = beam.GetPlane(curve.Domain.Min);
+            var end = beam.GetPlane(curve.Domain.Max);
+
+            if (curve.IsLinear(Globals.Tolerance) && start.XAxis.IsParallelTo(end.XAxis, Globals.ModelAngleTolerance) == 1)
+                section = new LineCurve(start.PointAt(beam.OffsetX, beam.OffsetY), end.PointAt(beam.OffsetX, beam.OffsetY));
+            else
+            {
+                // Stations about 50 mm apart, at least MinimumNumSegments of them
+                double length = curve.GetLength();
+                int count = Math.Min(1000, Math.Max(Globals.MinimumNumSegments, (int)Math.Ceiling(length / Globals.FromMillimeters(50.0))));
+                var tt = curve.DivideByCount(count, true);
+                var points = beam.GetPlanes(tt).Select(p => p.PointAt(beam.OffsetX, beam.OffsetY));
+                section = Curve.CreateInterpolatedCurve(points, 3, CurveKnotStyle.Chord);
+            }
+
+            orientation?.Remap(curve, section);
+            return section;
+        }
+
         public static void GenerateCrossSectionPlanes(Beam beam, int N, out Plane[] frames, out double[] parameters, GlulamData.Interpolation interpolation = GlulamData.Interpolation.LINEAR)
         {
             Curve curve = beam.Centreline;

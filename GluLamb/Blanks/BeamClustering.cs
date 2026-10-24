@@ -236,6 +236,7 @@ namespace GluLamb.Blanks
 
                 // The lamellae come from the standard and the blank's curvature, sized to make up
                 // exactly the blank's width and height
+                // CreateGlulam moves the offset section onto the centreline
                 var section = new Beam($"blank-{clusterIndex}")
                 {
                     Centreline = curve,
