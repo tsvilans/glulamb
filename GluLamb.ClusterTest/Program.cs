@@ -88,8 +88,8 @@ static class Program
         double worst = 0;
         for (int i = 0; i < beams.Count; ++i)
         {
-            var blank = r.Clusters[r.BlankIndex[i]].Blank.Duplicate();
-            blank.Transform(r.Transforms[i]);
+            var blank = r.PlacedBlanks[i];
+            Check(blank.Id == r.Clusters[r.BlankIndex[i]].Blank.Id, "placed blank lost its blank's id");
             var m = beams[i];
             var curve = m.Centreline;
             if (ext != null)

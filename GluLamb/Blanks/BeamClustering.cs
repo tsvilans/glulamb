@@ -82,9 +82,28 @@ namespace GluLamb.Blanks
         public bool[] Partial;
 
         /// <summary>
+        /// Per input beam: a copy of its blank moved onto it (keeping the blank's id, so beams
+        /// that share a blank have copies with the same id), or null for a beam without a blank.
+        /// </summary>
+        public Beam[] PlacedBlanks;
+
+        /// <summary>
         /// Number of pairs that were aligned (after pruning), for diagnostics.
         /// </summary>
         public long Alignments;
+
+        /// <summary>
+        /// How long clustering took.
+        /// </summary>
+        public TimeSpan Elapsed;
+
+        /// <summary>
+        /// Number of beams that couldn't be sampled (no centreline or orientation, or zero length)
+        /// and so have no blank.
+        /// </summary>
+        public int Skipped => BlankIndex.Count(x => x < 0);
+
+        public override string ToString() => $"{BlankIndex.Length - Skipped} beams -> {Clusters.Count} blanks";
     }
 
     /// <summary>
@@ -108,9 +127,12 @@ namespace GluLamb.Blanks
         /// <param name="extensions">Optional extensions per beam that the blank must also cover.</param>
         public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null)
         {
+            if (!(tolerance > 0))
+                throw new ArgumentOutOfRangeException(nameof(tolerance), "Tolerance must be greater than zero.");
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             int count = beams.Count;
             samples = Math.Max(samples, 4);
-            tolerance = Math.Max(tolerance, Rhino.RhinoMath.ZeroTolerance);
             bool allowPartial = lengthTolerance > 0;
 
             var result = new BeamClusterResult
@@ -118,7 +140,8 @@ namespace GluLamb.Blanks
                 BlankIndex = Enumerable.Repeat(-1, count).ToArray(),
                 Transforms = Enumerable.Repeat(Transform.Identity, count).ToArray(),
                 Deviation = new double[count],
-                Partial = new bool[count]
+                Partial = new bool[count],
+                PlacedBlanks = new Beam[count]
             };
 
             var profiles = new Profile[count];
@@ -308,9 +331,32 @@ namespace GluLamb.Blanks
                     Members = ordered,
                     Extension = new BeamExtension(start, end)
                 });
+
+                foreach (var m in members)
+                {
+                    // Duplicate keeps the blank's id
+                    var placed = blank.Duplicate();
+                    placed.Transform(result.Transforms[m]);
+                    result.PlacedBlanks[m] = placed;
+                }
             }
 
+            result.Elapsed = watch.Elapsed;
             return result;
+        }
+
+        /// <summary>
+        /// Extension of one beam from a list of {start, end} values: one pair for all the beams,
+        /// or a pair per beam (as many pairs as beams).
+        /// </summary>
+        /// <param name="values">The values, e.g. a branch of Construct Joints' extensions.</param>
+        /// <param name="item">Index of the beam.</param>
+        /// <param name="beamCount">Number of beams the values are for.</param>
+        public static BeamExtension ExtensionFrom(IList<double> values, int item, int beamCount)
+        {
+            if (values == null || values.Count < 2) return new BeamExtension();
+            int k = values.Count >= 2 * beamCount ? 2 * item : 0;
+            return new BeamExtension(values[k], values[k + 1]);
         }
 
         static bool SectionsMatch(Profile a, Profile b, double tolerance) =>

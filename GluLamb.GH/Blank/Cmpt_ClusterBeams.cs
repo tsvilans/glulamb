@@ -86,12 +86,6 @@ namespace GluLamb.GH.Components
             DA.GetData(3, ref samples);
             DA.GetDataTree(4, out GH_Structure<GH_Number> extensionTree);
 
-            if (tolerance <= 0)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Tolerance must be greater than zero.");
-                return;
-            }
-
             // Flatten, remembering where each beam came from
             var beams = new List<Beam>();
             var extensions = new List<BeamExtension>();
@@ -102,7 +96,8 @@ namespace GluLamb.GH.Components
             foreach (var path in beamTree.Paths)
             {
                 var branch = beamTree[path];
-                var extension = extensionTree != null && extensionTree.PathExists(path) ? extensionTree[path] : null;
+                var extension = extensionTree != null && extensionTree.PathExists(path)
+                    ? extensionTree[path].Select(x => x?.Value ?? 0).ToList() : null;
 
                 for (int i = 0; i < branch.Count; ++i)
                 {
@@ -110,23 +105,22 @@ namespace GluLamb.GH.Components
                     slots.Add((path, beam == null ? -1 : beams.Count));
                     if (beam == null) continue;
 
-                    // {start, end} for the branch, or a pair per beam
-                    var ext = new BeamExtension();
-                    if (extension != null && extension.Count >= 2)
-                    {
-                        int k = extension.Count >= 2 * branch.Count ? 2 * i : 0;
-                        ext = new BeamExtension(extension[k]?.Value ?? 0, extension[k + 1]?.Value ?? 0);
-                    }
-
                     beams.Add(beam);
-                    extensions.Add(ext);
+                    extensions.Add(BeamClustering.ExtensionFrom(extension, i, branch.Count));
                     names.Add((branch.Count > 1 ? path.AppendElement(i) : path).ToString(false));
                 }
             }
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-            var result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions);
-            watch.Stop();
+            BeamClusterResult result;
+            try
+            {
+                result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions);
+            }
+            catch (ArgumentException e)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, e.Message);
+                return;
+            }
 
             var membersOut = new DataTree<string>();
             for (int c = 0; c < result.Clusters.Count; ++c)
@@ -145,23 +139,14 @@ namespace GluLamb.GH.Components
                 transformsOut.Add(b < 0 ? null : new GH_Transform(result.Transforms[b]), path);
                 deviationOut.Add(b < 0 ? 0 : result.Deviation[b], path);
                 partialOut.Add(b >= 0 && result.Partial[b], path);
-
-                Beam placed = null;
-                if (b >= 0 && result.BlankIndex[b] >= 0)
-                {
-                    // Duplicate keeps the blank's id
-                    placed = result.Clusters[result.BlankIndex[b]].Blank.Duplicate();
-                    placed.Transform(result.Transforms[b]);
-                }
-                placedOut.Add(placed == null ? null : new GH_Beam(placed), path);
+                placedOut.Add(b < 0 || result.PlacedBlanks[b] == null ? null : new GH_Beam(result.PlacedBlanks[b]), path);
             }
 
-            int skipped = result.BlankIndex.Count(x => x < 0);
-            if (skipped > 0)
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"{skipped} beams couldn't be sampled and have no blank (index -1).");
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"{result.Alignments} alignments in {watch.ElapsedMilliseconds} ms.");
+            if (result.Skipped > 0)
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"{result.Skipped} beams couldn't be sampled and have no blank (index -1).");
+            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"{result.Alignments} alignments in {result.Elapsed.TotalMilliseconds:0} ms.");
 
-            Message = $"{beams.Count - skipped} beams -> {result.Clusters.Count} blanks";
+            Message = result.ToString();
 
             DA.SetDataList(0, result.Clusters.Select(x => new GH_Beam(x.Blank)));
             DA.SetDataTree(1, membersOut);
