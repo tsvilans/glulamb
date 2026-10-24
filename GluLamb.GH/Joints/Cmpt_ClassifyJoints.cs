@@ -32,6 +32,7 @@ using Grasshopper.Kernel.Data;
 using static Rhino.FileIO.FileObjWriteOptions;
 using System.Drawing;
 using GluLamb.Factory;
+using GluLamb.Joints;
 using Grasshopper;
 using Rhino;
 
@@ -136,19 +137,6 @@ namespace GluLamb.GH.Components
             ExpireSolution(true);
         }
 
-        public void ClassifyJointPosition(Curve c, double t, out int jointCase, out Vector3d direction, double end_tolerance = 10)
-        {
-            jointCase = 0; // initialize
-
-            jointCase = t > c.Domain.Mid ? JointPartX.SetAtEnd1(jointCase) : JointPartX.SetAtEnd0(jointCase);
-
-            double length = JointPartX.End1(jointCase) ? c.GetLength(new Interval(t, c.Domain.Max)) : c.GetLength(new Interval(c.Domain.Min, t));
-
-            jointCase = length < end_tolerance ? JointPartX.SetAtEnd(jointCase) : JointPartX.SetAtMiddle(jointCase);
-            
-            direction = (JointPartX.End0(jointCase) && JointPartX.IsAtEnd(jointCase)) ? -c.TangentAt(t) : c.TangentAt(t);
-        }
-
         public override void DrawViewportMeshes(IGH_PreviewArgs args)
         {
             if (JointOrigins != null)
@@ -216,103 +204,24 @@ namespace GluLamb.GH.Components
             JointNames = new Dictionary<int, string>();
             JointTypes = new Dictionary<int, string>();
 
-            var Joints = new List<JointX>();
+            var curveMap = new Dictionary<int, Curve>();
+            foreach (var path in curves.Paths)
+                if (curves[path].Count > 0 && curves[path][0]?.Value != null)
+                    curveMap[path.Indices[0]] = curves[path][0].Value;
 
-            var jointPaths = pairs.Paths;
-            foreach (var jp in jointPaths)
+            var pairList = new List<Pair>();
+            foreach (var jp in pairs.Paths)
             {
-
-                int id = jp.Indices[0];
                 var indices = pairs[jp];
-                if (indices.Count != 2) continue;
-
-                var i0 = indices[0].Value;
-                var i1 = indices[1].Value;
-
-                var path0 = new GH_Path(i0);
-                var path1 = new GH_Path(i1);
-                
-                var c0 = curves[path0][0].Value;
-                var c1 = curves[path1][0].Value;
-
-                var t0 = parameters[jp][0].Value;
-                var t1 = parameters[jp][1].Value;
-
-                var p0 = c0.PointAt(t0);
-                var p1 = c1.PointAt(t1);
-
-                ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
-                ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
-
-                if ((JointPartX.IsAtMiddle(s0) || JointPartX.IsAtMiddle(s1)) && JointX.IsEndOverlap(c0, t0, c1, t1, endTolerance, csThreshold))
-                {
-                    ClassifyJointPosition(c0, t0, out s0, out v0, double.MaxValue);
-                    ClassifyJointPosition(c1, t1, out s1, out v1, double.MaxValue);
-                }
-
-                var jc = new JointX(
-                    new List<JointPartX>
-                    {
-                        new JointPartX() {Case = s0, ElementIndex = i0, JointIndex = id, Parameter = t0, Direction = v0 },
-                        new JointPartX() {Case = s1, ElementIndex = i1, JointIndex = id, Parameter = t1, Direction = v1 },
-                    },
-                    (p0 + p1) * 0.5
-                    );
-
-                Joints.Add(jc);
+                if (indices.Count != 2 || !parameters.PathExists(jp) || parameters[jp].Count < 2) continue;
+                pairList.Add(new Pair { A = indices[0].Value, B = indices[1].Value, tA = parameters[jp][0].Value, tB = parameters[jp][1].Value });
             }
 
-            Joints = JointX.MergeJoints(Joints, mergeDistance);
-
-            // Post first: where only beam ends meet, the joint can't tell the post from the beams
-            if (postDirection.Unitize())
-                foreach (var jc in Joints.Where(j => j.Parts.Count >= 3 && j.Parts.All(p => JointPartX.IsAtEnd(p.Case))))
-                {
-                    var post = jc.Parts.OrderByDescending(p => Math.Abs(p.Direction * postDirection) / Math.Max(p.Direction.Length, 1e-9)).First();
-                    if (Math.Abs(post.Direction * postDirection) / Math.Max(post.Direction.Length, 1e-9) < Math.Cos(Math.PI * 0.25)) continue;
-                    jc.Parts.Remove(post);
-                    jc.Parts.Insert(0, post);
-                }
-
-            if (splitDoubleT)
-                Joints = JointX.SplitDoubleT(Joints, csThreshold);
-
-            // Merging adds parts, so frame each condition from all of them
-            foreach (var jc in Joints)
-                jc.Position = JointX.ConditionPlane(jc.Parts, jc.Position.Origin);
-
-            // Single-beam conditions at curve ends that no joint uses
-            if (freeEnds)
-            {
-                var used = new HashSet<(int, bool)>(Joints.SelectMany(j => j.Parts)
-                    .Where(p => JointPartX.IsAtEnd(p.Case))
-                    .Select(p => (p.ElementIndex, JointPartX.End1(p.Case))));
-
-                int id = Joints.Count;
-                foreach (var path in curves.Paths)
-                {
-                    if (curves[path].Count < 1 || curves[path][0]?.Value == null) continue;
-                    var index = path.Indices[0];
-                    var curve = curves[path][0].Value;
-
-                    foreach (var atEnd1 in new[] { false, true })
-                    {
-                        if (used.Contains((index, atEnd1))) continue;
-
-                        var t = atEnd1 ? curve.Domain.Max : curve.Domain.Min;
-                        ClassifyJointPosition(curve, t, out int s, out Vector3d v, endTolerance);
-                        Joints.Add(new JointX(
-                            new List<JointPartX> { new JointPartX() { Case = s, ElementIndex = index, JointIndex = id, Parameter = t, Direction = v } },
-                            curve.PointAt(t)));
-                        id++;
-                    }
-                }
-            }
+            var Joints = JointClassifier.Classify(curveMap, pairList, mergeDistance, endTolerance, csThreshold, postDirection, splitDoubleT, freeEnds);
 
             for (int i = 0; i < Joints.Count; ++i)
             {
                 var jc = Joints[i];
-                jc.Id = i.ToString();   // the path it is output on
                 JointOrigins.Add(i, jc.Position);
 
                 var jointType = JointX.ClassifyJoint(jc, csThreshold);
