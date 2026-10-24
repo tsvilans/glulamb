@@ -91,6 +91,11 @@ namespace GluLamb.Blanks
         public Glulam[] PlacedBlanks;
 
         /// <summary>
+        /// Per input beam: where it sits in its blank (null for a beam without a blank).
+        /// </summary>
+        public Placement[] Placements;
+
+        /// <summary>
         /// Number of pairs that were aligned (after pruning), for diagnostics.
         /// </summary>
         public long Alignments;

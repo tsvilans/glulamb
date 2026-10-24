@@ -74,7 +74,8 @@ namespace GluLamb.Blanks
                 Transforms = Enumerable.Repeat(Transform.Identity, count).ToArray(),
                 Deviation = new double[count],
                 Partial = new bool[count],
-                PlacedBlanks = new Glulam[count]
+                PlacedBlanks = new Glulam[count],
+                Placements = new Placement[count]
             };
 
             var profiles = new Profile[count];
@@ -221,6 +222,16 @@ namespace GluLamb.Blanks
                     result.Transforms[m] = match.Transform;
                     result.Deviation[m] = match.Deviation;
                     result.Partial[m] = match.Partial;
+                    result.Placements[m] = new Placement
+                    {
+                        BeamId = beams[m].Id,
+                        BeamIndex = m,
+                        Transform = match.Transform,
+                        Partial = match.Partial,
+                        Offset = match.Offset,
+                        Reversed = match.Reversed,
+                        Deviation = match.Deviation
+                    };
 
                     width = Math.Max(width, beams[m].Width + 2 * match.MaxX);
                     height = Math.Max(height, beams[m].Height + 2 * match.MaxY);
@@ -284,6 +295,10 @@ namespace GluLamb.Blanks
                     Members = ordered,
                     Extension = new BeamExtension(start, end)
                 });
+
+                result.Placements[reference] = new Placement { BeamId = refBeam.Id, BeamIndex = reference };
+                foreach (var m in members)
+                    result.Placements[m].BlankId = blank.Id;
 
                 foreach (var m in members)
                 {

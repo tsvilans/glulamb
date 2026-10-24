@@ -40,6 +40,7 @@ static class Program
             TestFitSection();
             TestLayup();
             TestCompanion();
+            TestIBlank();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -506,6 +507,50 @@ static class Program
         var grades = string.Join(" ", Enumerable.Range(0, glulam.Data.NumHeight).Select(j => glulam.Data.Lamellae[0, j].Grade));
         Console.WriteLine($"Layers T14 T18 T22 over {glulam.Data.NumHeight} lamellae: {grades}");
         Check(grades == "T14 T14 T18 T18 T22 T22", "companion: layered layup wrong");
+    }
+
+    /// <summary>
+    /// A glulam and a segmented blank used through IBlank: section, volume, Brep, layers, material,
+    /// duplicate and transform (a moved copy leaves the original alone). Cluster Beams placements.
+    /// </summary>
+    static void TestIBlank()
+    {
+        var arc = new Arc(new Circle(Plane.WorldXY, 4000), new Interval(0, 0.8)).ToNurbsCurve();
+        var segmented = new GluLamb.Blanks.SegmentedBlankX(arc.DuplicateCurve(), null, Plane.Unset, 60, 60, 60, 20);
+        var beam = new Beam { Centreline = arc.DuplicateCurve(), Width = 120, Height = 60, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var glulam = Glulam.CreateGlulam(beam, beam.Orientation, GluLamb.Standards.Standard.Eurocode);
+
+        double expected = arc.GetLength() * 120 * 60;
+        foreach (var (name, blank) in new (string, IBlank)[] { ("glulam", glulam), ("segmented", segmented) })
+        {
+            var crv = blank.Centreline;
+            var section = blank.GetSection(crv.Domain.Mid);
+            var brep = blank.ToBrep();
+            double brepVolume = brep == null ? 0 : (VolumeMassProperties.Compute(brep)?.Volume ?? 0);
+            var layers = blank.Layers;
+            Console.WriteLine($"IBlank ({name}): section {section.Width:0.#} x {section.Height:0.#}, volume {blank.GetVolume() / 1e9:0.0000} m3 (Brep {brepVolume / 1e9:0.0000}, expected {expected / 1e9:0.0000}), " +
+                $"{layers?.Count ?? 0} layers");
+            Check(Math.Abs(section.Width - 120) < 0.5 && Math.Abs(section.Height - 60) < 0.5, $"iblank ({name}): section wrong");
+            Check(Math.Abs(blank.GetVolume() - expected) < expected * 0.01 && Math.Abs(brepVolume - expected) < expected * 0.02, $"iblank ({name}): volume wrong");
+            Check(layers != null && layers.Count == (name == "glulam" ? glulam.Data.NumHeight : 3), $"iblank ({name}): layers wrong");
+
+            blank.Material = new BlankMaterial("GL24h", "Larch", new MachiningAllowance(5, 5, 2, 10, 10));
+            Check(blank.Material.StrengthClass == "GL24h" && blank.Material.Species == "Larch" && blank.Material.Allowance.Sides == 2, $"iblank ({name}): material didn't stick");
+
+            var start = crv.PointAtStart;
+            var copy = blank.DuplicateBlank();
+            copy.Transform(Transform.Translation(0, 0, 1000));
+            Check(copy.Id == blank.Id && copy.Material.StrengthClass == "GL24h", $"iblank ({name}): duplicate lost id or material");
+            Check(blank.Centreline.PointAtStart.DistanceTo(start) < 1e-6 && Math.Abs(copy.Centreline.PointAtStart.Z - start.Z - 1000) < 1e-6, $"iblank ({name}): moving the copy moved the original");
+        }
+
+        // Placements from Cluster Beams
+        var rng = new Random(11);
+        var beams = Enumerable.Range(0, 3).Select(i => Copy(MakeBeam(new Arc(new Circle(Plane.WorldXY, 5000), new Interval(0, 0.5 + 0.02 * i)).ToNurbsCurve(), 100, 200, Vector3d.ZAxis), Vector3d.ZAxis, rng, 0.3, i == 1, false)).ToList();
+        var r = BeamClustering.Cluster(beams, Tol, 500, 24);
+        foreach (var p in r.Placements) Console.WriteLine($"  {p}");
+        Check(r.Placements.All(p => p != null && p.BlankId == r.Clusters[r.BlankIndex[p.BeamIndex]].Blank.Id && p.BeamId == beams[p.BeamIndex].Id), "iblank: placements don't match blanks and beams");
+        Check(r.Placements.Count(p => p.Partial) == 2 && r.Placements.Where(p => p.Partial).All(p => p.Offset >= 0), "iblank: partial placements wrong");
     }
 
     static void TestTiming(int count, double lengthTolerance)

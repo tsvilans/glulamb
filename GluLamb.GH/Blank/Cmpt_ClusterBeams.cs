@@ -78,6 +78,8 @@ namespace GluLamb.GH.Components
             pManager.AddGenericParameter("Placed Blanks", "PB", "Each beam's blank, moved onto the beam, in the structure of Beams. " +
                 "Beams that share a blank get copies with the same id.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Volume", "V", "Volume of each blank (length x width x height).", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Placements", "Pl", "Where each beam sits in its blank (blank and beam ids, transform, partial offset, reversal, deviation), " +
+                "in the structure of Beams.", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -147,6 +149,7 @@ namespace GluLamb.GH.Components
             var deviationOut = new DataTree<double>();
             var partialOut = new DataTree<bool>();
             var placedOut = new DataTree<GH_Glulam>();
+            var placementsOut = new DataTree<GH_ObjectWrapper>();
 
             // In the structure of Beams; items that aren't beams get -1 / null
             foreach (var (path, b) in slots)
@@ -156,6 +159,7 @@ namespace GluLamb.GH.Components
                 deviationOut.Add(b < 0 ? 0 : result.Deviation[b], path);
                 partialOut.Add(b >= 0 && result.Partial[b], path);
                 placedOut.Add(b < 0 || result.PlacedBlanks[b] == null ? null : new GH_Glulam(result.PlacedBlanks[b]), path);
+                placementsOut.Add(b < 0 || result.Placements[b] == null ? null : new GH_ObjectWrapper(result.Placements[b]), path);
             }
 
             foreach (var warning in result.Warnings)
@@ -174,6 +178,7 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(5, partialOut);
             DA.SetDataTree(6, placedOut);
             DA.SetDataList(7, result.Clusters.Select(x => x.Volume));
+            DA.SetDataTree(8, placementsOut);
         }
     }
 }
