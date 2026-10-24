@@ -246,6 +246,9 @@ namespace GluLamb.Blanks
                     OffsetY = refBeam.OffsetY
                 };
                 var blank = Glulam.CreateGlulam(section, section.Orientation, standard);
+                if (blank.Data.LamellaCountCapped)
+                    result.Warnings.Add($"Blank {clusterIndex}: too tightly curved for {standard} lamellae within " +
+                        $"{GlulamData.MaxNumWidth} x {GlulamData.MaxNumHeight} lamellae; its lamellae are thicker than the standard allows.");
 
                 // Reference first, then the rest in input order
                 var ordered = new List<int> { reference };

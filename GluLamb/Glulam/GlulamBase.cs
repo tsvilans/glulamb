@@ -44,9 +44,9 @@ namespace GluLamb
         public static int MinimumNumSegments = 25;
 
         #region Static variables and methods
-        // From the active document, or for millimetres without one (scripts, Rhino.Inside)
-        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc?.ModelAbsoluteTolerance ?? 0.01;
-        public static double OverlapTolerance = 1.0 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc?.ModelUnitSystem ?? Rhino.UnitSystem.Millimeters, Rhino.UnitSystem.Millimeters);
+        // The model's tolerances, from Globals
+        public static double Tolerance { get => Globals.Tolerance; set => Globals.Tolerance = value; }
+        public static double OverlapTolerance => Globals.OverlapTolerance;
         public static double AngleTolerance = Rhino.RhinoMath.ToRadians(2.5);
 
         #endregion
@@ -267,7 +267,7 @@ namespace GluLamb
         /// <returns>List of new glulams.</returns>
         public List<Glulam> Split(double t, double overlap)
         {
-            if (overlap < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance) return Split(t);
+            if (overlap < Globals.Tolerance) return Split(t);
 
             if (!Centreline.Domain.IncludesParameter(t)) return null;
             double split_length = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));

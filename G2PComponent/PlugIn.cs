@@ -53,6 +53,9 @@ namespace G2PComponents
             Rhino.RhinoApp.WriteLine($"G2PComponents v{Version}");
             RhinoApp.WriteLine("An extension for D2PComponents (c) Design-to-Production GmbH.");
 
+            // GluLamb's tolerances and units follow the active document
+            GluLamb.Globals.TrackDocument();
+
 
             //var jointsPath = Path.GetFullPath("./");
             var jointsPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

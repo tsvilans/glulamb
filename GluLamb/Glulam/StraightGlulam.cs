@@ -283,8 +283,8 @@ namespace GluLamb
                     brep.Append(loft[j]);
             }
 
-            brep.JoinNakedEdges(Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
-            brep = brep.CapPlanarHoles(Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
+            brep.JoinNakedEdges(Globals.Tolerance);
+            brep = brep.CapPlanarHoles(Globals.Tolerance);
 
             //brep.UserDictionary.Set("glulam", GetArchivableDictionary());
 
@@ -329,7 +329,7 @@ namespace GluLamb
                 {
                     Brep[] brep = Brep.CreateFromLoft(LoftCurves[i, j], Point3d.Unset, Point3d.Unset, LoftType.Normal, false);
                     if (brep != null && brep.Length > 0)
-                        LamellaBreps.Add(brep[0].CapPlanarHoles(Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance));
+                        LamellaBreps.Add(brep[0].CapPlanarHoles(Globals.Tolerance));
                 }
             }
             return LamellaBreps;

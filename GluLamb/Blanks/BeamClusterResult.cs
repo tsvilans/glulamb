@@ -96,6 +96,11 @@ namespace GluLamb.Blanks
         public TimeSpan Elapsed;
 
         /// <summary>
+        /// Problems with the blanks, e.g. lamellae thicker than the standard allows.
+        /// </summary>
+        public List<string> Warnings = new List<string>();
+
+        /// <summary>
         /// Number of beams that couldn't be sampled (no centreline or orientation, or zero length)
         /// and so have no blank.
         /// </summary>

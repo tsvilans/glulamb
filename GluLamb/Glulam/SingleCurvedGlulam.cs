@@ -128,7 +128,7 @@ namespace GluLamb
         public override Mesh MapToCurveSpace(Mesh m)
         {
             Plane cp, cpp = Plane.Unset;
-            if (!Centreline.TryGetPlane(out cp, Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance))
+            if (!Centreline.TryGetPlane(out cp, Globals.Tolerance))
                 throw new Exception("SingleCurvedGlulam: Centreline is not planar!");
             double t, l;
 

@@ -179,7 +179,7 @@ namespace GluLamb.Joints
             Curve tenon0_outline = new Polyline(points.Take(idx)).ToNurbsCurve();
             tenon0_outline = Curve.CreateFilletCornersCurve(
                 tenon0_outline, FilletRadius, Tolerance,
-                                RhinoDoc.ActiveDoc.ModelAngleToleranceRadians);
+                                Globals.ModelAngleTolerance);
 
             idx = 0;
 
@@ -219,7 +219,7 @@ namespace GluLamb.Joints
             Curve mortise0_outline = new Polyline(points.Take(idx)).ToNurbsCurve();
             mortise0_outline = Curve.CreateFilletCornersCurve(
                 mortise0_outline, FilletRadius, Tolerance,
-                RhinoDoc.ActiveDoc.ModelAngleToleranceRadians);
+                Globals.ModelAngleTolerance);
 
             var mirror = Transform.Mirror(mirror_plane);
 

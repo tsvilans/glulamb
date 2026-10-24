@@ -88,6 +88,13 @@ namespace GluLamb
         /// </summary>
         public Stick[,] Lamellae;
 
+        /// <summary>
+        /// Whether the lamella count hit MaxNumWidth or MaxNumHeight (a guard against huge counts
+        /// from a tiny or bad curve): in Compute, the lamellae are then thicker than the standard
+        /// allows for the curvature; in AdjustLaminationDimensions, they don't make up the whole section.
+        /// </summary>
+        public bool LamellaCountCapped;
+
         public static GlulamData Default
         { get { return new GlulamData(); } }
 
@@ -119,6 +126,7 @@ namespace GluLamb
             data.Samples = Samples;
             data.SectionAlignment = SectionAlignment;
             data.InterpolationType = InterpolationType;
+            data.LamellaCountCapped = LamellaCountCapped;
             // New lamellae, so that changing one copy's species doesn't change the other's
             data.Lamellae = new Stick[NumWidth, NumHeight];
             for (int i = 0; i < NumWidth; ++i)
@@ -209,8 +217,11 @@ namespace GluLamb
             tempLamWidth = Math.Min(tempLamWidth, beamWidth);
             tempLamHeight = Math.Min(tempLamHeight, beamHeight);
 
-            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(beamWidth / tempLamWidth));
-            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(beamHeight / tempLamHeight));
+            int needWidth = (int)Math.Ceiling(beamWidth / tempLamWidth);
+            int needHeight = (int)Math.Ceiling(beamHeight / tempLamHeight);
+            int tempNumWidth = Math.Min(MaxNumWidth, needWidth);
+            int tempNumHeight = Math.Min(MaxNumHeight, needHeight);
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Recalculate number of laminations needed to make up the total dimensions
             // Lamellae.ResizeArray(tempNumWidth, tempNumHeight);
@@ -234,8 +245,11 @@ namespace GluLamb
             double lamination_width = factory.GetWidth(LamWidth);
             double lamination_height = factory.GetHeight(LamHeight);
 
-            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(width / lamination_width));
-            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(height / lamination_height));
+            int needWidth = (int)Math.Ceiling(width / lamination_width);
+            int needHeight = (int)Math.Ceiling(height / lamination_height);
+            int tempNumWidth = Math.Min(MaxNumWidth, needWidth);
+            int tempNumHeight = Math.Min(MaxNumHeight, needHeight);
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Adjust number of laminations to cover current cross-section dimensions
             //Lamellae.ResizeArray((int)Math.Ceiling(width / lamination_width), (int)Math.Ceiling(height / lamination_height));

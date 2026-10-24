@@ -142,6 +142,8 @@ namespace GluLamb.GH.Components
                 placedOut.Add(b < 0 || result.PlacedBlanks[b] == null ? null : new GH_Glulam(result.PlacedBlanks[b]), path);
             }
 
+            foreach (var warning in result.Warnings)
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, warning);
             if (result.Skipped > 0)
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"{result.Skipped} beams couldn't be sampled and have no blank (index -1).");
             AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"{result.Alignments} alignments in {result.Elapsed.TotalMilliseconds:0} ms.");

@@ -159,9 +159,9 @@ namespace GluLamb
         public void CalculateAngularOffset(Curve curve)
         {
             Plane RMF;
-            if (Math.Abs(Parameter - curve.Domain.Min) < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)
+            if (Math.Abs(Parameter - curve.Domain.Min) < Globals.Tolerance)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, curve.Domain.Max }).First();
-            else if (Math.Abs(Parameter - curve.Domain.Max) < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)
+            else if (Math.Abs(Parameter - curve.Domain.Max) < Globals.Tolerance)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, curve.Domain.Max }).Last();
             else if (Parameter > curve.Domain.Min)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, Parameter }).Last();
@@ -401,9 +401,9 @@ namespace GluLamb
 
             Plane RMF;
 
-            if (Math.Abs(t - curve.Domain.Min) < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)
+            if (Math.Abs(t - curve.Domain.Min) < Globals.Tolerance)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, curve.Domain.Max }).First();
-            else if (Math.Abs(t - curve.Domain.Max) < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)
+            else if (Math.Abs(t - curve.Domain.Max) < Globals.Tolerance)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, curve.Domain.Max }).Last();
             else if (t > curve.Domain.Min)
                 RMF = curve.GetPerpendicularFrames(new double[] { curve.Domain.Min, t }).Last();

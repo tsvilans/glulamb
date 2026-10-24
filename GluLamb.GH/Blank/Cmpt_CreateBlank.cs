@@ -119,6 +119,9 @@ namespace GluLamb.GH.Components
             if (!hasDimensions)
             {
                 glulam = Glulam.CreateGlulam(beam, beam.Orientation, Standards.Standard.Eurocode);
+                if (glulam.Data.LamellaCountCapped)
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Too tightly curved for Eurocode lamellae within " +
+                        $"{GlulamData.MaxNumWidth} x {GlulamData.MaxNumHeight} lamellae; the lamellae are thicker than the standard allows.");
             }
             else
             {

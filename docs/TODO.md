@@ -33,6 +33,8 @@ Kept up to date as items are done or added. Last updated 2026-10-24.
 - Cluster Beams: with a very large Length Tolerance, sliding beams along each other is the slow part (about 3.5 s for 1000 beams, against 0.5 s at 500); prune pairs before sliding if it matters.
 - Cluster Beams: length bands are greedy from the longest beam down; fixed standard blank lengths (round up to increments) aren't supported.
 
+- Blank types: unify them later. `CixBlank` only holds CIX-related variables and derives from `SegmentedBlank`. `SegmentedBlank` is a glulam whose "lamellae" are short overlapping segments cut from straight boards and laid in layers like bricks: single-curved, constrained, and its lamellae aren't continuous, but it shares a lot with `Glulam`.
+
 ## Gallery and catalogue
 
 - Some catalogue views are unclear; review them.

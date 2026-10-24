@@ -58,6 +58,9 @@ namespace GluLamb
             Rhino.RhinoApp.WriteLine("GluLamb v2.0");
             Rhino.RhinoApp.WriteLine(this.Name, this.Version);
 
+            // GluLamb's tolerances and units follow the active document
+            GluLamb.Globals.TrackDocument();
+
             return base.OnLoad(ref errorMessage);
         }
 
