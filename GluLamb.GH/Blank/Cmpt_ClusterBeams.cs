@@ -53,7 +53,8 @@ namespace GluLamb.GH.Components
 
             pManager.AddGenericParameter("Beams", "B", "Beams to group, as a tree.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Tolerance", "T", "Largest deviation between the two most different beams of a group, after aligning them. Sections must also be within it.", GH_ParamAccess.item, scale * 5.0);
-            pManager.AddBooleanParameter("Allow Partial", "P", "Whether a shorter beam may be cut from a longer blank.", GH_ParamAccess.item, false);
+            pManager.AddNumberParameter("Length Tolerance", "LT", "How much shorter than its blank a beam may be. Within a group, the longest and shortest beams differ by at most this, " +
+                "and the shorter ones are cut from the blank (their shape still within Tolerance). 0: only beams of the same length share a blank.", GH_ParamAccess.item, 0.0);
             pManager.AddIntegerParameter("Samples", "S", "Number of stations compared along each beam.", GH_ParamAccess.item, 24);
             pManager.AddNumberParameter("Extensions", "E", "Optional extensions {start, end} per beam path, e.g. from Construct Joints. The blank covers them.", GH_ParamAccess.tree);
 
@@ -78,10 +79,10 @@ namespace GluLamb.GH.Components
             if (!DA.GetDataTree(0, out GH_Structure<IGH_Goo> beamTree)) return;
 
             double tolerance = 5.0;
-            bool allowPartial = false;
+            double lengthTolerance = 0;
             int samples = 24;
             DA.GetData(1, ref tolerance);
-            DA.GetData(2, ref allowPartial);
+            DA.GetData(2, ref lengthTolerance);
             DA.GetData(3, ref samples);
             DA.GetDataTree(4, out GH_Structure<GH_Number> extensionTree);
 
@@ -124,7 +125,7 @@ namespace GluLamb.GH.Components
             }
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            var result = BeamClustering.Cluster(beams, tolerance, allowPartial, samples, extensions);
+            var result = BeamClustering.Cluster(beams, tolerance, lengthTolerance, samples, extensions);
             watch.Stop();
 
             var membersOut = new DataTree<string>();

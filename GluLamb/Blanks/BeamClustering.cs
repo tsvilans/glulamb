@@ -101,14 +101,17 @@ namespace GluLamb.Blanks
         /// </summary>
         /// <param name="beams">Beams to cluster.</param>
         /// <param name="tolerance">Largest deviation between any two beams of a cluster. Sections must also be within it.</param>
-        /// <param name="allowPartial">Whether a shorter beam may be cut from a longer blank.</param>
+        /// <param name="lengthTolerance">How much shorter than the blank a member may be: within a cluster,
+        /// the longest and shortest members differ by at most this, and the shorter ones are cut from the
+        /// blank (still within the tolerance over their length). 0: full-length matches only.</param>
         /// <param name="samples">Number of stations along each beam.</param>
         /// <param name="extensions">Optional extensions per beam that the blank must also cover.</param>
-        public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, bool allowPartial = false, int samples = 24, IList<BeamExtension> extensions = null)
+        public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null)
         {
             int count = beams.Count;
             samples = Math.Max(samples, 4);
             tolerance = Math.Max(tolerance, Rhino.RhinoMath.ZeroTolerance);
+            bool allowPartial = lengthTolerance > 0;
 
             var result = new BeamClusterResult
             {
@@ -170,7 +173,7 @@ namespace GluLamb.Blanks
                             }
                         }
 
-                        if (b.Length > a.Length)
+                        if (b.Length > a.Length && b.Length - a.Length <= lengthTolerance)
                         {
                             long tried = 0;
                             var match = AlignPartial(b, a, tolerance, false, ref tried);
@@ -195,22 +198,31 @@ namespace GluLamb.Blanks
 
             // Greedy complete linkage: seed with the beam that has the most unclustered
             // neighbours (ties: longest), then add its neighbours (full matches first, then
-            // closest) if they match every member so far.
+            // closest) if they match every member so far. With a length tolerance, seed with
+            // the longest unclustered beam instead, so that clusters form length bands below
+            // it rather than chaining, and take the closest lengths first.
             var alive = new HashSet<int>(valid.Select(x => x.Index));
             var clusters = new List<List<int>>();
 
             while (alive.Count > 0)
             {
-                int seed = alive
-                    .OrderByDescending(x => neighbours[x].Keys.Count(alive.Contains))
-                    .ThenByDescending(x => profiles[x].Length)
-                    .ThenBy(x => x)
-                    .First();
+                int seed = allowPartial
+                    ? alive
+                        .OrderByDescending(x => profiles[x].Length)
+                        .ThenByDescending(x => neighbours[x].Keys.Count(alive.Contains))
+                        .ThenBy(x => x)
+                        .First()
+                    : alive
+                        .OrderByDescending(x => neighbours[x].Keys.Count(alive.Contains))
+                        .ThenByDescending(x => profiles[x].Length)
+                        .ThenBy(x => x)
+                        .First();
 
                 var members = new List<int> { seed };
                 var candidates = neighbours[seed]
                     .Where(x => alive.Contains(x.Key))
                     .OrderBy(x => x.Value.Partial ? 1 : 0)
+                    .ThenByDescending(x => allowPartial ? profiles[x.Key].Length : 0)
                     .ThenBy(x => x.Value.Deviation)
                     .Select(x => x.Key);
 

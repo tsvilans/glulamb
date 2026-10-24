@@ -28,8 +28,8 @@ Kept up to date as items are done or added. Last updated 2026-10-24.
 ## Blanks
 
 - Cluster Beams: sections only match as given (width with width); a beam whose width and height are swapped (a quarter-turn roll) isn't matched, and neither are square sections a quarter turn apart.
-- Cluster Beams: with Allow Partial, the window scan is the slow part (about 3 s for 1000 beams of three sections); prune pairs before sliding if it matters.
-- Cluster Beams: a test in the repo (the checks are in a scratch Rhino.Inside console app for now).
+- Cluster Beams: with a very large Length Tolerance, sliding beams along each other is the slow part (about 3.5 s for 1000 beams, against 0.5 s at 500); prune pairs before sliding if it matters.
+- Cluster Beams: length bands are greedy from the longest beam down; fixed standard blank lengths (round up to increments) aren't supported.
 
 ## Gallery and catalogue
 
