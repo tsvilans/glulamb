@@ -1,6 +1,6 @@
 # Joint system and G2P: open items
 
-Kept up to date as items are done or added. Last updated 2026-10-11.
+Kept up to date as items are done or added. Last updated 2026-10-24.
 
 ## G2P (Rhino plug-in)
 
@@ -24,6 +24,12 @@ Kept up to date as items are done or added. Last updated 2026-10-11.
 - K plate joist fails in the gallery's layout (the joist overlaps the sill); check how the joist should be arranged.
 - Plates: how plate edges and corners meet the milled slot ends. Plates round only their interior corners now; the original K-joint project modelled plates with their own routine and production marking.
 - Control the order of beams within a joint from the components, so Flip and "first part" are predictable.
+
+## Blanks
+
+- Cluster Beams: sections only match as given (width with width); a beam whose width and height are swapped (a quarter-turn roll) isn't matched, and neither are square sections a quarter turn apart.
+- Cluster Beams: with Allow Partial, the window scan is the slow part (about 3 s for 1000 beams of three sections); prune pairs before sliding if it matters.
+- Cluster Beams: a test in the repo (the checks are in a scratch Rhino.Inside console app for now).
 
 ## Gallery and catalogue
 
