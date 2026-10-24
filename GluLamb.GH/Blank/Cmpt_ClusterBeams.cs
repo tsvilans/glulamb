@@ -69,6 +69,8 @@ namespace GluLamb.GH.Components
             pManager.AddTransformParameter("Transforms", "X", "Transform from the blank to each beam, in the structure of Beams.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Deviation", "D", "Largest deviation of each beam from its blank's reference, in the structure of Beams.", GH_ParamAccess.tree);
             pManager.AddBooleanParameter("Partial", "P", "Whether each beam is cut from a longer blank, in the structure of Beams.", GH_ParamAccess.tree);
+            pManager.AddGenericParameter("Placed Blanks", "PB", "Each beam's blank, moved onto the beam, in the structure of Beams. " +
+                "Beams that share a blank get copies with the same id.", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -133,6 +135,7 @@ namespace GluLamb.GH.Components
             var transformsOut = new DataTree<GH_Transform>();
             var deviationOut = new DataTree<double>();
             var partialOut = new DataTree<bool>();
+            var placedOut = new DataTree<GH_Beam>();
 
             // In the structure of Beams; items that aren't beams get -1 / null
             foreach (var (path, b) in slots)
@@ -141,6 +144,15 @@ namespace GluLamb.GH.Components
                 transformsOut.Add(b < 0 ? null : new GH_Transform(result.Transforms[b]), path);
                 deviationOut.Add(b < 0 ? 0 : result.Deviation[b], path);
                 partialOut.Add(b >= 0 && result.Partial[b], path);
+
+                Beam placed = null;
+                if (b >= 0 && result.BlankIndex[b] >= 0)
+                {
+                    // Duplicate keeps the blank's id
+                    placed = result.Clusters[result.BlankIndex[b]].Blank.Duplicate();
+                    placed.Transform(result.Transforms[b]);
+                }
+                placedOut.Add(placed == null ? null : new GH_Beam(placed), path);
             }
 
             int skipped = result.BlankIndex.Count(x => x < 0);
@@ -156,6 +168,7 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(3, transformsOut);
             DA.SetDataTree(4, deviationOut);
             DA.SetDataTree(5, partialOut);
+            DA.SetDataTree(6, placedOut);
         }
     }
 }
