@@ -32,6 +32,55 @@ namespace GluLamb
         }
 
         /// <summary>
+        /// A divided curve: its pieces, where it was cut, and how long each piece is.
+        /// </summary>
+        public class DivisionResult
+        {
+            /// <summary>The pieces, in order along the curve. The whole curve if it wasn't divided.</summary>
+            public Curve[] Pieces;
+            /// <summary>Arc-length positions of the cuts.</summary>
+            public double[] Cuts;
+            /// <summary>Points on the curve at the cuts.</summary>
+            public Point3d[] CutPoints;
+            /// <summary>Length of each piece, extensions and overlaps included.</summary>
+            public double[] Lengths;
+            /// <summary>Why the curve was left whole when it needed dividing, or null.</summary>
+            public string Error;
+        }
+
+        /// <summary>
+        /// Divide a curve so that no piece, with its extensions and overlaps, is longer than maxLength.
+        /// See FindCuts and Divide. If no division fits, the curve is left whole and Error says why.
+        /// </summary>
+        public static DivisionResult DivideCurve(Curve curve, IEnumerable<double> jointParameters, double maxLength, double clearance,
+            double overlap = 0, double startExtension = 0, double endExtension = 0)
+        {
+            var result = new DivisionResult();
+            var cuts = FindCuts(curve, jointParameters ?? Enumerable.Empty<double>(), maxLength, clearance, overlap, startExtension, endExtension);
+
+            if (cuts == null)
+            {
+                result.Error = "no division fits the max length and clearances";
+                cuts = new double[0];
+            }
+
+            var pieces = Divide(curve, cuts, overlap);
+            if (pieces == null)
+            {
+                result.Error = "the curve could not be trimmed at the cuts";
+                cuts = new double[0];
+                pieces = new[] { curve.DuplicateCurve() };
+            }
+
+            result.Pieces = pieces;
+            result.Cuts = cuts;
+            result.CutPoints = cuts.Select(s => curve.LengthParameter(s, out double t) ? curve.PointAt(t) : Point3d.Unset)
+                .Where(x => x.IsValid).ToArray();
+            result.Lengths = PieceLengths(curve.GetLength(), cuts, overlap, startExtension, endExtension);
+            return result;
+        }
+
+        /// <summary>
         /// Splits a curve at the arc-length positions from FindCuts. Each piece runs past each cut
         /// by the overlap, trimmed from the original curve so that it follows it exactly (like
         /// Beam.Trim), rather than being extended afterwards.

@@ -149,20 +149,6 @@ namespace GluLamb.GH.Components
             direction = (JointPartX.End0(jointCase) && JointPartX.IsAtEnd(jointCase)) ? -c.TangentAt(t) : c.TangentAt(t);
         }
 
-        /// <summary>
-        /// Whether two curves overlap end to end (an overlapping splice, e.g. from Divide For Length):
-        /// the end of each nearer the connection lies on the other, and they run the same way.
-        /// Create Topology puts such a connection in the middle of the overlap, which can be
-        /// further from the ends than the end tolerance.
-        /// </summary>
-        static bool IsEndOverlap(Curve c0, double t0, Curve c1, double t1, double tolerance, double angleThreshold)
-        {
-            var e0 = t0 > c0.Domain.Mid ? c0.PointAtEnd : c0.PointAtStart;
-            var e1 = t1 > c1.Domain.Mid ? c1.PointAtEnd : c1.PointAtStart;
-            if (!c1.ClosestPoint(e0, out _, tolerance) || !c0.ClosestPoint(e1, out _, tolerance)) return false;
-            return Math.Abs(c0.TangentAt(t0) * c1.TangentAt(t1)) > Math.Cos(angleThreshold);
-        }
-
         public override void DrawViewportMeshes(IGH_PreviewArgs args)
         {
             if (JointOrigins != null)
@@ -258,7 +244,7 @@ namespace GluLamb.GH.Components
                 ClassifyJointPosition(c0, t0, out int s0, out Vector3d v0, endTolerance);
                 ClassifyJointPosition(c1, t1, out int s1, out Vector3d v1, endTolerance);
 
-                if ((JointPartX.IsAtMiddle(s0) || JointPartX.IsAtMiddle(s1)) && IsEndOverlap(c0, t0, c1, t1, endTolerance, csThreshold))
+                if ((JointPartX.IsAtMiddle(s0) || JointPartX.IsAtMiddle(s1)) && JointX.IsEndOverlap(c0, t0, c1, t1, endTolerance, csThreshold))
                 {
                     ClassifyJointPosition(c0, t0, out s0, out v0, double.MaxValue);
                     ClassifyJointPosition(c1, t1, out s1, out v1, double.MaxValue);
@@ -288,19 +274,8 @@ namespace GluLamb.GH.Components
                     jc.Parts.Insert(0, post);
                 }
 
-            // Two beams ending on a third from opposite sides: two T conditions sharing the through beam
             if (splitDoubleT)
-                Joints = Joints.SelectMany(jc =>
-                {
-                    if (JointX.ClassifyJoint(jc, csThreshold) != "TT") return new[] { jc };
-                    var through = jc.Parts.First(p => JointPartX.IsAtMiddle(p.Case));
-                    return jc.Parts.Where(p => p != through).Select(arm => new JointX(new List<JointPartX>
-                    {
-                        arm,
-                        new JointPartX() { Case = through.Case, ElementIndex = through.ElementIndex, BeamId = through.BeamId,
-                            JointIndex = through.JointIndex, Parameter = through.Parameter, Direction = through.Direction },
-                    }, jc.Position.Origin)).ToArray();
-                }).ToList();
+                Joints = JointX.SplitDoubleT(Joints, csThreshold);
 
             // Merging adds parts, so frame each condition from all of them
             foreach (var jc in Joints)

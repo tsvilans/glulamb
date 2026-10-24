@@ -131,35 +131,20 @@ namespace GluLamb.GH.Components
                 }
 
                 joints.TryGetValue(index, out var jointParameters);
-                var cuts = LengthDivision.FindCuts(curve, jointParameters ?? new List<double>(), maxLength, clearance, allowance, e0, e1);
+                var division = LengthDivision.DivideCurve(curve, jointParameters, maxLength, clearance, allowance, e0, e1);
+                if (division.Error != null)
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Element {index}: {division.Error}; it is left whole.");
 
-                if (cuts == null)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Element {index}: no division fits the max length and clearances; it is left whole.");
-                    cuts = new double[0];
-                }
-
-                var pieces = LengthDivision.Divide(curve, cuts, allowance);
-                if (pieces == null)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Element {index}: the curve could not be trimmed at the cuts; it is left whole.");
-                    cuts = new double[0];
-                    pieces = new[] { curve.DuplicateCurve() };
-                }
-                var lengths = LengthDivision.PieceLengths(curve.GetLength(), cuts, allowance, e0, e1);
-
-                for (int i = 0; i < pieces.Length; ++i)
+                for (int i = 0; i < division.Pieces.Length; ++i)
                 {
                     var newPath = new GH_Path(k++);
-                    curvesOut.Add(new GH_Curve(pieces[i]), newPath);
+                    curvesOut.Add(new GH_Curve(division.Pieces[i]), newPath);
                     sourceOut.Add(new GH_Integer(index), newPath);
-                    if (pieces.Length == lengths.Length)
-                        lengthsOut.Add(new GH_Number(lengths[i]), newPath);
+                    if (i < division.Lengths.Length)
+                        lengthsOut.Add(new GH_Number(division.Lengths[i]), newPath);
                 }
 
-                foreach (var s in cuts)
-                    if (curve.LengthParameter(s, out double t))
-                        cutsOut.Add(new GH_Point(curve.PointAt(t)));
+                cutsOut.AddRange(division.CutPoints.Select(x => new GH_Point(x)));
             }
 
             DA.SetDataTree(0, curvesOut);

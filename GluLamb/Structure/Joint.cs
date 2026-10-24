@@ -247,6 +247,39 @@ namespace GluLamb
             return type;
         }
 
+        /// <summary>
+        /// Whether two curves overlap end to end (an overlapping splice, e.g. from LengthDivision):
+        /// the end of each nearer the connection lies on the other, and they run the same way.
+        /// Topology.FindCurvePairs puts such a connection in the middle of the overlap, which can be
+        /// further from the ends than the end tolerance.
+        /// </summary>
+        public static bool IsEndOverlap(Curve c0, double t0, Curve c1, double t1, double tolerance, double angleThreshold)
+        {
+            var e0 = t0 > c0.Domain.Mid ? c0.PointAtEnd : c0.PointAtStart;
+            var e1 = t1 > c1.Domain.Mid ? c1.PointAtEnd : c1.PointAtStart;
+            if (!c1.ClosestPoint(e0, out _, tolerance) || !c0.ClosestPoint(e1, out _, tolerance)) return false;
+            return Math.Abs(c0.TangentAt(t0) * c1.TangentAt(t1)) > Math.Cos(angleThreshold);
+        }
+
+        /// <summary>
+        /// Replace each TT condition (two beams ending on a third from opposite sides) with two T
+        /// conditions that share the through beam. Other conditions are kept as they are.
+        /// </summary>
+        public static List<JointX> SplitDoubleT(IEnumerable<JointX> joints, double perpendicularThreshold = Math.PI * 0.25)
+        {
+            return joints.SelectMany(jc =>
+            {
+                if (ClassifyJoint(jc, perpendicularThreshold) != "TT") return new[] { jc };
+                var through = jc.Parts.First(p => JointPartX.IsAtMiddle(p.Case));
+                return jc.Parts.Where(p => p != through).Select(arm => new JointX(new List<JointPartX>
+                {
+                    arm,
+                    new JointPartX() { Case = through.Case, ElementIndex = through.ElementIndex, BeamId = through.BeamId,
+                        JointIndex = through.JointIndex, Parameter = through.Parameter, Direction = through.Direction },
+                }, jc.Position.Origin)).ToArray();
+            }).ToList();
+        }
+
         public static List<JointX> MergeJoints(List<JointX> joints, double merge_distance = 50.0)
         {
             if (joints.Count < 1) return joints;
