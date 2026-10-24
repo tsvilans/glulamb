@@ -1,0 +1,196 @@
+/*
+ * GluLamb
+ * A constrained glulam modelling toolkit.
+ * Copyright 2026 Tom Svilans
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+using Rhino.Geometry;
+
+using GluLamb.Reconstruction.Numerics;
+
+namespace GluLamb.Reconstruction
+{
+    /// <summary>
+    /// A cross-section of a beam's edges: where a plane crosses them, and the convex hull of those
+    /// points.
+    /// </summary>
+    public struct Section
+    {
+        /// <summary>The point the section was taken at (on the centreline).</summary>
+        public Point3d Position;
+
+        /// <summary>Mean of the hull's corners.</summary>
+        public Point3d Centre;
+
+        /// <summary>Section plane at Position: Z along the centreline, Y along the section's
+        /// largest spread (the beam's height direction), X across it.</summary>
+        public Plane Plane;
+
+        /// <summary>Hull corners, counter-clockwise.</summary>
+        public Point3d[] Hull;
+
+        /// <summary>Extent across (X) and along (Y) the section, measured both ways from
+        /// Position, so that a section centred on the centreline covers the hull.</summary>
+        public double Width, Height;
+
+        public Polyline Outline
+        {
+            get
+            {
+                var polyline = new Polyline(Hull);
+                if (Hull.Length > 0) polyline.Add(Hull[0]);
+                return polyline;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Edge polylines prepared for cutting with planes many times over. Thread-safe.
+    /// </summary>
+    public sealed class EdgeSet
+    {
+        readonly Point3d[][] m_polylines;
+
+        public EdgeSet(IEnumerable<Polyline> polylines)
+        {
+            m_polylines = polylines.Where(p => p != null && p.Count > 1).Select(p => p.ToArray()).ToArray();
+        }
+
+        public int Count => m_polylines.Length;
+
+        /// <summary>
+        /// Where a plane crosses each polyline, one point per polyline: the crossing nearest the
+        /// origin. (The Python version took the first crossing along the polyline, which on a
+        /// strongly curved beam can be a crossing far away from the section.)
+        /// </summary>
+        public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits)
+        {
+            hits.Clear();
+            if (!normal.Unitize()) return 0;
+
+            foreach (var poly in m_polylines)
+            {
+                double best = double.MaxValue;
+                Point3d hit = Point3d.Unset;
+                double d0 = (poly[0] - origin) * normal;
+                for (int i = 1; i < poly.Length; ++i)
+                {
+                    double d1 = (poly[i] - origin) * normal;
+                    // Only segments that change side (or touch the plane) can cross it
+                    if ((d0 <= 0 && d1 >= 0) || (d0 >= 0 && d1 <= 0))
+                    {
+                        double denom = d0 - d1;
+                        double t = Math.Abs(denom) > 1e-12 ? d0 / denom : 0;
+                        var p = poly[i - 1] + (poly[i] - poly[i - 1]) * t;
+                        double dist = p.DistanceToSquared(origin);
+                        if (dist < best) { best = dist; hit = p; }
+                    }
+                    d0 = d1;
+                }
+                if (hit.IsValid) hits.Add(hit);
+            }
+            return hits.Count;
+        }
+
+        /// <summary>
+        /// Centre of the section through the edges at a plane: the mean of its hull's corners. The
+        /// fast path for fitting a centreline.
+        /// </summary>
+        public bool TryCentre(Point3d origin, Vector3d normal, List<Point3d> hits, out Point3d centre)
+        {
+            centre = Point3d.Unset;
+            if (Cut(origin, normal, hits) < 3) return false;
+
+            var hull = Hull2d.Compute(hits, new Plane(origin, normal));
+            if (hull.Length < 3) return false;
+
+            var sum = Point3d.Origin;
+            foreach (int i in hull) sum += hits[i];
+            centre = sum / hull.Length;
+            return true;
+        }
+
+        /// <summary>
+        /// The section through the edges at a plane, with its frame and extents.
+        /// </summary>
+        public bool TrySection(Point3d origin, Vector3d normal, out Section section)
+        {
+            var hits = new List<Point3d>();
+            Cut(origin, normal, hits);
+            return Sections.TryFromPoints(hits, origin, normal, out section);
+        }
+    }
+
+    public static class Sections
+    {
+        /// <summary>
+        /// A section from points in (or near) the plane at origin with this normal: their convex
+        /// hull, its principal axes and its extents about origin.
+        /// </summary>
+        public static bool TryFromPoints(IList<Point3d> points, Point3d origin, Vector3d normal, out Section section)
+        {
+            section = default;
+            if (points.Count < 3 || !normal.Unitize()) return false;
+
+            var hullIndices = Hull2d.Compute(points, new Plane(origin, normal));
+            if (hullIndices.Length < 3) return false;
+
+            var hull = hullIndices.Select(i => points[i]).ToArray();
+            Pca.PrincipalAxes(hull, out Point3d centre, out Vector3d[] axes);
+
+            // The section's height direction is its principal axis, in the plane
+            var y = axes[0] - normal * (axes[0] * normal);
+            if (!y.Unitize()) return false;
+            var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
+
+            double width = 0, height = 0;
+            foreach (var p in hull)
+            {
+                var d = p - origin;
+                width = Math.Max(width, Math.Abs(d * plane.XAxis));
+                height = Math.Max(height, Math.Abs(d * plane.YAxis));
+            }
+
+            section = new Section
+            {
+                Position = origin,
+                Centre = centre,
+                Plane = plane,
+                Hull = hull,
+                Width = width * 2,
+                Height = height * 2
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// Flip section frames about their Z-axis where needed so that each one's Y-axis points the
+        /// same way as the one before it.
+        /// </summary>
+        public static void MakeConsistent(IList<Section> sections)
+        {
+            for (int i = 1; i < sections.Count; ++i)
+            {
+                var s = sections[i];
+                if (s.Plane.YAxis * sections[i - 1].Plane.YAxis < 0)
+                {
+                    s.Plane = new Plane(s.Plane.Origin, -s.Plane.XAxis, -s.Plane.YAxis);
+                    sections[i] = s;
+                }
+            }
+        }
+    }
+}

@@ -590,6 +590,61 @@ namespace GluLamb
             return m_curve;
         }
 
+        /// <summary>
+        /// If the orientation vectors along the curve all lie in one plane (within an angle
+        /// tolerance), the PlanarOrientation that gives the same vectors. Checks the vectors at the
+        /// guides and at evenly spaced samples along the curve.
+        /// </summary>
+        /// <param name="curve">Curve the orientation is used with.</param>
+        /// <param name="angleTolerance">Largest angle (radians) between a vector and the plane, and
+        /// between a vector and the PlanarOrientation's vector.</param>
+        /// <param name="planar">The equivalent orientation, or null.</param>
+        /// <param name="samples">Number of samples along the curve, besides the guides.</param>
+        public bool TryGetPlanarOrientation(Curve curve, double angleTolerance, out PlanarOrientation planar, int samples = 20)
+        {
+            planar = null;
+            if (curve == null || m_guides.Length < 1) return false;
+
+            var tt = new List<double>(m_guides.Select(x => x.Parameter));
+            tt.AddRange(curve.DivideByCount(Math.Max(1, samples), true));
+            var vectors = GetOrientations(curve, tt);
+
+            // Normal of the plane through the origin that fits the vectors best: the eigenvector of
+            // the smallest eigenvalue of their scatter matrix
+            var m = new double[3, 3];
+            foreach (var v in vectors)
+            {
+                var u = v; u.Unitize();
+                m[0, 0] += u.X * u.X; m[0, 1] += u.X * u.Y; m[0, 2] += u.X * u.Z;
+                m[1, 1] += u.Y * u.Y; m[1, 2] += u.Y * u.Z; m[2, 2] += u.Z * u.Z;
+            }
+            m[1, 0] = m[0, 1]; m[2, 0] = m[0, 2]; m[2, 1] = m[1, 2];
+            SymmetricEigen.Decompose3(m, out _, out Vector3d[] axes);
+            var normal = axes[2];
+
+            // The planar orientation's vector is tangent x normal; it has to match each vector up to
+            // one sign for the whole curve
+            double cosTolerance = Math.Cos(angleTolerance);
+            int sign = 0;
+            for (int i = 0; i < tt.Count; ++i)
+            {
+                var v = vectors[i]; v.Unitize();
+                var p = Vector3d.CrossProduct(curve.TangentAt(tt[i]), normal);
+                if (!p.Unitize()) return false;
+
+                double dot = v * p;
+                if (Math.Abs(dot) < cosTolerance) return false;
+
+                int s = Math.Sign(dot);
+                if (sign == 0) sign = s;
+                else if (s != sign) return false;
+            }
+
+            if (sign < 0) normal.Reverse();
+            planar = new PlanarOrientation(new Plane(curve.PointAtStart, normal));
+            return true;
+        }
+
 
         public override object GetDriver()
         {
