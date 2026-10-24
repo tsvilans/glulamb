@@ -41,6 +41,7 @@ static class Program
             TestLayup();
             TestCompanion();
             TestIBlank();
+            TestFrames();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -551,6 +552,44 @@ static class Program
         foreach (var p in r.Placements) Console.WriteLine($"  {p}");
         Check(r.Placements.All(p => p != null && p.BlankId == r.Clusters[r.BlankIndex[p.BeamIndex]].Blank.Id && p.BeamId == beams[p.BeamIndex].Id), "iblank: placements don't match blanks and beams");
         Check(r.Placements.Count(p => p.Partial) == 2 && r.Placements.Where(p => p.Partial).All(p => p.Offset >= 0), "iblank: partial placements wrong");
+    }
+
+    /// <summary>
+    /// A glulam made from a beam gets copies of its frames, in the same place (also for an offset
+    /// beam), and keeps its own id; Cluster Beams blanks carry their reference's frames, and placed
+    /// copies carry them along.
+    /// </summary>
+    static void TestFrames()
+    {
+        var curve = Curve.CreateInterpolatedCurve(new[] { new Point3d(0, 0, 0), new Point3d(2000, 700, 300), new Point3d(4000, 400, 900) }, 3);
+        var beam = new Beam { Centreline = curve, Width = 100, Height = 300, OffsetY = -50, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var frame = beam.GetPlane(curve.Domain.Mid);
+        beam.Frames["machining"] = frame;
+
+        var glulam = Glulam.CreateGlulam(beam, beam.Orientation, GluLamb.Standards.Standard.Eurocode);
+        Check(glulam.Id != beam.Id, "frames: glulam has the beam's id");
+        Check(glulam.Frames.TryGetValue("machining", out var copied) && copied.Origin.DistanceTo(frame.Origin) < 1e-9 && copied.ZAxis.IsParallelTo(frame.ZAxis, 1e-6) == 1,
+            "frames: glulam didn't get the beam's frame in place");
+        glulam.Frames["blank only"] = Plane.WorldXY;
+        Check(!beam.Frames.ContainsKey("blank only"), "frames: glulam shares the beam's frame dictionary");
+
+        // Cluster Beams: the longest beam's frame on the blank, and moved onto every member
+        var rng = new Random(12);
+        var arcBeam = MakeBeam(new Arc(new Circle(Plane.WorldXY, 5000), new Interval(0, 0.6)).ToNurbsCurve(), 100, 200, Vector3d.ZAxis);
+        var beams = Enumerable.Range(0, 3).Select(i => Copy(arcBeam, Vector3d.ZAxis, rng, 0.3, i == 1, false)).ToList();
+        foreach (var b in beams)
+            b.Frames["end"] = b.GetPlane(b.Centreline.Domain.Max);
+        var r = BeamClustering.Cluster(beams, Tol, 0, 24);
+        var cluster = r.Clusters[0];
+        var refFrame = beams[cluster.Reference].Frames["end"];
+        Check(cluster.Blank.Frames.TryGetValue("end", out var blankFrame) && blankFrame.Origin.DistanceTo(refFrame.Origin) < 1e-9, "frames: blank doesn't carry its reference's frame");
+        for (int i = 0; i < beams.Count; ++i)
+        {
+            var moved = blankFrame;
+            moved.Transform(r.Transforms[i]);
+            Check(r.PlacedBlanks[i].Frames["end"].Origin.DistanceTo(moved.Origin) < 1e-6, $"frames: placed blank {i} didn't move the frame with it");
+        }
+        Console.WriteLine($"Frames: glulam keeps the beam's frame; blank-0 carries its reference's, moved onto {beams.Count} placed copies");
     }
 
     static void TestTiming(int count, double lengthTolerance)

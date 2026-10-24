@@ -275,6 +275,9 @@ namespace GluLamb.Blanks
                     blank = Glulam.CreateGlulam(section, section.Orientation, standard);
                 blank.Id = section.Id;
 
+                // The blank sits where its reference beam is, so the reference's frames apply to it
+                blank.Frames = refBeam.Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(refBeam.Frames);
+
                 if (!exactFit && (lamellaWidth > 0 || lamellaHeight > 0))
                 {
                     if (lamellaWidth > 0) blank.Data.LamWidth = lamellaWidth;
