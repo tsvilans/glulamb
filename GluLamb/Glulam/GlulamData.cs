@@ -96,6 +96,51 @@ namespace GluLamb
         public bool LamellaCountCapped;
 
         /// <summary>
+        /// Strength class of the glulam, e.g. GL24h or GL28c (empty: not given).
+        /// </summary>
+        public string StrengthClass = "";
+
+        /// <summary>
+        /// Extra material for machining.
+        /// </summary>
+        public MachiningAllowance Allowance;
+
+        /// <summary>
+        /// How the lamella grades are laid up (null: lamellae keep whatever grades they have). Setting
+        /// it fills the grades, and they are filled again whenever the lamella count changes.
+        /// </summary>
+        public Layup Layup
+        {
+            get => m_layup;
+            set { m_layup = value; Populate(); }
+        }
+        Layup m_layup;
+
+        /// <summary>
+        /// Fill empty lamellae with default ones and apply the layup.
+        /// </summary>
+        void Populate()
+        {
+            if (Lamellae == null) return;
+            for (int i = 0; i < Lamellae.GetLength(0); ++i)
+                for (int j = 0; j < Lamellae.GetLength(1); ++j)
+                    if (Lamellae[i, j] == null) Lamellae[i, j] = new Stick();
+            m_layup?.Apply(this);
+        }
+
+        /// <summary>
+        /// The lamellae's grade if they are all the same, "Mixed" if not, or empty if none is given.
+        /// </summary>
+        public string Grade
+        {
+            get
+            {
+                var grades = Lamellae.Cast<Stick>().Where(x => x != null).Select(x => x.Grade ?? "").Distinct().ToList();
+                return grades.Count == 1 ? grades[0] : grades.Count == 0 ? "" : "Mixed";
+            }
+        }
+
+        /// <summary>
         /// The largest lamella width and height the standard allows for the curvature, from Compute
         /// (0: not computed).
         /// </summary>
@@ -163,11 +208,12 @@ namespace GluLamb
         {
             var old = Lamellae;
             Lamellae = new Stick[numWidth, numHeight];
-            if (old == null || old.Length == 0) return;
 
-            for (int i = 0; i < numWidth; ++i)
-                for (int j = 0; j < numHeight; ++j)
-                    Lamellae[i, j] = old[Math.Min(i, old.GetLength(0) - 1), Math.Min(j, old.GetLength(1) - 1)]?.Duplicate();
+            if (old != null && old.Length > 0)
+                for (int i = 0; i < numWidth; ++i)
+                    for (int j = 0; j < numHeight; ++j)
+                        Lamellae[i, j] = old[Math.Min(i, old.GetLength(0) - 1), Math.Min(j, old.GetLength(1) - 1)]?.Duplicate();
+            Populate();
         }
 
         public static GlulamData Default
@@ -178,6 +224,7 @@ namespace GluLamb
             int samples = 50, CrossSectionPosition alignment = CrossSectionPosition.MiddleCentre)
         {
             Lamellae = new Stick[num_width, num_height];
+            Populate();
 
             LamWidth = lam_width;
             LamHeight = lam_height;
@@ -204,6 +251,9 @@ namespace GluLamb
             data.LamellaCountCapped = LamellaCountCapped;
             data.MaxLamWidth = MaxLamWidth;
             data.MaxLamHeight = MaxLamHeight;
+            data.StrengthClass = StrengthClass;
+            data.Allowance = Allowance;
+            data.m_layup = m_layup;
             // New lamellae, so that changing one copy's species doesn't change the other's
             data.Lamellae = new Stick[NumWidth, NumHeight];
             for (int i = 0; i < NumWidth; ++i)
@@ -307,8 +357,7 @@ namespace GluLamb
             LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Recalculate number of laminations needed to make up the total dimensions
-            // Lamellae.ResizeArray(tempNumWidth, tempNumHeight);
-            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+            Resize(tempNumWidth, tempNumHeight);
 
             // Resize the laminations so that they add up to the total dimensions
             LamWidth = beamWidth / tempNumWidth;
@@ -335,8 +384,7 @@ namespace GluLamb
             LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Adjust number of laminations to cover current cross-section dimensions
-            //Lamellae.ResizeArray((int)Math.Ceiling(width / lamination_width), (int)Math.Ceiling(height / lamination_height));
-            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+            Resize(tempNumWidth, tempNumHeight);
             LamWidth = lamination_width;
             LamHeight = lamination_height;
         }
@@ -391,7 +439,8 @@ namespace GluLamb
 
         public override string ToString()
         {
-            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumWidth} nh {NumHeight} s {Samples}]";
+            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumWidth} nh {NumHeight} s {Samples}" +
+                (string.IsNullOrEmpty(StrengthClass) ? "" : $" {StrengthClass}") + (m_layup == null ? "" : $" {m_layup}") + "]";
         }
 
 

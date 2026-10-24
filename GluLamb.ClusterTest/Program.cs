@@ -38,6 +38,7 @@ static class Program
             TestSections();
             TestOffsetGlulam();
             TestFitSection();
+            TestLayup();
             TestTiming(1000, 0);
             TestTiming(1000, 500);
             TestTiming(1000, Unbounded);
@@ -434,6 +435,43 @@ static class Program
         var blank = r.Clusters[0].Blank;
         Console.WriteLine($"Cluster with 40 mm lamellae: {r.Clusters.Count} blank, {blank.Width:0.##} x {blank.Height:0.##} ({blank.Data.NumWidth} x {blank.Data.NumHeight} lamellae of {blank.Data.LamWidth:0.##} x {blank.Data.LamHeight:0.##})");
         Check(r.Clusters.Count == 1 && blank.Height == 240 && blank.Width >= 100, "fit section: cluster blank not 240 deep in 40 mm lamellae");
+    }
+
+    /// <summary>
+    /// Lamellae are populated, a combined layup fills the grades and follows a change of lamella
+    /// count, and duplicates are deep.
+    /// </summary>
+    static void TestLayup()
+    {
+        var beam = new Beam { Centreline = new LineCurve(Point3d.Origin, new Point3d(6000, 0, 0)), Width = 140, Height = 400, Orientation = new VectorOrientation(Vector3d.ZAxis) };
+        var glulam = Glulam.CreateGlulam(beam, beam.Orientation, GluLamb.Standards.Standard.Eurocode);
+        glulam.Data.LamWidth = 140;
+        glulam.Data.LamHeight = 40;
+        glulam.FitSection(140, 400);
+        Check(glulam.Data.Lamellae.Cast<Stick>().All(x => x != null) && glulam.Data.Species == "Spruce", "layup: lamellae not populated");
+
+        glulam.Data.StrengthClass = "GL28c";
+        glulam.Data.Allowance = new MachiningAllowance(5, 5, 3, 20, 20);
+        glulam.Data.Layup = Layup.Combined("T22", 2, "T14");
+
+        string Grades(GlulamData d) => string.Join(" ", Enumerable.Range(0, d.NumHeight).Select(j => d.Lamellae[0, j].Grade));
+        Console.WriteLine($"Layup: {glulam.Data}: {Grades(glulam.Data)}");
+        Check(Grades(glulam.Data) == "T22 T22 T14 T14 T14 T14 T14 T14 T22 T22", "layup: combined grades wrong");
+        Check(glulam.Data.Grade == "Mixed", "layup: grade should read Mixed");
+
+        // More lamellae: the outer two on each face stay T22
+        glulam.FitSection(140, 480);
+        Console.WriteLine($"  at 480 deep: {Grades(glulam.Data)}");
+        Check(Grades(glulam.Data) == "T22 T22 T14 T14 T14 T14 T14 T14 T14 T14 T22 T22", "layup: not applied again after FitSection");
+
+        var copy = glulam.DuplicateGlulam();
+        copy.Data.Lamellae[0, 0].Grade = "T30";
+        copy.Data.Lamellae[0, 0].Species = "Larch";
+        Check(glulam.Data.Lamellae[0, 0].Grade == "T22" && glulam.Data.Lamellae[0, 0].Species == "Spruce", "layup: duplicate shares lamellae");
+        Check(copy.Data.StrengthClass == "GL28c" && copy.Data.Allowance.Sides == 3 && copy.Data.Layup != null, "layup: duplicate lost the material data");
+
+        glulam.Data.Layup = Layup.Homogeneous("T14", "Larch");
+        Check(glulam.Data.Grade == "T14" && glulam.Data.Species == "Larch", "layup: homogeneous grade/species wrong");
     }
 
     static void TestTiming(int count, double lengthTolerance)
