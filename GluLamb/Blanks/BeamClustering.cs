@@ -48,7 +48,9 @@ namespace GluLamb.Blanks
         /// blank (still within the tolerance over their length). 0: full-length matches only.</param>
         /// <param name="samples">Number of stations along each beam.</param>
         /// <param name="extensions">Optional extensions per beam that the blank must also cover.</param>
-        public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null)
+        /// <param name="standard">Standard for the blanks' lamella thickness (from their curvature).</param>
+        public static BeamClusterResult Cluster(IList<Beam> beams, double tolerance, double lengthTolerance = 0, int samples = 24, IList<BeamExtension> extensions = null,
+            Standards.Standard standard = Standards.Standard.Eurocode)
         {
             if (!(tolerance > 0))
                 throw new ArgumentOutOfRangeException(nameof(tolerance), "Tolerance must be greater than zero.");
@@ -64,7 +66,7 @@ namespace GluLamb.Blanks
                 Transforms = Enumerable.Repeat(Transform.Identity, count).ToArray(),
                 Deviation = new double[count],
                 Partial = new bool[count],
-                PlacedBlanks = new Beam[count]
+                PlacedBlanks = new Glulam[count]
             };
 
             var profiles = new Profile[count];
@@ -232,16 +234,19 @@ namespace GluLamb.Blanks
                 if (end > 0)
                     curve = curve.Extend(CurveEnd.End, end, CurveExtensionStyle.Line) ?? curve;
 
-                var blank = new Beam($"blank-{clusterIndex}")
+                // The lamellae come from the standard and the blank's curvature, sized to make up
+                // exactly the blank's width and height
+                var section = new Beam
                 {
                     Centreline = curve,
                     Orientation = refBeam.Orientation.Duplicate(),
                     Width = width,
-                    Height = height,
-                    OffsetX = refBeam.OffsetX,
-                    OffsetY = refBeam.OffsetY,
-                    Samples = refBeam.Samples
+                    Height = height
                 };
+                var blank = Glulam.CreateGlulam(section, section.Orientation, standard);
+                blank.Id = $"blank-{clusterIndex}";
+                blank.OffsetX = refBeam.OffsetX;
+                blank.OffsetY = refBeam.OffsetY;
 
                 // Reference first, then the rest in input order
                 var ordered = new List<int> { reference };
@@ -258,7 +263,7 @@ namespace GluLamb.Blanks
                 foreach (var m in members)
                 {
                     // Duplicate keeps the blank's id
-                    var placed = blank.Duplicate();
+                    var placed = blank.DuplicateGlulam();
                     placed.Transform(result.Transforms[m]);
                     result.PlacedBlanks[m] = placed;
                 }

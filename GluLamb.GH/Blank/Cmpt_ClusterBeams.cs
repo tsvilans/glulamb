@@ -130,7 +130,7 @@ namespace GluLamb.GH.Components
             var transformsOut = new DataTree<GH_Transform>();
             var deviationOut = new DataTree<double>();
             var partialOut = new DataTree<bool>();
-            var placedOut = new DataTree<GH_Beam>();
+            var placedOut = new DataTree<GH_Glulam>();
 
             // In the structure of Beams; items that aren't beams get -1 / null
             foreach (var (path, b) in slots)
@@ -139,7 +139,7 @@ namespace GluLamb.GH.Components
                 transformsOut.Add(b < 0 ? null : new GH_Transform(result.Transforms[b]), path);
                 deviationOut.Add(b < 0 ? 0 : result.Deviation[b], path);
                 partialOut.Add(b >= 0 && result.Partial[b], path);
-                placedOut.Add(b < 0 || result.PlacedBlanks[b] == null ? null : new GH_Beam(result.PlacedBlanks[b]), path);
+                placedOut.Add(b < 0 || result.PlacedBlanks[b] == null ? null : new GH_Glulam(result.PlacedBlanks[b]), path);
             }
 
             if (result.Skipped > 0)
@@ -148,7 +148,7 @@ namespace GluLamb.GH.Components
 
             Message = result.ToString();
 
-            DA.SetDataList(0, result.Clusters.Select(x => new GH_Beam(x.Blank)));
+            DA.SetDataList(0, result.Clusters.Select(x => new GH_Glulam(x.Blank)));
             DA.SetDataTree(1, membersOut);
             DA.SetDataTree(2, indexOut);
             DA.SetDataTree(3, transformsOut);

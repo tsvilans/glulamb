@@ -119,8 +119,11 @@ namespace GluLamb
             data.Samples = Samples;
             data.SectionAlignment = SectionAlignment;
             data.InterpolationType = InterpolationType;
+            // New lamellae, so that changing one copy's species doesn't change the other's
             data.Lamellae = new Stick[NumWidth, NumHeight];
-            Array.Copy(Lamellae, data.Lamellae, Lamellae.Length);
+            for (int i = 0; i < NumWidth; ++i)
+                for (int j = 0; j < NumHeight; ++j)
+                    data.Lamellae[i, j] = Lamellae[i, j] == null ? null : new Stick(Lamellae[i, j].Reference, Lamellae[i, j].Species);
 
             return data;
         }
@@ -291,7 +294,7 @@ namespace GluLamb
 
         public override string ToString()
         {
-            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumHeight} nh {NumHeight} s {Samples}]";
+            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumWidth} nh {NumHeight} s {Samples}]";
         }
 
 

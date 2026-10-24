@@ -121,6 +121,8 @@ namespace GluLamb
         public new Glulam DuplicateGlulam()
         {
             var glulam = CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+            glulam.OffsetX = OffsetX;
+            glulam.OffsetY = OffsetY;
             CopyIdentityTo(glulam);
             return glulam;
         }

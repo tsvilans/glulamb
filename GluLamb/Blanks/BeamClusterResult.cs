@@ -37,7 +37,7 @@ namespace GluLamb.Blanks
         /// extended to cover every member (and its extensions), and a constant section
         /// big enough for every member.
         /// </summary>
-        public Beam Blank;
+        public Glulam Blank;
 
         /// <summary>
         /// Index of the reference member (the longest).
@@ -83,7 +83,7 @@ namespace GluLamb.Blanks
         /// Per input beam: a copy of its blank moved onto it (keeping the blank's id, so beams
         /// that share a blank have copies with the same id), or null for a beam without a blank.
         /// </summary>
-        public Beam[] PlacedBlanks;
+        public Glulam[] PlacedBlanks;
 
         /// <summary>
         /// Number of pairs that were aligned (after pruning), for diagnostics.
