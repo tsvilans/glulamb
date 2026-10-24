@@ -27,10 +27,6 @@ static class Program
     {
         using (new Rhino.Runtime.InProcess.RhinoCore(new[] { "/netcore", "/nosplash" }, Rhino.Runtime.InProcess.WindowStyle.NoWindow))
         {
-            // Glulam reads its tolerances from the active document
-            if (Rhino.RhinoDoc.ActiveDoc == null)
-                Rhino.RhinoDoc.ActiveDoc = Rhino.RhinoDoc.Create(null);
-
             TestCurved(false);
             TestCurved(true);
             TestStraight(false);

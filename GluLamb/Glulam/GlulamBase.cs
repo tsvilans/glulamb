@@ -44,8 +44,9 @@ namespace GluLamb
         public static int MinimumNumSegments = 25;
 
         #region Static variables and methods
-        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
-        public static double OverlapTolerance = 1.0 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem, Rhino.UnitSystem.Millimeters);
+        // From the active document, or for millimetres without one (scripts, Rhino.Inside)
+        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc?.ModelAbsoluteTolerance ?? 0.01;
+        public static double OverlapTolerance = 1.0 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc?.ModelUnitSystem ?? Rhino.UnitSystem.Millimeters, Rhino.UnitSystem.Millimeters);
         public static double AngleTolerance = Rhino.RhinoMath.ToRadians(2.5);
 
         #endregion
@@ -120,7 +121,11 @@ namespace GluLamb
         /// <returns></returns>
         public new Glulam DuplicateGlulam()
         {
-            var glulam = CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+            // Same type as this one, rather than deciding it again from the curve
+            var glulam = (Glulam)Activator.CreateInstance(GetType());
+            glulam.Centreline = Centreline.DuplicateCurve();
+            glulam.Orientation = Orientation.Duplicate();
+            glulam.Data = Data.Duplicate();
             glulam.OffsetX = OffsetX;
             glulam.OffsetY = OffsetY;
             CopyIdentityTo(glulam);

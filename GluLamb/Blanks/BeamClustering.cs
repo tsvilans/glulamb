@@ -236,17 +236,16 @@ namespace GluLamb.Blanks
 
                 // The lamellae come from the standard and the blank's curvature, sized to make up
                 // exactly the blank's width and height
-                var section = new Beam
+                var section = new Beam($"blank-{clusterIndex}")
                 {
                     Centreline = curve,
-                    Orientation = refBeam.Orientation.Duplicate(),
+                    Orientation = refBeam.Orientation,
                     Width = width,
-                    Height = height
+                    Height = height,
+                    OffsetX = refBeam.OffsetX,
+                    OffsetY = refBeam.OffsetY
                 };
                 var blank = Glulam.CreateGlulam(section, section.Orientation, standard);
-                blank.Id = $"blank-{clusterIndex}";
-                blank.OffsetX = refBeam.OffsetX;
-                blank.OffsetY = refBeam.OffsetY;
 
                 // Reference first, then the rest in input order
                 var ordered = new List<int> { reference };

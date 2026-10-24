@@ -35,9 +35,14 @@ namespace GluLamb
         {
             CornerGenerator = GenerateCorners;
         }
+        /// <summary>
+        /// Create a glulam from a beam, with lamellae sized by the standard for the beam's curvature.
+        /// The glulam gets a copy of the orientation, and keeps the beam's id, frames and section offsets.
+        /// </summary>
         static public Glulam CreateGlulam(Beam beam, CrossSectionOrientation orientation, Standards.Standard standard= Standards.Standard.None)
         {
             Glulam glulam;
+            orientation = (orientation ?? beam.Orientation)?.Duplicate();
 
             if (beam.Centreline.IsLinear(Tolerance))
             {
@@ -54,6 +59,11 @@ namespace GluLamb
                 glulam = new DoubleCurvedGlulam { Centreline = beam.Centreline.DuplicateCurve(), Orientation = orientation, Data = new GlulamData() };
                 glulam.Data.Compute(beam, standard);
             }
+
+            glulam.Id = beam.Id;
+            glulam.Frames = beam.Frames == null ? new Dictionary<string, Plane>() : new Dictionary<string, Plane>(beam.Frames);
+            glulam.OffsetX = beam.OffsetX;
+            glulam.OffsetY = beam.OffsetY;
             return glulam;
         }
 

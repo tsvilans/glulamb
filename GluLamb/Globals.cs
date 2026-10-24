@@ -8,8 +8,9 @@ namespace GluLamb
 {
     public static class Globals
     {
-        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
-        public static double OverlapTolerance = 0.001 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem, Rhino.UnitSystem.Meters);
+        // From the active document, or for millimetres without one (scripts, Rhino.Inside)
+        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc?.ModelAbsoluteTolerance ?? 0.01;
+        public static double OverlapTolerance = 0.001 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc?.ModelUnitSystem ?? Rhino.UnitSystem.Millimeters, Rhino.UnitSystem.Meters);
         public static double AngleTolerance = Rhino.RhinoMath.ToRadians(2.5);
         public static double CosineTolerance = 1e-6;
 
