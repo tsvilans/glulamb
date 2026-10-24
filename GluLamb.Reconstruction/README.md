@@ -25,11 +25,22 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
    penalty on changes of curvature (`Smoothness`), which is zero for straight lines and arcs. Near
    an end, where there is little to fit to, this carries the rest of the beam's shape through. The
    weights are found again after each of three rounds.
-6. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
-   both ways from the centreline). The centreline is run out to the ends of the mesh.
-7. Edge correction: the longest run of parallel sharp edges (as for Breps) usually runs through the
+6. The centreline is trimmed to the first and last typical samples, where the fit has something
+   to go by, and run out to the ends of the mesh (`End`). By default the run-out continues the
+   curvature of the circle through the last stretch of the curve (`EndFitLength`, default 15% of
+   the length), so a curved beam stays curved. `Straight` and Rhino's `Smooth` extension are also
+   available.
+7. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
+   both ways from the centreline).
+8. Edge correction: the longest run of parallel sharp edges (as for Breps) usually runs through the
    ends untouched by joints. The centreline is moved by where those edges sit in its sections
    (`EdgeCorrection`, `Refinements`), measured in frames lined up with the edges themselves.
+
+   A correction that would move the centreline by more than a quarter of the section is skipped.
+
+The fitted points are kept at least 0.3 × the section's depth apart, whatever `SampleSpacing` asks
+for. Closer points see the same stretch of edges in their sections, so they add freedom for the
+curve to wander but no information. There are at least three fit samples per point.
 
 The section's Y-axis (height) is its direction of largest spread. Twist is taken from the typical
 sections; past the last one it stays as it is there.

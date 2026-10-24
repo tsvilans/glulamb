@@ -56,8 +56,8 @@ namespace GluLamb.Reconstruction
         public double EndWithdrawal = Globals.FromMillimeters(150);
 
         /// <summary>Iterations and relative tolerance of each round of the fit.</summary>
-        public int Iterations = 20;
-        public double Tolerance = 1e-2;
+        public int Iterations = 50;
+        public double Tolerance = 1e-4;
 
         /// <summary>Rounds of the fit. After each, the samples are weighted again by how typical
         /// their sections are along the new centreline.</summary>
@@ -72,7 +72,16 @@ namespace GluLamb.Reconstruction
         /// the ends, where there is little to fit to, following the rest of the beam.</summary>
         public double Smoothness = 1.0;
 
-        /// <summary>Number and range (0 to 1 along the centreline) of the sections the fit compares.</summary>
+        /// <summary>How the centreline is run out past its first and last typical sections to the
+        /// ends of the mesh.</summary>
+        public EndExtension End = EndExtension.Arc;
+
+        /// <summary>For EndExtension.Arc: the length at each end of the fitted centreline that the
+        /// curvature to continue is taken from. 0: 15% of its length.</summary>
+        public double EndFitLength = 0;
+
+        /// <summary>Number and range (0 to 1 along the centreline) of the sections the fit compares
+        /// (at least three per point).</summary>
         public int FitSamples = 40;
         public Interval FitRange = new Interval(0.02, 0.98);
 
@@ -137,6 +146,9 @@ namespace GluLamb.Reconstruction
     /// </summary>
     public static class MeshBeam
     {
+        /// <summary>Smallest spacing of the fitted points, as a fraction of the section's depth.</summary>
+        public const double MinSpacingFactor = 0.3;
+
         public static MeshBeamResult Reconstruct(Mesh mesh, MeshBeamOptions options = null)
         {
             options ??= new MeshBeamOptions();
@@ -156,6 +168,12 @@ namespace GluLamb.Reconstruction
             var start = bounds.SectionCentre(options.EndWithdrawal);
             var end = bounds.SectionCentre(bounds.SizeX - options.EndWithdrawal);
             int count = Math.Max(4, (int)Math.Ceiling(bounds.SizeX / options.SampleSpacing));
+
+            // A first guess at the section's depth (sections across the main axis, so a little
+            // large on a curved beam) keeps the walk below from using points too close together
+            var axis = new InterpolatingSpline(new[] { start, Lerp(start, end, 1 / 3.0), Lerp(start, end, 2 / 3.0), end });
+            if (TryReference(axis, edges, 9, out Section rough) && options.SampleSpacing < MinSpacingFactor * rough.Major)
+                count = Math.Max(4, (int)Math.Ceiling(bounds.SizeX / (MinSpacingFactor * rough.Major)));
 
             Point3d[] points = null;
             if (options.Start == InitialCentreline.Sections)
@@ -185,11 +203,27 @@ namespace GluLamb.Reconstruction
             { result.Messages.Add("No sections found along the initial centreline."); return result; }
             result.Reference = reference;
 
+            // Points much closer together than the section is deep don't add information (each
+            // section sees the same stretch of edges), only freedom for the curve to wander
+            double minSpacing = MinSpacingFactor * reference.Major;
+            if (options.SampleSpacing < minSpacing)
+            {
+                var seed = new InterpolatingSpline(points).ToNurbsCurve();
+                int fewer = Math.Max(4, (int)Math.Ceiling(seed.GetLength() / minSpacing) + 1);
+                if (fewer < points.Length)
+                {
+                    points = seed.DivideByCount(fewer - 1, true).Select(t => seed.PointAt(t)).ToArray();
+                    result.Messages.Add($"Spacing raised to {minSpacing:0.#} ({MinSpacingFactor:0.##} x the section's depth): closer points don't add information.");
+                }
+            }
+
             // Fit: each sample counts by how typical its section is, so that tapers, joints and
             // end cuts don't pull the centreline; a penalty on changes of curvature carries the
             // rest of the beam's shape into the ends. The weights are found again from each round's
             // result (iteratively reweighted).
-            var fitT = Linspace(options.FitRange.Min, options.FitRange.Max, options.FitSamples);
+            // At least three samples per point, or closely spaced points are free to wander between
+            // samples
+            var fitT = Linspace(options.FitRange.Min, options.FitRange.Max, Math.Max(options.FitSamples, 3 * points.Length));
             var x = ToArray(points);
             var weights = Weights(points, edges, fitT, reference, options.TypicalTolerance);
             result.InitialError = Error(points, edges, fitT, weights, options.Smoothness);
@@ -212,10 +246,15 @@ namespace GluLamb.Reconstruction
             result.Messages.Add($"Fit: error {result.InitialError:0.###} to {result.Error:0.###} in {result.Iterations} iterations; " +
                 $"{atypical} of {weights.Length} samples count less (taper, joint or end).");
 
-            // Centreline: the spline, run out to the ends of the mesh, then corrected by the
-            // longest run of parallel edges
+            // Centreline: the spline between the first and last typical samples (past them the fit
+            // has little to go by), run out to the ends of the mesh by continuing its curvature,
+            // then corrected by the longest run of parallel edges
             var vertices = mesh.Vertices.ToPoint3dArray();
-            var curve = FitToExtents(new InterpolatingSpline(fitted).ToNurbsCurve(), vertices);
+            int first = Array.FindIndex(weights, v => v >= 0.5), lastTypical = Array.FindLastIndex(weights, v => v >= 0.5);
+            Curve curve = new InterpolatingSpline(fitted).ToNurbsCurve();
+            if (first >= 0 && lastTypical > first)
+                curve = curve.Trim(fitT[first], fitT[lastTypical]) ?? curve;
+            curve = FitToExtents(curve, vertices, options.End, options.EndFitLength);
 
             EdgeSet parallel = null;
             if (options.EdgeCorrection)
@@ -246,7 +285,20 @@ namespace GluLamb.Reconstruction
                 beam.Orientation = Orientation(curve, sections, last && options.SimplifyOrientation, options.PlanarAngleTolerance, last ? result.Messages : new List<string>());
                 result.Sections = sections;
 
-                if (!last) curve = FitToExtents(EdgeClusters.Recentre(beam, parallel), vertices);
+                if (last) break;
+
+                // A correction that moves the centreline by more than a quarter of the section is a
+                // mistake (e.g. a parallel edge that a joint cut away), not a correction
+                var corrected = FitToExtents(EdgeClusters.Recentre(beam, parallel), vertices, options.End, options.EndFitLength);
+                double moved = MaxDistance(corrected, curve);
+                double limit = 0.25 * Math.Min(beam.Width, beam.Height);
+                if (moved > limit)
+                {
+                    result.Messages.Add($"Edge correction skipped: it would move the centreline by {moved:0.#} (more than {limit:0.#}).");
+                    passes = pass + 1;
+                    continue;
+                }
+                curve = corrected;
             }
 
             result.Beam = beam;
@@ -302,7 +354,7 @@ namespace GluLamb.Reconstruction
 
             var curve = new InterpolatingSpline(points).ToNurbsCurve();
             double run = start.DistanceTo(end) * margin;
-            var extended = curve.Extend(CurveEnd.Both, run, CurveExtensionStyle.Smooth) ?? curve;
+            var extended = CurveEnds.Extend(curve, run, EndExtension.Smooth);
             return extended.DivideByCount(count - 1, true).Select(t => extended.PointAt(t)).ToArray();
         }
 
@@ -332,10 +384,9 @@ namespace GluLamb.Reconstruction
         /// <summary>
         /// Extend a curve smoothly past both ends, then trim it to the extent of the points along it.
         /// </summary>
-        internal static Curve FitToExtents(Curve curve, IList<Point3d> points)
+        internal static Curve FitToExtents(Curve curve, IList<Point3d> points, EndExtension style = EndExtension.Arc, double fitLength = 0)
         {
-
-            var extended = curve.Extend(CurveEnd.Both, 0.1 * curve.GetLength(), CurveExtensionStyle.Smooth) ?? curve;
+            var extended = CurveEnds.Extend(curve, 0.25 * curve.GetLength(), style, fitLength);
 
             double tMin = double.MaxValue, tMax = double.MinValue;
             object sync = new object();
@@ -449,7 +500,7 @@ namespace GluLamb.Reconstruction
                     error += weights[i] * 1000.0;
             }
 
-            if (smoothness > 0) error += smoothness * CurvaturePenalty(spline);
+            if (smoothness > 0) error += smoothness * CurvaturePenalty(spline, Math.Max(40, 2 * points.Length));
             return error;
         }
 
@@ -484,7 +535,24 @@ namespace GluLamb.Reconstruction
                 }
                 previous = k;
             }
-            return 100.0 * sum;
+
+            // Scaled by the number of steps, so it measures the integral of the squared rate of
+            // change of curvature whatever the step count (and matches 40 steps)
+            return 100.0 * sum * steps / 40.0;
+        }
+
+        /// <summary>
+        /// Largest distance from points along a to b.
+        /// </summary>
+        static double MaxDistance(Curve a, Curve b)
+        {
+            double max = 0;
+            foreach (var t in a.DivideByCount(50, true))
+            {
+                var p = a.PointAt(t);
+                if (b.ClosestPoint(p, out double u)) max = Math.Max(max, p.DistanceTo(b.PointAt(u)));
+            }
+            return max;
         }
 
         /// <summary>

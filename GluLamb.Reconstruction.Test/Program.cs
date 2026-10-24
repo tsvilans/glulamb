@@ -77,6 +77,19 @@ namespace GluLamb.Reconstruction.Test
                 MeshCase("curved-joints", curved, outDir, true);
                 MeshCase("twisted-joints", twisted, outDir, true);
 
+                // Tightly curved beam (radius about 4 m) with joints at the ends, at several spacings
+                var tight = new Arc(new Point3d(0, 0, 0), new Point3d(3500, 0, 1650), new Point3d(7000, 0, 0)).ToNurbsCurve();
+                var tightBeam = new Beam
+                {
+                    Centreline = tight,
+                    Orientation = new PlanarOrientation(Plane.WorldZX),
+                    Width = 180, Height = 520
+                };
+                tightBeam.Transform(rotation);
+                foreach (var spacing in new[] { 300.0, 150.0, 75.0 })
+                    MeshCase($"tight-joints-{spacing}", tightBeam, outDir, true, new MeshBeamOptions { SampleSpacing = spacing });
+                MeshCase("curved-joints-75", curved, outDir, true, new MeshBeamOptions { SampleSpacing = 75 });
+
                 BrepCase("straight-joints", straight, outDir);
                 BrepCase("curved-joints", curved, outDir);
                 BrepCase("twisted-joints", twisted, outDir);
@@ -139,7 +152,7 @@ namespace GluLamb.Reconstruction.Test
             Check(!twisted.TryGetPlanarOrientation(arc, RhinoMath.ToRadians(1), out _), "twisting vectors don't");
         }
 
-        static void MeshCase(string name, Beam beam, string outDir, bool joints = false)
+        static void MeshCase(string name, Beam beam, string outDir, bool joints = false, MeshBeamOptions options = null)
         {
             Console.WriteLine($"Mesh: {name}");
             bool cut = false;
@@ -152,7 +165,7 @@ namespace GluLamb.Reconstruction.Test
             mesh.Unweld(0, true); // like an STL
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            var result = MeshBeam.Reconstruct(mesh);
+            var result = MeshBeam.Reconstruct(mesh, options);
             watch.Stop();
 
             foreach (var m in result.Messages) Console.WriteLine($"  {m}");
@@ -166,6 +179,8 @@ namespace GluLamb.Reconstruction.Test
                 Console.WriteLine("  weights: " + string.Join(" ", result.Weights.Select(w => w.ToString("0.0"))));
                 var c = result.Beam.Centreline;
                 Console.WriteLine("  final off: " + string.Join(" ", c.DivideByCount(20, true).Select(t => { var p = c.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
+                var sp = new InterpolatingSpline(result.FittedPoints);
+                Console.WriteLine("  fitted spline off at t: " + string.Join(" ", new[] { 0, 0.01, 0.02, 0.05, 0.1, 0.9, 0.95, 0.98, 0.99, 1 }.Select(t => { var p = sp.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return $"{t}:{p.DistanceTo(beam.Centreline.PointAt(u)):0.#}"; })));
                 var plain = MeshBeam.Reconstruct(mesh, new MeshBeamOptions { EdgeCorrection = false }).Beam.Centreline;
                 Console.WriteLine("  without edge correction: " + string.Join(" ", plain.DivideByCount(20, true).Select(t => { var p = plain.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
             }

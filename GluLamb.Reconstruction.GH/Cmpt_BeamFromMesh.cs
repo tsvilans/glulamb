@@ -42,11 +42,17 @@ namespace GluLamb.Reconstruction.GH
         {
             var defaults = new MeshBeamOptions();
             pManager.AddMeshParameter("Mesh", "M", "Mesh of one beam.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Spacing", "S", "Spacing of the points the centreline is fitted through.", GH_ParamAccess.item, defaults.SampleSpacing);
+            pManager.AddNumberParameter("Spacing", "S", "Spacing of the points the centreline is fitted through. It isn't taken below 0.3 x the section's depth, where closer points add freedom but no information.", GH_ParamAccess.item, defaults.SampleSpacing);
             pManager.AddIntegerParameter("Iterations", "I", "Iterations of the fit.", GH_ParamAccess.item, defaults.Iterations);
             pManager.AddIntegerParameter("Start", "St", "What the fit starts from: 0 sections walked along the beam, 1 an arc through three sections, 2 a straight line.", GH_ParamAccess.item, 0);
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
             pManager.AddAngleParameter("Sharp Angle", "A", "Smallest angle between face normals for an edge to count as a sharp edge of the beam.", GH_ParamAccess.item, defaults.SharpAngle);
+            pManager.AddIntegerParameter("End", "E", "How the centreline is run out past its first and last typical sections to the ends of the mesh: " +
+                "0 continue the curvature of the last stretch (an arc), 1 straight, 2 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
+            pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
+            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of the penalty on changes of curvature. Higher keeps the ends closer to the shape of the rest of the beam; 0 turns it off.", GH_ParamAccess.item, defaults.Smoothness);
+            pManager.AddNumberParameter("Typical Tolerance", "TT", "How much a section's size may differ from the beam's typical section (as a fraction) and still count fully in the fit. " +
+                "Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -55,8 +61,9 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddCurveParameter("Edges", "E", "Sharp edges of the mesh that the fit uses.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Sections", "S", "Section outlines that give the frames, width and height.", GH_ParamAccess.list);
             pManager.AddPointParameter("Points", "P", "Points the fitted centreline passes through.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Error", "Er", "Fit error before and after (100 x each sample's distance from its section centre, plus 1000 per sample without a section).", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Error", "Er", "Fit error before and after (weighted distances of the samples from their section centres, plus the curvature penalty).", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Weights", "W", "Weight of each fit sample in the last round: 1 a typical section, 0 a taper, joint or end cut.", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -75,6 +82,13 @@ namespace GluLamb.Reconstruction.GH
             if (Params.Input[5] is Grasshopper.Kernel.Parameters.Param_Number p && p.UseDegrees)
                 options.SharpAngle = Rhino.RhinoMath.ToRadians(options.SharpAngle);
 
+            int end = (int)options.End;
+            DA.GetData(6, ref end);
+            options.End = (EndExtension)Math.Clamp(end, 0, 2);
+            DA.GetData(7, ref options.EndFitLength);
+            DA.GetData(8, ref options.Smoothness);
+            DA.GetData(9, ref options.TypicalTolerance);
+
             if (options.SampleSpacing <= 0) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Spacing must be positive."); return; }
 
             var result = MeshBeam.Reconstruct(mesh, options);
@@ -84,6 +98,7 @@ namespace GluLamb.Reconstruction.GH
             if (result.FittedPoints != null) DA.SetDataList(3, result.FittedPoints);
             DA.SetDataList(4, new[] { result.InitialError, result.Error });
             DA.SetDataList(5, result.Messages);
+            if (result.Weights != null) DA.SetDataList(6, result.Weights);
 
             if (!result.Success)
             {
