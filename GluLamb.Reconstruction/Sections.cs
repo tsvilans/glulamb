@@ -89,13 +89,20 @@ namespace GluLamb.Reconstruction
         /// origin. (The Python version took the first crossing along the polyline, which on a
         /// strongly curved beam can be a crossing far away from the section.)
         /// </summary>
-        public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits)
+        public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits) => Cut(origin, normal, hits, null);
+
+        /// <summary>
+        /// As Cut, also listing which polyline each point is on.
+        /// </summary>
+        public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits, List<int> indices)
         {
             hits.Clear();
+            indices?.Clear();
             if (!normal.Unitize()) return 0;
 
-            foreach (var poly in m_polylines)
+            for (int k = 0; k < m_polylines.Length; ++k)
             {
+                var poly = m_polylines[k];
                 double best = double.MaxValue;
                 Point3d hit = Point3d.Unset;
                 double d0 = (poly[0] - origin) * normal;
@@ -113,7 +120,7 @@ namespace GluLamb.Reconstruction
                     }
                     d0 = d1;
                 }
-                if (hit.IsValid) hits.Add(hit);
+                if (hit.IsValid) { hits.Add(hit); indices?.Add(k); }
             }
             return hits.Count;
         }
@@ -130,9 +137,10 @@ namespace GluLamb.Reconstruction
             var hull = Hull2d.Compute(hits, new Plane(origin, normal));
             if (hull.Length < 3) return false;
 
-            var sum = Point3d.Origin;
-            foreach (int i in hull) sum += hits[i];
-            centre = sum / hull.Length;
+            var corners = new Point3d[hull.Length];
+            for (int i = 0; i < hull.Length; ++i) corners[i] = hits[hull[i]];
+            normal.Unitize();
+            Sections.MinimumRectangle(corners, normal, out centre, out _, out _, out _);
             return true;
         }
 
@@ -162,24 +170,19 @@ namespace GluLamb.Reconstruction
             if (hullIndices.Length < 3) return false;
 
             var hull = hullIndices.Select(i => points[i]).ToArray();
-            Pca.PrincipalAxes(hull, out Point3d centre, out Vector3d[] axes);
 
-            // The section's height direction is its principal axis, in the plane
-            var y = axes[0] - normal * (axes[0] * normal);
-            if (!y.Unitize()) return false;
+            // The smallest rectangle around the hull: its centre and sides stay put when the
+            // section loses a corner (e.g. near a skew end cut), where the mean of the corners or
+            // the principal axes would move. Its long side is the section's height direction.
+            MinimumRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor);
             var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
 
-            double width = 0, height = 0, major = 0, minor = 0;
-            var x = Vector3d.CrossProduct(y, normal);
+            double width = 0, height = 0;
             foreach (var p in hull)
             {
                 var d = p - origin;
                 width = Math.Max(width, Math.Abs(d * plane.XAxis));
                 height = Math.Max(height, Math.Abs(d * plane.YAxis));
-
-                var e = p - centre;
-                major = Math.Max(major, Math.Abs(e * y));
-                minor = Math.Max(minor, Math.Abs(e * x));
             }
 
             section = new Section
@@ -190,10 +193,50 @@ namespace GluLamb.Reconstruction
                 Hull = hull,
                 Width = width * 2,
                 Height = height * 2,
-                Major = major * 2,
-                Minor = minor * 2
+                Major = major,
+                Minor = minor
             };
             return true;
+        }
+
+        /// <summary>
+        /// The smallest-area rectangle around a convex polygon in a plane (one of its sides lies
+        /// along a polygon edge): its centre, the direction of its long side, and its sides.
+        /// </summary>
+        /// <param name="hull">Polygon corners, in order.</param>
+        /// <param name="normal">Unit normal of the polygon's plane.</param>
+        public static void MinimumRectangle(IList<Point3d> hull, Vector3d normal, out Point3d centre, out Vector3d longAxis, out double longSide, out double shortSide)
+        {
+            int n = hull.Count;
+            var o = hull[0];
+            double bestArea = double.MaxValue;
+            centre = o; longAxis = Vector3d.Unset; longSide = shortSide = 0;
+
+            for (int i = 0; i < n; ++i)
+            {
+                var e = hull[(i + 1) % n] - hull[i];
+                e -= normal * (e * normal);
+                if (!e.Unitize()) continue;
+                var f = Vector3d.CrossProduct(normal, e);
+
+                double minE = double.MaxValue, maxE = double.MinValue, minF = double.MaxValue, maxF = double.MinValue;
+                foreach (var p in hull)
+                {
+                    var d = p - o;
+                    double pe = d * e, pf = d * f;
+                    if (pe < minE) minE = pe; if (pe > maxE) maxE = pe;
+                    if (pf < minF) minF = pf; if (pf > maxF) maxF = pf;
+                }
+
+                double se = maxE - minE, sf = maxF - minF, area = se * sf;
+                if (area < bestArea)
+                {
+                    bestArea = area;
+                    centre = o + e * (0.5 * (minE + maxE)) + f * (0.5 * (minF + maxF));
+                    if (se >= sf) { longAxis = e; longSide = se; shortSide = sf; }
+                    else { longAxis = f; longSide = sf; shortSide = se; }
+                }
+            }
         }
 
         /// <summary>

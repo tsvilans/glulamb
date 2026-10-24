@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -120,67 +120,94 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// A better centreline from the cluster's edges: at stations along the beam, where its
-        /// section plane crosses the edges, less their average position in the section. (The mean
-        /// of the edges by point count drifts where the edges have different lengths, e.g. on a
-        /// twisted beam; crossings compare the edges at the same section.)
+        /// A better centreline from the cluster's edges. Each edge keeps the same place in the
+        /// section all along a prismatic beam: that place is measured at the stations where all of
+        /// the edges are crossed, and at every station the centreline goes where the edges that are
+        /// crossed there put it. Near a skew end cut, where one edge has ended, the others still
+        /// place the centreline. (The mean of the edges by point count drifts where the edges have
+        /// different lengths, e.g. on a twisted beam; crossings compare them at the same section.)
         /// </summary>
         public static Curve Recentre(Beam beam, EdgeSet clusterEdges)
         {
             var curve = beam.Centreline;
-            int count = Math.Clamp((int)(curve.GetLength() / Globals.FromMillimeters(200)), 10, 100);
+            int count = Math.Clamp((int)(curve.GetLength() / Globals.FromMillimeters(100)) + 1, 10, 200);
+            int edges = clusterEdges.Count;
             var hits = new List<Point3d>();
+            var indices = new List<int>();
+
             var planes = new Plane[count];
-            var local = new Point3d?[count];
+            var local = new Dictionary<int, Point3d>[count]; // per station: edge -> its place in the section
+            bool[] full = new bool[count];
 
             var tt = MeshBeam.Linspace(0, 1, count);
             double reach = Math.Sqrt(beam.Width * beam.Width + beam.Height * beam.Height);
             for (int i = 0; i < count; ++i)
             {
                 planes[i] = beam.GetPlane(curve.Domain.ParameterAt(tt[i]));
-                if (clusterEdges.Cut(planes[i].Origin, planes[i].ZAxis, hits) != clusterEdges.Count) continue;
+                clusterEdges.Cut(planes[i].Origin, planes[i].ZAxis, hits, indices);
 
-                // Where a joint has cut one of the edges away, its nearest crossing is somewhere
+                // Where a joint or an end has cut an edge away, its nearest crossing is somewhere
                 // else along it, outside the section
                 var origin = planes[i].Origin;
-                if (hits.Any(h => h.DistanceTo(origin) > reach)) continue;
+                var near = Enumerable.Range(0, hits.Count).Where(k => hits[k].DistanceTo(origin) <= reach).ToList();
+                if (near.Count == 0) continue;
 
-                var mean = Point3d.Origin;
-                foreach (var h in hits) mean += h;
-                mean /= hits.Count;
+                // Measure in a frame lined up with the edges themselves where they are all there: a
+                // small error in the beam's orientation would otherwise move the centreline by the
+                // edges' distance from it times the angle
+                full[i] = near.Count == edges;
+                if (full[i]) planes[i] = AlignPlane(planes[i], hits);
 
-                // Measure in a frame lined up with the edges themselves: a small error in the
-                // beam's orientation would otherwise move the centreline by the edges' distance
-                // from it times the angle
-                planes[i] = AlignPlane(planes[i], hits);
-                planes[i].RemapToPlaneSpace(mean, out Point3d p);
-                local[i] = p;
+                local[i] = new Dictionary<int, Point3d>();
+                foreach (int k in near)
+                {
+                    planes[i].RemapToPlaneSpace(hits[k], out Point3d p);
+                    local[i][indices[k]] = p;
+                }
             }
 
-            var found = local.Where(p => p.HasValue).Select(p => p.Value).ToList();
-            if (found.Count < 4) return curve;
+            // Each edge's place in the section, from the stations where all edges are crossed
+            var offsets = new Dictionary<int, Point3d>();
+            for (int e = 0; e < edges; ++e)
+            {
+                var xs = new List<double>(); var ys = new List<double>();
+                for (int i = 0; i < count; ++i)
+                    if (full[i] && local[i].TryGetValue(e, out Point3d p)) { xs.Add(p.X); ys.Add(p.Y); }
+                if (xs.Count < 3) continue;
+                xs.Sort(); ys.Sort();
+                offsets[e] = new Point3d(xs[xs.Count / 2], ys[ys.Count / 2], 0);
+            }
+            if (offsets.Count < 2) return curve;
 
-            // The edges' position in the section is the same all along a prismatic beam: the
-            // centreline moves by how far they are off it. Stations the edges don't reach (e.g. at
-            // a joint near an end) take the correction of the nearest station they do.
-            var xs = found.Select(p => p.X).OrderBy(x => x).ToList();
-            var ys = found.Select(p => p.Y).OrderBy(y => y).ToList();
-            double cx = xs[xs.Count / 2], cy = ys[ys.Count / 2];
+            // Where the edges crossed at each station put the centreline (relative to the station),
+            // from at least two of them
+            var correction = new Vector3d?[count];
+            for (int i = 0; i < count; ++i)
+            {
+                if (local[i] == null) continue;
+                var known = local[i].Where(kv => offsets.ContainsKey(kv.Key)).ToList();
+                if (known.Count < 2) continue;
 
+                double dx = 0, dy = 0;
+                foreach (var kv in known) { dx += kv.Value.X - offsets[kv.Key].X; dy += kv.Value.Y - offsets[kv.Key].Y; }
+                correction[i] = new Vector3d(dx / known.Count, dy / known.Count, 0);
+            }
+            if (correction.Count(c => c.HasValue) < 4) return curve;
+
+            // Stations no edges reach take the correction of the nearest one they do
             var points = new Point3d[count];
             for (int i = 0; i < count; ++i)
             {
                 int j = i;
-                for (int k = 1; !local[j].HasValue; ++k)
+                for (int k = 1; !correction[j].HasValue; ++k)
                 {
-                    if (i - k >= 0 && local[i - k].HasValue) j = i - k;
-                    else if (i + k < count && local[i + k].HasValue) j = i + k;
+                    if (i - k >= 0 && correction[i - k].HasValue) j = i - k;
+                    else if (i + k < count && correction[i + k].HasValue) j = i + k;
                 }
-                points[i] = planes[i].PointAt(local[j].Value.X - cx, local[j].Value.Y - cy);
+                points[i] = planes[i].PointAt(correction[j].Value.X, correction[j].Value.Y);
             }
 
-            var recentred = new InterpolatingSpline(points).ToNurbsCurve();
-            return recentred;
+            return new InterpolatingSpline(points).ToNurbsCurve();
         }
 
         /// <summary>

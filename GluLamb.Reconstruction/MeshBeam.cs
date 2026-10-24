@@ -70,7 +70,7 @@ namespace GluLamb.Reconstruction
 
         /// <summary>Weight of the penalty on changes of curvature along the centreline, which keeps
         /// the ends, where there is little to fit to, following the rest of the beam.</summary>
-        public double Smoothness = 1.0;
+        public double Smoothness = 0.01;
 
         /// <summary>How the centreline is run out past its first and last typical sections to the
         /// ends of the mesh.</summary>
@@ -196,6 +196,16 @@ namespace GluLamb.Reconstruction
                 if (points == null) result.Messages.Add("Couldn't start from an arc; starting from a straight line.");
             }
             points ??= Enumerable.Range(0, count).Select(i => Lerp(start, end, i / (double)(count - 1))).ToArray();
+
+            // Run the start curve out to the ends of the mesh before fitting, so that the fit sees
+            // the whole beam (on a strongly curved beam the principal axis is much shorter than the
+            // beam, and the ends would otherwise be left to the run-out)
+            {
+                var seed = FitToExtents(new InterpolatingSpline(points).ToNurbsCurve(), mesh.Vertices.ToPoint3dArray(), options.End, options.EndFitLength);
+                double spacing = Math.Max(options.SampleSpacing, seed.GetLength() / Math.Max(3, points.Length - 1));
+                int n = Math.Max(4, (int)Math.Ceiling(seed.GetLength() / spacing) + 1);
+                points = seed.DivideByCount(n - 1, true).Select(t => seed.PointAt(t)).ToArray();
+            }
             result.InitialPoints = points;
 
             // The beam's typical section: the median size of the sections along the start curve

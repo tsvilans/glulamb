@@ -1,4 +1,4 @@
-/*
+﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -50,7 +50,7 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddIntegerParameter("End", "E", "How the centreline is run out past its first and last typical sections to the ends of the mesh: " +
                 "0 continue the curvature of the last stretch (an arc), 1 straight, 2 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
             pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
-            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of the penalty on changes of curvature. Higher keeps the ends closer to the shape of the rest of the beam; 0 turns it off.", GH_ParamAccess.item, defaults.Smoothness);
+            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of the penalty on changes of curvature (default 0.01). Higher holds the curve to an even curvature, but fights beams whose curvature really changes; 0 turns it off.", GH_ParamAccess.item, defaults.Smoothness);
             pManager.AddNumberParameter("Typical Tolerance", "TT", "How much a section's size may differ from the beam's typical section (as a fraction) and still count fully in the fit. " +
                 "Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
         }

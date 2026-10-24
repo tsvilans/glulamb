@@ -15,7 +15,7 @@ namespace GluLamb.Reconstruction.Test
     /// from the beams they were made from, and writes a .3dm per case to the out folder (default
     /// ./reconstruction-out). Exits with 1 if a check fails.
     /// </summary>
-    internal static class Program
+    internal static partial class Program
     {
         static int s_failures;
 
@@ -23,9 +23,14 @@ namespace GluLamb.Reconstruction.Test
         private static int Main(string[] args)
         {
             RhinoInside.Resolver.Initialize();
-            string outDir = args.Length > 1 && args[0] == "--out" ? args[1] : "reconstruction-out";
+            string outDir = "reconstruction-out", file = null;
+            for (int i = 0; i + 1 < args.Length; ++i)
+            {
+                if (args[i] == "--out") outDir = args[i + 1];
+                if (args[i] == "--file") file = args[i + 1];
+            }
             Directory.CreateDirectory(outDir);
-            return Run(outDir);
+            return file != null ? RunFile(file, outDir) : Run(outDir);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -179,6 +184,19 @@ namespace GluLamb.Reconstruction.Test
                 Console.WriteLine("  weights: " + string.Join(" ", result.Weights.Select(w => w.ToString("0.0"))));
                 var c = result.Beam.Centreline;
                 Console.WriteLine("  final off: " + string.Join(" ", c.DivideByCount(20, true).Select(t => { var p = c.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
+                var clusterSet = new EdgeSet(result.ParallelEdges);
+                var hitList = new List<Point3d>();
+                Console.WriteLine("  parallel edges in the original's frames: " + string.Join(" ", beam.Centreline.DivideByCount(20, true).Select(t =>
+                {
+                    var pl = beam.GetPlane(t);
+                    clusterSet.Cut(pl.Origin, pl.ZAxis, hitList);
+                    return string.Join("/", hitList.Select(h => { pl.RemapToPlaneSpace(h, out Point3d lp); return $"{lp.X:0},{lp.Y:0}"; }));
+                })));
+                string Offs(Curve cv) => string.Join(" ", cv.DivideByCount(20, true).Select(t => { var p = cv.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); }));
+                var noCorr = MeshBeam.Reconstruct(mesh, new MeshBeamOptions { EdgeCorrection = false, SampleSpacing = options?.SampleSpacing ?? 300 }).Beam;
+                Console.WriteLine("  uncorrected: " + Offs(noCorr.Centreline) + $" ({noCorr.Orientation})");
+                var rc = EdgeClusters.Recentre(noCorr, clusterSet);
+                Console.WriteLine("  recentred once: " + Offs(rc));
                 var sp = new InterpolatingSpline(result.FittedPoints);
                 Console.WriteLine("  fitted spline off at t: " + string.Join(" ", new[] { 0, 0.01, 0.02, 0.05, 0.1, 0.9, 0.95, 0.98, 0.99, 1 }.Select(t => { var p = sp.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return $"{t}:{p.DistanceTo(beam.Centreline.PointAt(u)):0.#}"; })));
                 var plain = MeshBeam.Reconstruct(mesh, new MeshBeamOptions { EdgeCorrection = false }).Beam.Centreline;
@@ -282,7 +300,7 @@ namespace GluLamb.Reconstruction.Test
                 var origin = p0.Origin + p0.YAxis * (h / 2 - drop);
                 var slope = p0.ZAxis * run + p0.YAxis * drop;
                 double slopeLength = slope.Length;
-                var box = new Box(new Plane(origin, p0.XAxis, slope), new Interval(-w, w), new Interval(-slopeLength, 2 * slopeLength), new Interval(-2 * h, 0));
+                var box = new Box(new Plane(origin, p0.XAxis, slope), new Interval(-w, w), new Interval(-0.2 * slopeLength, 2 * slopeLength), new Interval(-2 * h, 0));
                 cutters.Add(box.ToBrep());
             }
             else

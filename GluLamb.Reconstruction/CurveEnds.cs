@@ -102,7 +102,13 @@ namespace GluLamb.Reconstruction
             if (double.IsInfinity(radius) || radius > 1000 * total)
                 return new LineCurve(p, p + tangent * length);
 
-            // Centre on the side the curve bends to, at the circle's radius, so the arc is tangent
+            // Continue the circle itself: its tangent at the end, rather than the curve's, which the
+            // last few millimetres of the curve can turn
+            circle.ClosestParameter(p, out double a);
+            var circleTangent = circle.TangentAt(a);
+            if (circleTangent * tangent < 0) circleTangent.Reverse();
+            if (circleTangent.Unitize()) tangent = circleTangent;
+
             var toCentre = circle.Center - p;
             toCentre -= tangent * (toCentre * tangent);
             if (!toCentre.Unitize()) return new LineCurve(p, p + tangent * length);
