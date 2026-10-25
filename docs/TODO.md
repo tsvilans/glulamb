@@ -46,6 +46,7 @@ Kept up to date as items are done or added. Last updated 2026-10-25.
 
 - RawLam (`GluLamb/RawLam`: boards, logs, lamella performance): kept in core for now; explore later whether it belongs with the glulam material code or in its own project.
 - Consolidation steps 5 to 7 (`Projects/` out of core, test apps in the solution, net7.0 everywhere): see the solution review.
+- GluLamb.Rhino: the model panel is empty and the beam properties page only shows the beam's GUID. Neither was fleshed out; design and build both.
 - GluLamb.Rhino: the old Rhino 7 plug-in's object properties page (`GluLambObjectPropertiesPage`, removed with it, in git history) had more in it than `BeamPropertiesPage`; check whether anything should come back.
 
 ## Gallery and catalogue
