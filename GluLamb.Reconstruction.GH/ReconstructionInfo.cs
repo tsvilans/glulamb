@@ -26,7 +26,7 @@ namespace GluLamb.Reconstruction.GH
     {
         public override string Name => "GluLamb Reconstruction";
         public override Bitmap Icon => null;
-        public override string Description => "GluLamb - beams and blanks reconstructed from meshes and Breps.";
+        public override string Description => "Beam and blank reconstruction tools for GluLamb.";
         public override Guid Id => new Guid("5e2c7a91-3f4d-4b8e-a6c0-9d1b7e3f2a64");
         public override string AuthorName => "Tom Svilans";
         public override string AuthorContact => "info@tomsvilans.com";

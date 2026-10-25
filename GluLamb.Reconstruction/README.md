@@ -1,11 +1,7 @@
 # GluLamb.Reconstruction
 
-Beams and blanks reconstructed from other geometry. It is kept apart from GluLamb so that the core
-library doesn't carry it. Its Grasshopper components are in `GluLamb.Reconstruction.GH`, under
+Beams and blanks reconstructed from other geometry. Its Grasshopper components are in `GluLamb.Reconstruction.GH`, under
 "6. Reconstruction" on the GluLamb tab.
-
-The beams can have any curvature and shape. Nothing here assumes constant curvature: shape comes
-from the data (sections and edges), and only the stretch beyond the last data is extrapolated.
 
 ## Beam from a mesh (`MeshBeam`)
 
