@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2020 Tom Svilans
@@ -49,7 +49,7 @@ namespace GluLamb.Raw.GH.Components
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.BeamMesh;
+        protected override System.Drawing.Bitmap Icon => null;
         public override Guid ComponentGuid => new Guid("66dd5889-f66e-4a8c-b886-fcb9680f8e0c");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 

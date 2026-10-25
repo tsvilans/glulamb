@@ -34,7 +34,7 @@ namespace GluLamb.Reconstruction.GH
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => null;
+        protected override System.Drawing.Bitmap Icon => Icons.Load("FindCentreline.png");
         public override Guid ComponentGuid => new Guid("c41e7b20-8f63-4d95-b2a7-0e5d93f1c8a6");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 
@@ -64,6 +64,12 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddNumberParameter("Error", "Er", "Fit error before and after (weighted distances of the samples from their section centres, plus the curvature penalty).", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Weights", "W", "Weight of each fit sample in the last round: 1 a typical section, 0 a taper, joint or end cut.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Centreline", "C", "The beam's centreline.", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Width", "Wi", "The beam's width.", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Height", "H", "The beam's height.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Principal Plane", "PP", "The mesh's principal axes (area-weighted), at the centre of the box along them: " +
+                "X along the largest spread, Y the direction the beam bends in most.", GH_ParamAccess.item);
+            pManager.AddBoxParameter("Principal Box", "PB", "The box around the mesh along its principal axes.", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -100,6 +106,15 @@ namespace GluLamb.Reconstruction.GH
             DA.SetDataList(5, result.Messages);
             if (result.Weights != null) DA.SetDataList(6, result.Weights);
 
+            if (result.Bounds.SizeX > 0)
+            {
+                var box = result.Bounds.ToBox();
+                var centre = result.Bounds.Plane;
+                centre.Origin = box.Center;
+                DA.SetData(10, centre);
+                DA.SetData(11, box);
+            }
+
             if (!result.Success)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, result.Messages.LastOrDefault() ?? "Reconstruction failed.");
@@ -108,6 +123,9 @@ namespace GluLamb.Reconstruction.GH
 
             Message = $"{result.Beam.Width:0.#} x {result.Beam.Height:0.#}";
             DA.SetData(0, new GH_Beam(result.Beam));
+            DA.SetData(7, result.Beam.Centreline);
+            DA.SetData(8, result.Beam.Width);
+            DA.SetData(9, result.Beam.Height);
         }
     }
 }

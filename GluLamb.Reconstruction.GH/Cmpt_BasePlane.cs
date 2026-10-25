@@ -1,4 +1,4 @@
-﻿/*
+/*
  * RawLamb
  * Copyright 2024 Tom Svilans
  * 
@@ -23,19 +23,21 @@ using Rhino.Geometry;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 
-namespace GluLamb.Raw.GH
+namespace GluLamb.Reconstruction.GH
 {
-
+    /// <summary>
+    /// From GluLamb.Raw.GH; same GUID, so existing definitions keep it.
+    /// </summary>
     public class Cmpt_BasePlane : GH_Component
     {
         public Cmpt_BasePlane()
             : base("BasePlane", "BPlane",
                 "Calculate a good baseplane for a Brep with straight edges.",
-                "GluLamb", UiNames.RawSection)
+                "GluLamb", UiNames.ReconstructionSection)
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.FindPlane;
+        protected override System.Drawing.Bitmap Icon => Icons.Load("FindPlane.png");
         public override Guid ComponentGuid => new Guid("3dccbbf9-c5dc-4435-9be4-0121fabd7e0d");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 

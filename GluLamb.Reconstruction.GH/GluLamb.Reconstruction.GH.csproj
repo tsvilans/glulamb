@@ -40,4 +40,8 @@
     <ProjectReference Include="..\GluLamb.Reconstruction\GluLamb.Reconstruction.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\*.png" />
+  </ItemGroup>
+
 </Project>
