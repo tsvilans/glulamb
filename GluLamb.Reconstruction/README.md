@@ -88,7 +88,7 @@ Dual contouring (Ju et al., 2002, as in Blender's remesher) turns noisy or non-m
 
 ## Grasshopper components
 
-Beam From Mesh, Blank From Brep, Remesh and BasePlane, under "6. Reconstruction". BasePlane and Remesh keep the GUIDs they had in GluLamb.Raw.GH. Beam From Mesh replaces Raw's Find Centreline (Centreline, Width, Height outputs) and Find Plane (Principal Plane, Principal Box).
+Beam From Mesh, Blank From Brep, Remesh, Find Plane and BasePlane, under "6. Reconstruction". Find Plane, BasePlane and Remesh keep the GUIDs they had in GluLamb.Raw.GH. Find Plane gives the principal axes and the oriented bounding box of any mesh. Beam From Mesh replaces Raw's Find Centreline (Centreline, Width, Height outputs).
 
 ## Numerics
 

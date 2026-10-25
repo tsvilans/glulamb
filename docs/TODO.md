@@ -38,7 +38,7 @@ Kept up to date as items are done or added. Last updated 2026-10-25.
 ## Reconstruction
 
 - Dual contouring (`DualCon`, the Remesh component): the code moved over from GluLamb.Raw as it was. It needs the native `dualcon.dll` next to `GluLamb.Reconstruction.dll`, which isn't in the repo yet. Later: package or build the library, give `DualCon` a managed output buffer instead of its instance field (and drop the leftover handle code and console output), and test it on a real scan before Beam From Mesh.
-- Beam From Mesh: Find Plane's eigenvalues have no replacement output (Principal Plane and Principal Box replace the rest); add them if anything needs them.
+- `sketches/machining/RawUtility.cs` (`GetPlanarTCP`, a robot tool-centre-point fit sketch from GluLamb.Raw): move it to the machining project.
 
 ## Solution clean-up
 
