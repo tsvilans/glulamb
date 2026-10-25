@@ -30,6 +30,9 @@ namespace GluLamb.Numerics
         public Plane Plane;
         public double SizeX, SizeY, SizeZ;
 
+        /// <summary>The (weighted) variance of the points along X, Y and Z.</summary>
+        public double VarianceX, VarianceY, VarianceZ;
+
         public Box ToBox() => new Box(Plane, new Interval(0, SizeX), new Interval(0, SizeY), new Interval(0, SizeZ));
 
         /// <summary>
@@ -44,9 +47,10 @@ namespace GluLamb.Numerics
         /// Principal axes of a mesh, with each vertex weighted by its share of the surface area, so
         /// that dense patches of mesh don't pull the axes. X is the axis of largest spread. Of the
         /// other two, Y is the one the beam bends along most (the larger variation of the mean
-        /// position across 10 bins along X), and Z completes a right-handed frame.
+        /// position across 10 bins along X), and Z completes a right-handed frame. With bendAxis false,
+        /// Y is simply the axis of second largest spread (a general oriented bounding box).
         /// </summary>
-        public static OrientedBounds WeightedMesh(Mesh mesh)
+        public static OrientedBounds WeightedMesh(Mesh mesh, bool bendAxis = true)
         {
             int n = mesh.Vertices.Count;
             var points = new Point3d[n];
@@ -75,23 +79,29 @@ namespace GluLamb.Numerics
             }
             cov[1, 0] = cov[0, 1]; cov[2, 0] = cov[0, 2]; cov[2, 1] = cov[1, 2];
 
-            SymmetricEigen.Decompose3(cov, out _, out Vector3d[] axes);
-            return Bounds(points, axes[0], axes[1], axes[2]);
+            SymmetricEigen.Decompose3(cov, out double[] values, out Vector3d[] axes);
+            return Bounds(points, axes, values, bendAxis);
         }
 
         /// <summary>
         /// Principal axes of points (equal weights), as in WeightedMesh.
         /// </summary>
-        public static OrientedBounds Points(IList<Point3d> points)
+        public static OrientedBounds Points(IList<Point3d> points, bool bendAxis = true)
         {
-            PrincipalAxes(points, out _, out Vector3d[] axes);
-            return Bounds(points, axes[0], axes[1], axes[2]);
+            PrincipalAxes(points, out _, out Vector3d[] axes, out double[] values);
+            return Bounds(points, axes, values, bendAxis);
         }
 
         /// <summary>
         /// Mean and principal axes of points, sorted by descending spread.
         /// </summary>
-        public static void PrincipalAxes(IList<Point3d> points, out Point3d centre, out Vector3d[] axes)
+        public static void PrincipalAxes(IList<Point3d> points, out Point3d centre, out Vector3d[] axes) =>
+            PrincipalAxes(points, out centre, out axes, out _);
+
+        /// <summary>
+        /// Mean, principal axes and the variance along each, sorted by descending spread.
+        /// </summary>
+        public static void PrincipalAxes(IList<Point3d> points, out Point3d centre, out Vector3d[] axes, out double[] variances)
         {
             int n = points.Count;
             var mean = Point3d.Origin;
@@ -107,7 +117,8 @@ namespace GluLamb.Numerics
             }
             cov[1, 0] = cov[0, 1]; cov[2, 0] = cov[0, 2]; cov[2, 1] = cov[1, 2];
 
-            SymmetricEigen.Decompose3(cov, out _, out axes);
+            SymmetricEigen.Decompose3(cov, out variances, out axes);
+            for (int i = 0; i < 3; ++i) variances[i] /= n;
             centre = mean;
         }
 
@@ -117,10 +128,12 @@ namespace GluLamb.Numerics
             w[a] += area; w[b] += area; w[c] += area;
         }
 
-        static OrientedBounds Bounds(IList<Point3d> points, Vector3d x, Vector3d y, Vector3d z)
+        static OrientedBounds Bounds(IList<Point3d> points, Vector3d[] axes, double[] variances, bool bendAxis)
         {
             const int bins = 10;
             int n = points.Count;
+            Vector3d x = axes[0], y = axes[1], z = axes[2];
+            double vy = variances[1], vz = variances[2];
 
             double minX = double.MaxValue, maxX = double.MinValue;
             var px = new double[n];
@@ -130,19 +143,22 @@ namespace GluLamb.Numerics
                 minX = Math.Min(minX, px[i]); maxX = Math.Max(maxX, px[i]);
             }
 
-            // Which of y and z does the mean position wander along more?
-            var sumY = new double[bins]; var sumZ = new double[bins]; var count = new int[bins];
-            double binSize = (maxX - minX) / bins;
-            for (int i = 0; i < n; ++i)
+            if (bendAxis)
             {
-                int b = binSize > 0 ? Math.Min(bins - 1, (int)((px[i] - minX) / binSize)) : 0;
-                sumY[b] += (Vector3d)points[i] * y; sumZ[b] += (Vector3d)points[i] * z; count[b]++;
-            }
-            var meansY = new List<double>(); var meansZ = new List<double>();
-            for (int b = 0; b < bins; ++b)
-                if (count[b] >= 2) { meansY.Add(sumY[b] / count[b]); meansZ.Add(sumZ[b] / count[b]); }
+                // Which of y and z does the mean position wander along more?
+                var sumY = new double[bins]; var sumZ = new double[bins]; var count = new int[bins];
+                double binSize = (maxX - minX) / bins;
+                for (int i = 0; i < n; ++i)
+                {
+                    int b = binSize > 0 ? Math.Min(bins - 1, (int)((px[i] - minX) / binSize)) : 0;
+                    sumY[b] += (Vector3d)points[i] * y; sumZ[b] += (Vector3d)points[i] * z; count[b]++;
+                }
+                var meansY = new List<double>(); var meansZ = new List<double>();
+                for (int b = 0; b < bins; ++b)
+                    if (count[b] >= 2) { meansY.Add(sumY[b] / count[b]); meansZ.Add(sumZ[b] / count[b]); }
 
-            if (StandardDeviation(meansZ) > StandardDeviation(meansY)) (y, z) = (z, y);
+                if (StandardDeviation(meansZ) > StandardDeviation(meansY)) { (y, z) = (z, y); (vy, vz) = (vz, vy); }
+            }
             z = Vector3d.CrossProduct(x, y);
             z.Unitize();
 
@@ -160,7 +176,10 @@ namespace GluLamb.Numerics
                 Plane = new Plane(origin, x, y),
                 SizeX = maxX - minX,
                 SizeY = maxY - minY,
-                SizeZ = maxZ - minZ
+                SizeZ = maxZ - minZ,
+                VarianceX = variances[0],
+                VarianceY = vy,
+                VarianceZ = vz
             };
         }
 
