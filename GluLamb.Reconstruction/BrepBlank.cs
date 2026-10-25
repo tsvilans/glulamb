@@ -22,7 +22,7 @@ using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
 
 using GluLamb.Blanks;
-using GluLamb.Reconstruction.Numerics;
+using GluLamb.Numerics;
 
 namespace GluLamb.Reconstruction
 {

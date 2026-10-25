@@ -9,50 +9,25 @@ namespace GluLamb
 {
     public static class Strain
     {
+        /// <summary>
+        /// Eigenvalues and eigenvectors of a symmetric 3x3 matrix, in the order this class has
+        /// always used: the largest, the smallest, then the middle one, whose vector is the cross
+        /// product of the first two (a right-handed, orthonormal set).
+        /// </summary>
         public static (double[] values, Vector3d[] vectors)
                 EigenDecompositionSymmetric(Matrix U)
         {
-            double[] values = EigenvaluesSymmetric(U);
-            Vector3d[] vectors = new Vector3d[3];
+            var a = new double[3, 3];
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    a[i, j] = U[i, j];
 
-            for (int i = 0; i < 3; i++)
-                vectors[i] = EigenvectorFromEigenvalue(U, values[i]);
+            // Sorted largest first
+            Numerics.SymmetricEigen.Decompose3(a, out double[] sorted, out Vector3d[] axes);
 
-            // Orthonormalize (numerical safety)
-            vectors[0].Unitize();
-            vectors[1] -= Vector3d.Multiply(
-                Vector3d.Multiply(vectors[1], vectors[0]), vectors[0]);
-            vectors[1].Unitize();
-            vectors[2] = Vector3d.CrossProduct(vectors[0], vectors[1]);
-
+            var values = new[] { sorted[0], sorted[2], sorted[1] };
+            var vectors = new[] { axes[0], axes[2], Vector3d.CrossProduct(axes[0], axes[2]) };
             return (values, vectors);
-        }
-
-        public static Vector3d EigenvectorFromEigenvalue(Matrix U, double lambda)
-        {
-            var M = SubtractLambdaI(U, lambda);
-
-            Vector3d r0 = new Vector3d(M[0, 0], M[0, 1], M[0, 2]);
-            Vector3d r1 = new Vector3d(M[1, 0], M[1, 1], M[1, 2]);
-            Vector3d r2 = new Vector3d(M[2, 0], M[2, 1], M[2, 2]);
-
-            Vector3d v0 = Vector3d.CrossProduct(r0, r1);
-            Vector3d v1 = Vector3d.CrossProduct(r0, r2);
-            Vector3d v2 = Vector3d.CrossProduct(r1, r2);
-
-            double d0 = v0.SquareLength;
-            double d1 = v1.SquareLength;
-            double d2 = v2.SquareLength;
-
-            Vector3d v =
-                (d0 > d1 && d0 > d2) ? v0 :
-                (d1 > d2) ? v1 :
-                                    v2;
-
-            if (!v.Unitize())
-                throw new Exception("Degenerate eigenvector");
-
-            return v;
         }
 
         public static double GetLamellaAngleOffset(Plane lamellaPlane, Vector3d[] eigenVectors)
@@ -88,16 +63,6 @@ namespace GluLamb
         }
 
 
-        public static Matrix SubtractLambdaI(Matrix matrix, double lambda)
-        {
-            var mat = matrix.Duplicate();
-
-            mat[0, 0] -= lambda;
-            mat[1, 1] -= lambda;
-            mat[2, 2] -= lambda;
-
-            return mat;
-        }
 
         public static Mesh CreateMeshCube(Point3d[] points)
         {
@@ -182,47 +147,6 @@ namespace GluLamb
             result.Rotate(delta, p2.ZAxis, p2.Origin);
 
             return result;
-        }
-
-        public static double[] EigenvaluesSymmetric(Matrix A)
-        {
-            // Step 1: Calculate the mean of the diagonal (the "average" eigenvalue)
-            double m = Trace(A) / 3.0;
-
-            // Step 2: Calculate the deviatoric matrix B = A - m*I
-            // This shifts the eigenvalues so their sum (trace) is zero.
-            Matrix B = new Matrix(3, 3);
-            B[0, 0] = A[0, 0] - m; B[0, 1] = A[0, 1]; B[0, 2] = A[0, 2];
-            B[1, 0] = A[1, 0]; B[1, 1] = A[1, 1] - m; B[1, 2] = A[1, 2];
-            B[2, 0] = A[2, 0]; B[2, 1] = A[2, 1]; B[2, 2] = A[2, 2] - m;
-
-            // Step 3: Calculate the "norm" of the deviatoric matrix
-            double p2 =
-                B[0, 0] * B[0, 0] +
-                B[1, 1] * B[1, 1] +
-                B[2, 2] * B[2, 2] +
-                2.0 * (B[0, 1] * B[0, 1] + B[0, 2] * B[0, 2] + B[1, 2] * B[1, 2]);
-
-            double p = Math.Sqrt(p2 / 6.0);
-
-            // Step 4: Scale the matrix and find the determinant for the trig identity
-            Matrix C = B.Duplicate();
-            C.Scale(1.0 / p);
-
-            double r = Determinant(C) / 2.0;
-
-            // Clamp for numerical safety (acos requires values between -1 and 1)
-            r = Math.Max(-1.0, Math.Min(1.0, r));
-
-            double phi = Math.Acos(r) / 3.0;
-
-            // Step 5: Solve for the three roots (the eigenvalues)
-            // The roots are spaced by 120 degrees (2π/3 radians)
-            double eig1 = m + 2.0 * p * Math.Cos(phi);
-            double eig2 = m + 2.0 * p * Math.Cos(phi + 2.0 * Math.PI / 3.0);
-            double eig3 = m + 2.0 * p * Math.Cos(phi + 4.0 * Math.PI / 3.0);
-
-            return new[] { eig1, eig2, eig3 };
         }
 
         public static double Trace(this Matrix A)

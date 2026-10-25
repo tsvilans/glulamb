@@ -1,11 +1,11 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.FileIO;
 using Rhino.Geometry;
 
-using GluLamb.Reconstruction.Numerics;
+using GluLamb.Numerics;
 
 namespace GluLamb.Reconstruction.Test
 {

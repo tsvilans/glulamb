@@ -1,4 +1,4 @@
-﻿# GluLamb.Reconstruction
+# GluLamb.Reconstruction
 
 Beams and blanks reconstructed from other geometry. It is kept apart from GluLamb so that the core
 library doesn't carry it. Its Grasshopper components are in `GluLamb.Reconstruction.GH`, under
@@ -84,11 +84,12 @@ The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from
 
 ## Numerics
 
-`Numerics/` holds what numpy and scipy did in the Python:
+The numerics are in the core library, in `GluLamb/Numerics` (namespace `GluLamb.Numerics`), where other parts of GluLamb use them too. They hold what numpy and scipy did in the Python:
 
 - `InterpolatingSpline` is scipy's `splprep(s=0, k=3)` and converts exactly to a `NurbsCurve`.
 - `Lbfgs` is `minimize(method="L-BFGS-B")` with finite-difference gradients, evaluated in parallel.
 - `Hull2d`, `Pca` and `AverageLinkage` (UPGMA, cut at a distance).
+- `SymmetricEigen` (cyclic Jacobi), also used by Cluster Beams, `Strain` and `VectorListOrientation`.
 
 Closest-point queries on Rhino curves run one at a time: run in parallel on one curve, they gave
 results that changed from run to run.

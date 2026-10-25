@@ -17,7 +17,7 @@
  *
  */
 
-namespace GluLamb.Reconstruction.Numerics
+namespace GluLamb.Numerics
 {
     public static class AverageLinkage
     {

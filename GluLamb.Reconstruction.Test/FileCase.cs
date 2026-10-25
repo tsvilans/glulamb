@@ -144,7 +144,7 @@ namespace GluLamb.Reconstruction.Test
                                         extendedRef.ClosestPoint(p, out double u);
                                         return p.DistanceTo(extendedRef.PointAt(u)).ToString("0.#");
                                     })));
-                                    var sp = new GluLamb.Reconstruction.Numerics.InterpolatingSpline(r.FittedPoints);
+                                    var sp = new GluLamb.Numerics.InterpolatingSpline(r.FittedPoints);
                                     Console.WriteLine($"     fitted points: " + string.Join(" ", r.FittedPoints.Select(p => { reference.ClosestPoint(p, out double u); return p.DistanceTo(reference.PointAt(u)).ToString("0.#"); })));
                                 }
                             }

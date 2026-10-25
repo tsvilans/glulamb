@@ -19,7 +19,7 @@
 
 using Rhino.Geometry;
 
-namespace GluLamb.Reconstruction.Numerics
+namespace GluLamb.Numerics
 {
     /// <summary>
     /// A cubic B-spline through a list of points, parameterised by chord length on [0, 1], with

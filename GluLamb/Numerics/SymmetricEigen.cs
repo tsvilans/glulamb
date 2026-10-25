@@ -21,7 +21,7 @@ using System;
 
 using Rhino.Geometry;
 
-namespace GluLamb
+namespace GluLamb.Numerics
 {
     /// <summary>
     /// Eigen decomposition of small symmetric matrices (cyclic Jacobi), e.g. covariance matrices for

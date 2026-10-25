@@ -722,60 +722,14 @@ namespace GluLamb.Blanks
         }
 
         /// <summary>
-        /// Unit eigenvector of the largest eigenvalue of a symmetric 4x4 matrix (cyclic Jacobi).
+        /// Unit eigenvector of the largest eigenvalue of a symmetric 4x4 matrix.
         /// </summary>
         static double[] LargestEigenvector(double[,] a)
         {
-            var v = new double[4, 4];
-            for (int i = 0; i < 4; ++i) v[i, i] = 1;
-
-            for (int sweep = 0; sweep < 32; ++sweep)
-            {
-                double off = 0, diag = 0;
-                for (int i = 0; i < 4; ++i)
-                {
-                    diag += a[i, i] * a[i, i];
-                    for (int j = i + 1; j < 4; ++j) off += a[i, j] * a[i, j];
-                }
-                if (off <= 1e-24 * Math.Max(diag, 1e-300)) break;
-
-                for (int p = 0; p < 3; ++p)
-                    for (int q = p + 1; q < 4; ++q)
-                    {
-                        if (Math.Abs(a[p, q]) < 1e-300) continue;
-                        double theta = (a[q, q] - a[p, p]) / (2 * a[p, q]);
-                        double t = Math.Sign(theta) / (Math.Abs(theta) + Math.Sqrt(theta * theta + 1));
-                        if (theta == 0) t = 1;
-                        double c = 1 / Math.Sqrt(t * t + 1), s = t * c;
-
-                        for (int k = 0; k < 4; ++k)
-                        {
-                            double akp = a[k, p], akq = a[k, q];
-                            a[k, p] = c * akp - s * akq;
-                            a[k, q] = s * akp + c * akq;
-                        }
-                        for (int k = 0; k < 4; ++k)
-                        {
-                            double apk = a[p, k], aqk = a[q, k];
-                            a[p, k] = c * apk - s * aqk;
-                            a[q, k] = s * apk + c * aqk;
-                        }
-                        for (int k = 0; k < 4; ++k)
-                        {
-                            double vkp = v[k, p], vkq = v[k, q];
-                            v[k, p] = c * vkp - s * vkq;
-                            v[k, q] = s * vkp + c * vkq;
-                        }
-                    }
-            }
-
-            int best = 0;
-            for (int i = 1; i < 4; ++i)
-                if (a[i, i] > a[best, best]) best = i;
-
+            Numerics.SymmetricEigen.Decompose(a, out _, out double[,] vectors);
             var result = new double[4];
             double norm = 0;
-            for (int k = 0; k < 4; ++k) { result[k] = v[k, best]; norm += result[k] * result[k]; }
+            for (int k = 0; k < 4; ++k) { result[k] = vectors[k, 0]; norm += result[k] * result[k]; }
             norm = Math.Sqrt(norm);
             for (int k = 0; k < 4; ++k) result[k] /= norm;
             return result;

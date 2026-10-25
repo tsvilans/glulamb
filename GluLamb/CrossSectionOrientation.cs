@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2020 Tom Svilans
@@ -25,6 +25,8 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using Rhino.Collections;
+
+using GluLamb.Numerics;
 
 namespace GluLamb
 {

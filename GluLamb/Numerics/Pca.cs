@@ -19,7 +19,7 @@
 
 using Rhino.Geometry;
 
-namespace GluLamb.Reconstruction.Numerics
+namespace GluLamb.Numerics
 {
     /// <summary>
     /// A box along a set of principal axes: Plane is at the box's minimum corner, X along the

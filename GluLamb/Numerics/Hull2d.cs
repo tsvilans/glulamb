@@ -19,7 +19,7 @@
 
 using Rhino.Geometry;
 
-namespace GluLamb.Reconstruction.Numerics
+namespace GluLamb.Numerics
 {
     public static class Hull2d
     {

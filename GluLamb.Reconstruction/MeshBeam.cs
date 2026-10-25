@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -20,7 +20,7 @@
 using Rhino;
 using Rhino.Geometry;
 
-using GluLamb.Reconstruction.Numerics;
+using GluLamb.Numerics;
 
 namespace GluLamb.Reconstruction
 {

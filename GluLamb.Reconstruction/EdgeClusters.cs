@@ -20,7 +20,7 @@
 using Rhino;
 using Rhino.Geometry;
 
-using GluLamb.Reconstruction.Numerics;
+using GluLamb.Numerics;
 
 namespace GluLamb.Reconstruction
 {
