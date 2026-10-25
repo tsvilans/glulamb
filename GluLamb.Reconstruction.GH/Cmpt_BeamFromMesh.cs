@@ -48,9 +48,9 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
             pManager.AddAngleParameter("Sharp Angle", "A", "Smallest angle between face normals for an edge to count as a sharp edge of the beam.", GH_ParamAccess.item, defaults.SharpAngle);
             pManager.AddIntegerParameter("End", "E", "How the centreline is run out past its first and last typical sections to the ends of the mesh: " +
-                "0 continue the curvature of the last stretch (an arc), 1 straight, 2 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
-            pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
-            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of the penalty on changes of curvature (default 0.01). Higher holds the curve to an even curvature, but fights beams whose curvature really changes; 0 turns it off.", GH_ParamAccess.item, defaults.Smoothness);
+                "0 continue the curvature and its rate of change (trend), 1 a circle (constant curvature), 2 straight, 3 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
+            pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature (and its trend) to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
+            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of an optional penalty on changes of curvature (default 0, off). It holds the curve to an even curvature, so it suits beams that have one and fights beams whose curvature changes.", GH_ParamAccess.item, defaults.Smoothness);
             pManager.AddNumberParameter("Typical Tolerance", "TT", "How much a section's size may differ from the beam's typical section (as a fraction) and still count fully in the fit. " +
                 "Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
         }
@@ -84,7 +84,7 @@ namespace GluLamb.Reconstruction.GH
 
             int end = (int)options.End;
             DA.GetData(6, ref end);
-            options.End = (EndExtension)Math.Clamp(end, 0, 2);
+            options.End = (EndExtension)Math.Clamp(end, 0, 3);
             DA.GetData(7, ref options.EndFitLength);
             DA.GetData(8, ref options.Smoothness);
             DA.GetData(9, ref options.TypicalTolerance);

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -173,13 +173,13 @@ namespace GluLamb.Reconstruction
             result.Sections = sections;
 
             // The Brep in the curved space of a beam along the (extended) curve
-            var extended = curve.Extend(CurveEnd.Both, 0.1 * curve.GetLength(), CurveExtensionStyle.Smooth) ?? curve.DuplicateCurve();
+            var extended = CurveEnds.Extend(curve, 0.1 * curve.GetLength(), EndExtension.Smooth);
             extended.Domain = new Interval(0, 1);
 
             var probe = new Beam { Centreline = extended };
             probe.Orientation = MeshBeam.Orientation(extended, sections, false, 0, messages);
 
-            var extents = new BoundingBox(probe.ToBeamSpace(brepPoints, true, 200));
+            var extents = new BoundingBox(ToBeamSpace(probe, brepPoints));
             result.Extents = extents;
 
             // Trim to the Brep's length and centre the section on the curve
@@ -217,6 +217,33 @@ namespace GluLamb.Reconstruction
             beam = new Beam { Centreline = centreline, Width = offset.Width, Height = offset.Height };
             beam.Orientation = MeshBeam.Orientation(centreline, moved, last && options.SimplifyOrientation, options.PlanarAngleTolerance, messages);
             return true;
+        }
+
+        /// <summary>
+        /// Points in a beam's space (X across, Y up, Z the length along the centreline), one at a
+        /// time: Beam.ToBeamSpace works in parallel, and closest-point queries on one curve from
+        /// several threads at once gave results that changed from run to run.
+        /// </summary>
+        static List<Point3d> ToBeamSpace(Beam beam, List<Point3d> points)
+        {
+            var curve = beam.Centreline;
+            var tt = curve.DivideByCount(200, true);
+            var lengths = tt.Select(t => curve.GetLength(new Interval(curve.Domain.Min, t))).ToArray();
+
+            var mapped = new List<Point3d>(points.Count);
+            foreach (var p in points)
+            {
+                curve.ClosestPoint(p, out double t);
+                beam.GetPlane(t).RemapToPlaneSpace(p, out Point3d local);
+
+                int i = Array.BinarySearch(tt, t);
+                if (i < 0) i = ~i - 1;
+                i = Math.Clamp(i, 0, tt.Length - 2);
+                double mu = (t - tt[i]) / (tt[i + 1] - tt[i]);
+                local.Z = lengths[i] + (lengths[i + 1] - lengths[i]) * Math.Clamp(mu, 0, 1);
+                mapped.Add(local);
+            }
+            return mapped;
         }
 
         /// <summary>

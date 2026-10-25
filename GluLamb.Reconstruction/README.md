@@ -4,13 +4,16 @@ Beams and blanks reconstructed from other geometry. It is kept apart from GluLam
 library doesn't carry it. Its Grasshopper components are in `GluLamb.Reconstruction.GH`, under
 "6. Reconstruction" on the GluLamb tab.
 
+The beams can have any curvature and shape. Nothing here assumes constant curvature: shape comes
+from the data (sections and edges), and only the stretch beyond the last data is extrapolated.
+
 ## Beam from a mesh (`MeshBeam`)
 
 This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
 `extract_beam_from_mesh_rhino.py`.
 
-1. Sharp edges: weld the mesh, keep edges whose faces meet at more than 60Â°, and join edges that
-   meet within 15Â° into polylines.
+1. Sharp edges: weld the mesh, keep edges whose faces meet at more than 60°, and join edges that
+   meet within 15° into polylines.
 2. Main axes: area-weighted PCA. Of the two minor axes, Y is the one the beam bends along.
 3. Start: centres of sections across the main axis, then of sections normal to the spline through
    them, a few times over. Atypical sections are left out (see below). The start curve is then run
@@ -25,24 +28,30 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
 5. Fit: L-BFGS over the spline's points. The error is, over at least 40 samples (2–98% along, and
    at least three per point), each sample's weight times its distance to the section's centre
    there. A sample's weight is how typical its section is, so atypical samples count little or not
-   at all. The weights are found again after each of three rounds. There is also an optional,
-   small penalty on changes of curvature (`Smoothness`, default 0.01). Raising it holds the curve
-   to an even curvature, but it also fights beams whose curvature really does change.
-6. The centreline is trimmed to the first and last typical samples, where the fit has something
-   to go by, and run out to the ends of the mesh (`End`). By default the run-out continues the
-   circle through the last stretch of the curve (`EndFitLength`, default 15% of the length),
-   along the circle's own tangent, so a curved beam stays curved. `Straight` and Rhino's `Smooth`
-   extension are also available.
-7. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
+   at all. The weights are found again after each of three rounds. An optional penalty on changes
+   of curvature (`Smoothness`) is off by default. It holds the curve to an even curvature, so it
+   only suits beams that have one.
+6. The centreline is trimmed to the first and last typical samples, where the sections have
+   something to say.
+7. Edge tracking: the longest run of parallel sharp edges (as for Breps) is the main set. The other
+   long edges that keep a steady place in the section (e.g. the edges a lap leaves along the beam)
+   help. Each edge's place in the section is measured along the trimmed centreline. From a little
+   inside each end, the centreline is then followed out one step at a time. At each step, the
+   crossed edges are fitted to their places by a turn and a move (a 2D rigid fit, the main edges
+   alone where two or more are there, an edge that doesn't fit dropped). The centreline goes where
+   that fit puts it. This stops where fewer than two edges are left, or where they jump. Nothing is
+   assumed about the curvature: the edges carry it right up to a skew end face.
+8. The last stretch, past the last edge crossing, is run out to the ends of the mesh (`End`). By
+   default it continues the curvature and its rate of change measured over the end of the curve
+   (`EndFitLength`, default 15% of its length), with the change limited. `Arc` (constant curvature),
+   `Straight` and Rhino's `Smooth` extension are also available.
+9. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
    both ways from the centreline).
-8. Edge correction: the longest run of parallel sharp edges (as for Breps) usually runs through the
-   ends untouched by joints. Each of those edges keeps one place in the section. That place is
-   measured where all of the edges are crossed, and at every station the centreline goes where the
-   edges crossed there put it. Near a skew end, where one edge has ended, the rest still place the
-   centreline (`EdgeCorrection`, `Refinements`). A correction that would move the centreline by
-   more than a quarter of the section is skipped.
+10. Edge correction: at stations all along, the centreline goes where the crossed edges put it, in
+    the same way (`EdgeCorrection`, `Refinements`). A correction that would move it by more than a
+    quarter of the section is skipped.
 
-The fitted points are kept at least 0.3 Ã— the section's depth apart, whatever `SampleSpacing` asks
+The fitted points are kept at least 0.3 × the section's depth apart, whatever `SampleSpacing` asks
 for. Closer points see the same stretch of edges in their sections, so they add freedom for the
 curve to wander but no information. There are at least three fit samples per point.
 
@@ -74,10 +83,17 @@ The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from
 - `Lbfgs` is `minimize(method="L-BFGS-B")` with finite-difference gradients, evaluated in parallel.
 - `Hull2d`, `Pca` and `AverageLinkage` (UPGMA, cut at a distance).
 
+Closest-point queries on Rhino curves run one at a time: run in parallel on one curve, they gave
+results that changed from run to run.
+
 ## Tests
 
-`GluLamb.Reconstruction.Test` runs headless through Rhino.Inside. It reconstructs synthetic
-straight, curved and twisted beams from their meshes (plain, and with a scarf, laps and a notch)
-and from their Breps with joints cut in, then compares the results with the beams they came from.
-It writes a `.3dm` of each case to `--out`. Set `RECON_DEBUG=1` to print the fit's points, weights
-and deviations along the length.
+`GluLamb.Reconstruction.Test` runs headless through Rhino.Inside. It reconstructs synthetic beams
+and compares the results with the beams they came from:
+- from their meshes: straight, arched, tightly curved, twisted and double-curved, an Euler spiral,
+  and Tom's example curve, plain and with a scarf, laps, a notch and skew end cuts;
+- from their Breps, with joints cut in.
+
+It writes a `.3dm` of each case to `--out`. `--file model.3dm` reconstructs every mesh and Brep in a
+file and compares the results with any curve in it. Set `RECON_DEBUG=1` to print the fit's
+points, weights and deviations along the length.

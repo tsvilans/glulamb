@@ -95,6 +95,39 @@ namespace GluLamb.Reconstruction.Test
                     MeshCase($"tight-joints-{spacing}", tightBeam, outDir, true, new MeshBeamOptions { SampleSpacing = spacing });
                 MeshCase("curved-joints-75", curved, outDir, true, new MeshBeamOptions { SampleSpacing = 75 });
 
+                // Steeply varying curvature, with skew end cuts: an Euler spiral (curvature rising
+                // linearly from straight to a 900 mm radius over 5 m) ...
+                var spiralPoints = new List<Point3d>();
+                {
+                    double length = 5000, kEnd = 1.0 / 900, step = 10, angle = 0;
+                    var p = Point3d.Origin;
+                    spiralPoints.Add(p);
+                    for (double s = 0; s < length; s += step)
+                    {
+                        double k = kEnd * (s + step / 2) / length;
+                        angle += k * step;
+                        p += new Vector3d(Math.Cos(angle), 0, Math.Sin(angle)) * step;
+                        if (((int)(s / step) + 1) % 10 == 0) spiralPoints.Add(p);
+                    }
+                }
+                var spiral = Curve.CreateInterpolatedCurve(spiralPoints, 3);
+                var spiralBeam = new Beam { Centreline = spiral, Orientation = new PlanarOrientation(Plane.WorldZX), Width = 140, Height = 360 };
+                spiralBeam.Transform(rotation);
+                MeshCase("spiral-skew", spiralBeam, outDir, false, null, skew: true);
+                MeshCase("spiral-joints-skew", spiralBeam, outDir, true, null, skew: true);
+
+                // ... and the curve from Tom's example (radius 460 to 1950 mm, not planar), if it's there
+                var example = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outDir)) ?? ".", "reconstruction-example-01.3dm");
+                var exampleCurve = File.Exists(example) ? File3dm.Read(example)?.Objects.Select(o => o.Geometry).OfType<Curve>().FirstOrDefault() : null;
+                if (exampleCurve != null)
+                {
+                    var exampleBeam = new Beam { Centreline = exampleCurve.DuplicateCurve(), Orientation = new RmfOrientation(), Width = 100, Height = 200 };
+                    MeshCase("example-curve-skew", exampleBeam, outDir, false, null, skew: true);
+                    MeshCase("example-curve-skew-150", exampleBeam, outDir, false, new MeshBeamOptions { SampleSpacing = 150 }, skew: true);
+                }
+                else
+                    Console.WriteLine($"(No {example}: skipping the example-curve cases.)");
+
                 BrepCase("straight-joints", straight, outDir);
                 BrepCase("curved-joints", curved, outDir);
                 BrepCase("twisted-joints", twisted, outDir);
@@ -157,12 +190,12 @@ namespace GluLamb.Reconstruction.Test
             Check(!twisted.TryGetPlanarOrientation(arc, RhinoMath.ToRadians(1), out _), "twisting vectors don't");
         }
 
-        static void MeshCase(string name, Beam beam, string outDir, bool joints = false, MeshBeamOptions options = null)
+        static void MeshCase(string name, Beam beam, string outDir, bool joints = false, MeshBeamOptions options = null, bool skew = false)
         {
             Console.WriteLine($"Mesh: {name}");
             bool cut = false;
             var brep = joints ? WithJoints(beam, out cut, true) : beam.ToBrep();
-            if (joints) Console.WriteLine($"  {(cut ? "scarf, laps and notch cut" : "joints NOT cut (Boolean failed)")}");
+            if (joints) Console.WriteLine($"  {(cut ? "scarf, laps and notch cut" : "joints NOT cut (Boolean failed)")}");            if (skew) { brep = SkewEnds(beam, brep, out bool skewed); Console.WriteLine($"  {(skewed ? "ends cut skew" : "ends NOT cut skew (Boolean failed)")}"); }
             var mesh = new Mesh();
             foreach (var m in Mesh.CreateFromBrep(brep, new MeshingParameters { MaximumEdgeLength = 200, SimplePlanes = false }))
                 mesh.Append(m);
@@ -202,7 +235,7 @@ namespace GluLamb.Reconstruction.Test
                 var plain = MeshBeam.Reconstruct(mesh, new MeshBeamOptions { EdgeCorrection = false }).Beam.Centreline;
                 Console.WriteLine("  without edge correction: " + string.Join(" ", plain.DivideByCount(20, true).Select(t => { var p = plain.PointAt(t); beam.Centreline.ClosestPoint(p, out double u); return p.DistanceTo(beam.Centreline.PointAt(u)).ToString("0"); })));
             }
-            Compare(beam, result.Beam, 10, 10, new Interval(0.1, 0.9));
+            Compare(beam, result.Beam, 10, 10, new Interval(0.1, 0.9), !skew);
             Write(outDir, name + "-mesh", mesh, beam, result.Beam, result.Edges, result.Sections.Select(s => s.Outline));
         }
 
@@ -239,7 +272,7 @@ namespace GluLamb.Reconstruction.Test
         /// <summary>
         /// Compare a reconstructed beam with the original: centreline deviation, length, section.
         /// </summary>
-        static void Compare(Beam original, Beam rebuilt, double tolerance, double sectionTolerance, Interval orientationRange)
+        static void Compare(Beam original, Beam rebuilt, double tolerance, double sectionTolerance, Interval orientationRange, bool checkLength = true)
         {
             double deviation = 0;
             double where = 0;
@@ -253,7 +286,7 @@ namespace GluLamb.Reconstruction.Test
             Check(deviation < tolerance, $"centreline within {deviation:0.###} of the original (worst at {where:0.##})");
 
             double l0 = original.Centreline.GetLength(), l1 = rebuilt.Centreline.GetLength();
-            Check(Math.Abs(l0 - l1) < 2 * tolerance, $"length {l1:0.#} (original {l0:0.#})");
+            if (checkLength) Check(Math.Abs(l0 - l1) < 2 * tolerance, $"length {l1:0.#} (original {l0:0.#})");            else Console.WriteLine($"  (length {l1:0.#}, original {l0:0.#} before its ends were cut)");
 
             Check(Math.Abs(rebuilt.Width - original.Width) < sectionTolerance && Math.Abs(rebuilt.Height - original.Height) < sectionTolerance,
                 $"section {rebuilt.Width:0.#} x {rebuilt.Height:0.#} (original {original.Width:0.#} x {original.Height:0.#})");

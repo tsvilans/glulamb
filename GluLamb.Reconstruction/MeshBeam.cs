@@ -1,4 +1,4 @@
-﻿/*
+/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -70,14 +70,14 @@ namespace GluLamb.Reconstruction
 
         /// <summary>Weight of the penalty on changes of curvature along the centreline, which keeps
         /// the ends, where there is little to fit to, following the rest of the beam.</summary>
-        public double Smoothness = 0.01;
+        public double Smoothness = 0;
 
         /// <summary>How the centreline is run out past its first and last typical sections to the
         /// ends of the mesh.</summary>
-        public EndExtension End = EndExtension.Arc;
+        public EndExtension End = EndExtension.Trend;
 
-        /// <summary>For EndExtension.Arc: the length at each end of the fitted centreline that the
-        /// curvature to continue is taken from. 0: 15% of its length.</summary>
+        /// <summary>For EndExtension.Trend and Arc: the length at each end of the fitted centreline that the
+        /// curvature (and its trend) to continue is taken from. 0: 15% of its length.</summary>
         public double EndFitLength = 0;
 
         /// <summary>Number and range (0 to 1 along the centreline) of the sections the fit compares
@@ -256,17 +256,19 @@ namespace GluLamb.Reconstruction
             result.Messages.Add($"Fit: error {result.InitialError:0.###} to {result.Error:0.###} in {result.Iterations} iterations; " +
                 $"{atypical} of {weights.Length} samples count less (taper, joint or end).");
 
-            // Centreline: the spline between the first and last typical samples (past them the fit
-            // has little to go by), run out to the ends of the mesh by continuing its curvature,
-            // then corrected by the longest run of parallel edges
+            // Centreline: the spline between the first and last typical samples (past them the
+            // sections say little), then followed out along the longest run of parallel edges as far
+            // as they go, then run out to the ends of the mesh, then corrected by those edges
             var vertices = mesh.Vertices.ToPoint3dArray();
             int first = Array.FindIndex(weights, v => v >= 0.5), lastTypical = Array.FindLastIndex(weights, v => v >= 0.5);
             Curve curve = new InterpolatingSpline(fitted).ToNurbsCurve();
             if (first >= 0 && lastTypical > first)
                 curve = curve.Trim(fitT[first], fitT[lastTypical]) ?? curve;
-            curve = FitToExtents(curve, vertices, options.End, options.EndFitLength);
 
-            EdgeSet parallel = null;
+            // The longest run of parallel edges, and with it the other long edges, which help
+            // where a joint has cut the main ones (those that keep a steady place in the section)
+            EdgeSet parallel = null, tracking = null;
+            int main = 0;
             if (options.EdgeCorrection)
             {
                 var found = EdgeClusters.FindLargest(result.Edges.Select(e => (Curve)new PolylineCurve(e)).ToList(), options.Clustering);
@@ -274,9 +276,33 @@ namespace GluLamb.Reconstruction
                 {
                     result.ParallelEdges = found.Cluster;
                     parallel = new EdgeSet(found.Cluster);
+                    var others = found.Edges.Where(e => !found.Cluster.Contains(e));
+                    tracking = new EdgeSet(found.Cluster.Concat(others));
+                    main = found.Cluster.Count;
                     result.Messages.Add(found.Summary);
                 }
             }
+
+            if (parallel != null)
+            {
+                var known = TypicalSections(curve, edges, parallel, reference, options);
+                if (known.Count > 0)
+                {
+                    var along = new Beam
+                    {
+                        Centreline = curve,
+                        Width = known.Max(s => s.Width),
+                        Height = known.Max(s => s.Height),
+                        Orientation = Orientation(curve, known, false, 0, new List<string>())
+                    };
+                    double step = Math.Clamp(0.25 * reference.Minor, Globals.FromMillimeters(10), Globals.FromMillimeters(100));
+                    double before = curve.GetLength();
+                    curve = EdgeClusters.ExtendAlongEdges(along, tracking, step, 0.5 * before, main);
+                    result.Messages.Add($"Followed the parallel edges {curve.GetLength() - before:0} further.");
+                }
+            }
+
+            curve = FitToExtents(curve, vertices, options.End, options.EndFitLength);
 
             int passes = parallel == null ? 0 : Math.Max(0, options.Refinements);
             Beam beam = null;
@@ -299,7 +325,7 @@ namespace GluLamb.Reconstruction
 
                 // A correction that moves the centreline by more than a quarter of the section is a
                 // mistake (e.g. a parallel edge that a joint cut away), not a correction
-                var corrected = FitToExtents(EdgeClusters.Recentre(beam, parallel), vertices, options.End, options.EndFitLength);
+                var corrected = FitToExtents(EdgeClusters.Recentre(beam, tracking, main), vertices, options.End, options.EndFitLength);
                 double moved = MaxDistance(corrected, curve);
                 double limit = 0.25 * Math.Min(beam.Width, beam.Height);
                 if (moved > limit)
@@ -364,7 +390,7 @@ namespace GluLamb.Reconstruction
 
             var curve = new InterpolatingSpline(points).ToNurbsCurve();
             double run = start.DistanceTo(end) * margin;
-            var extended = CurveEnds.Extend(curve, run, EndExtension.Smooth);
+            var extended = CurveEnds.Extend(curve, run, EndExtension.Trend);
             return extended.DivideByCount(count - 1, true).Select(t => extended.PointAt(t)).ToArray();
         }
 
@@ -392,21 +418,17 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Extend a curve smoothly past both ends, then trim it to the extent of the points along it.
+        /// Extend a curve past both ends, then trim it to the extent of the points along it. (One
+        /// point at a time: closest-point queries on one curve from several threads at once gave
+        /// results that changed from run to run.)
         /// </summary>
-        internal static Curve FitToExtents(Curve curve, IList<Point3d> points, EndExtension style = EndExtension.Arc, double fitLength = 0)
+        internal static Curve FitToExtents(Curve curve, IList<Point3d> points, EndExtension style = EndExtension.Trend, double fitLength = 0)
         {
             var extended = CurveEnds.Extend(curve, 0.25 * curve.GetLength(), style, fitLength);
 
             double tMin = double.MaxValue, tMax = double.MinValue;
-            object sync = new object();
-            Parallel.ForEach(System.Collections.Concurrent.Partitioner.Create(0, points.Count), range =>
-            {
-                double lo = double.MaxValue, hi = double.MinValue;
-                for (int i = range.Item1; i < range.Item2; ++i)
-                    if (extended.ClosestPoint(points[i], out double t)) { lo = Math.Min(lo, t); hi = Math.Max(hi, t); }
-                lock (sync) { tMin = Math.Min(tMin, lo); tMax = Math.Max(tMax, hi); }
-            });
+            foreach (var p in points)
+                if (extended.ClosestPoint(p, out double t)) { tMin = Math.Min(tMin, t); tMax = Math.Max(tMax, t); }
 
             if (tMax <= tMin) return curve;
             var trimmed = extended.Trim(tMin, tMax) ?? extended;
