@@ -12,8 +12,8 @@ from the data (sections and edges), and only the stretch beyond the last data is
 This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
 `extract_beam_from_mesh_rhino.py`.
 
-1. Sharp edges: weld the mesh, keep edges whose faces meet at more than 60°, and join edges that
-   meet within 15° into polylines.
+1. Sharp edges: weld the mesh, keep edges whose face normals differ by more than 20° (so bevels and
+   chamfers count), and join edges that meet within 15° into polylines.
 2. Main axes: area-weighted PCA. Of the two minor axes, Y is the one the beam bends along.
 3. Start: centres of sections across the main axis, then of sections normal to the spline through
    them, a few times over. Atypical sections are left out (see below). The start curve is then run
@@ -21,8 +21,11 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
    principal axis is much shorter than the beam. `InitialCentreline.Arc` is the Python version's arc
    through three section centres.
 4. Sections: each is the convex hull of where its plane crosses the sharp edges, centred on the
-   smallest rectangle around the hull. The rectangle's centre and sides stay put when a section
-   loses a corner, e.g. near a skew end cut. The typical section is the median section along the
+   rectangle around the hull that lines up with its straight sides. That is the direction along or
+   square to which the most hull edge length runs, so a profile with bevels or a groove keeps its
+   rectangle's direction, where the smallest rectangle could line up with a bevel. The rectangle's
+   centre and sides stay put when a section loses a corner, e.g. near a skew end cut. The
+   section's frames are lined up with the parallel edges only within 10°. The typical section is the median section along the
    middle of the start curve. A section counts as typical if its sides are within
    `TypicalTolerance` (5%) of it. Tapers, joints and end cuts make sections atypical.
 5. Fit: L-BFGS over the spline's points. The error is, over at least 40 samples (2–98% along, and
@@ -60,17 +63,21 @@ sections; past the last one it stays as it is there.
 
 ## Blank from a Brep (`BrepBlank`)
 
-This is for detailed beam Breps (joints, cuts, drillings). Port of `parallel.py`.
+This is for detailed beam Breps (joints, cuts, drillings, shaped profiles). It is based on
+`parallel.py`.
 
 1. The Brep's long edges are compared for parallelness (mean angle plus spread of distances,
-   either way round) and clustered with average linkage. The cluster with the most length gives
-   the centreline as the mean of its edges.
-2. Sections of the Brep normal to it give the orientation. Each frame is turned to line up with the
-   cluster's edges where it crosses them.
-3. The Brep's points are mapped into the beam's curved space. Their bounding box gives the width,
+   either way round) and clustered with average linkage. The cluster with the most length is the
+   longest run of parallel edges.
+2. Centreline: MeshBeam on a mesh of the Brep (`UseMeshCentreline`, the default), which follows
+   the sections and tracks the edges out to the ends.
+3. Sections of the Brep normal to that centreline give the orientation.
+4. The Brep's points are mapped into the beam's curved space. Their bounding box gives the width,
    height and length, and the centreline is moved to the box's centre.
-4. Steps 2 and 3 are repeated from the centred curve, which is corrected by where the cluster's
-   edges sit in its sections.
+
+If the mesh centreline fails, or is turned off, the older route is used: the longest edge of the
+cluster is the starting centreline, and steps 3 and 4 are repeated from the centred curve, which
+is corrected by where the cluster's edges sit in its sections.
 
 The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from it, and the
 `Placement` of the beam in the blank.

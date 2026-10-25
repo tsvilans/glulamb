@@ -1,4 +1,4 @@
-/*
+﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2026 Tom Svilans
@@ -96,7 +96,7 @@ namespace GluLamb.Reconstruction
         public EdgeClusterOptions Clustering = new EdgeClusterOptions();
 
         /// <summary>Sharp-edge detection (radians): see Edges.SharpMeshEdges.</summary>
-        public double SharpAngle = RhinoMath.ToRadians(60);
+        public double SharpAngle = RhinoMath.ToRadians(20);
         public double JoinAngle = RhinoMath.ToRadians(15);
         public double WeldAngle = RhinoMath.ToRadians(120);
 

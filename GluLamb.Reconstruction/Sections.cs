@@ -17,6 +17,7 @@
  *
  */
 
+using Rhino;
 using Rhino.Geometry;
 
 using GluLamb.Reconstruction.Numerics;
@@ -200,8 +201,12 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// The smallest-area rectangle around a convex polygon in a plane (one of its sides lies
-        /// along a polygon edge): its centre, the direction of its long side, and its sides.
+        /// The rectangle around a convex polygon in a plane that lines up with the polygon's
+        /// straight sides: of the directions of its edges, the one along or square to which the
+        /// most edge length runs (within 2 degrees), and of equals the one with the smallest
+        /// rectangle. For a rectangle with its corners cut (bevels, a groove) that is the
+        /// rectangle's own direction, where the smallest rectangle could line up with a bevel.
+        /// Returns its centre, the direction of its long side, and its sides.
         /// </summary>
         /// <param name="hull">Polygon corners, in order.</param>
         /// <param name="normal">Unit normal of the polygon's plane.</param>
@@ -209,15 +214,34 @@ namespace GluLamb.Reconstruction
         {
             int n = hull.Count;
             var o = hull[0];
-            double bestArea = double.MaxValue;
             centre = o; longAxis = Vector3d.Unset; longSide = shortSide = 0;
 
+            var directions = new Vector3d[n];
+            var lengths = new double[n];
             for (int i = 0; i < n; ++i)
             {
                 var e = hull[(i + 1) % n] - hull[i];
                 e -= normal * (e * normal);
-                if (!e.Unitize()) continue;
+                lengths[i] = e.Length;
+                directions[i] = e.Unitize() ? e : Vector3d.Unset;
+            }
+
+            double cos2 = Math.Cos(RhinoMath.ToRadians(2));
+            double bestScore = -1, bestArea = double.MaxValue;
+            for (int i = 0; i < n; ++i)
+            {
+                var e = directions[i];
+                if (!e.IsValid) continue;
                 var f = Vector3d.CrossProduct(normal, e);
+
+                // Edge length along or square to this direction
+                double score = 0;
+                for (int j = 0; j < n; ++j)
+                {
+                    if (!directions[j].IsValid) continue;
+                    double c = Math.Abs(directions[j] * e), s = Math.Abs(directions[j] * f);
+                    if (c >= cos2 || s >= cos2) score += lengths[j];
+                }
 
                 double minE = double.MaxValue, maxE = double.MinValue, minF = double.MaxValue, maxF = double.MinValue;
                 foreach (var p in hull)
@@ -227,15 +251,16 @@ namespace GluLamb.Reconstruction
                     if (pe < minE) minE = pe; if (pe > maxE) maxE = pe;
                     if (pf < minF) minF = pf; if (pf > maxF) maxF = pf;
                 }
-
                 double se = maxE - minE, sf = maxF - minF, area = se * sf;
-                if (area < bestArea)
-                {
-                    bestArea = area;
-                    centre = o + e * (0.5 * (minE + maxE)) + f * (0.5 * (minF + maxF));
-                    if (se >= sf) { longAxis = e; longSide = se; shortSide = sf; }
-                    else { longAxis = f; longSide = sf; shortSide = se; }
-                }
+
+                bool better = score > bestScore * 1.01 || (score >= bestScore * 0.99 && area < bestArea);
+                if (!better) continue;
+
+                bestScore = Math.Max(score, bestScore);
+                bestArea = area;
+                centre = o + e * (0.5 * (minE + maxE)) + f * (0.5 * (minF + maxF));
+                if (se >= sf) { longAxis = e; longSide = se; shortSide = sf; }
+                else { longAxis = f; longSide = sf; shortSide = se; }
             }
         }
 

@@ -105,17 +105,12 @@ namespace GluLamb.Reconstruction
             result.Cluster = members.Select(i => result.Edges[i]).ToList();
             result.Summary = $"{n} edges in {clusterLength.Count} clusters; the centreline follows {members.Count} edges.";
 
-            var reference = samples[members[0]];
-            var mean = new Point3d[options.EdgeSamples];
-            foreach (int i in members)
-            {
-                bool reverse = Parallelness(reference, samples[i], true, options) < Parallelness(reference, samples[i], false, options);
-                for (int k = 0; k < mean.Length; ++k)
-                    mean[k] += samples[i][reverse ? mean.Length - 1 - k : k];
-            }
-            for (int k = 0; k < mean.Length; ++k) mean[k] /= members.Count;
-
-            result.MeanCurve = new InterpolatingSpline(mean).ToNurbsCurve();
+            // The longest edge of the cluster: it runs at a steady place in the section, so it has
+            // the beam's shape, and the place is corrected later. (Averaging the edges point by
+            // point mixes different places along the beam where the edges start and end at
+            // different places, e.g. at skew or shaped ends.)
+            int longest = members.OrderByDescending(i => lengths[kept[i]]).First();
+            result.MeanCurve = curves[kept[longest]].DuplicateCurve();
             return result;
         }
 
@@ -431,6 +426,11 @@ namespace GluLamb.Reconstruction
 
             line -= plane.ZAxis * (line * plane.ZAxis);
             if (!line.Unitize()) return plane;
+
+            // Only a small correction: on a section that isn't a rectangle (bevels, rebates) the
+            // edges can lie along a face at an angle to the section's sides
+            double closest = Math.Max(Math.Abs(line * plane.XAxis), Math.Abs(line * plane.YAxis));
+            if (closest < Math.Cos(RhinoMath.ToRadians(10))) return plane;
 
             // Closest axis, keeping the frame's direction
             Vector3d y;

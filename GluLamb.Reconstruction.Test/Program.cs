@@ -28,6 +28,7 @@ namespace GluLamb.Reconstruction.Test
             {
                 if (args[i] == "--out") outDir = args[i + 1];
                 if (args[i] == "--file") file = args[i + 1];
+                if (args[i] == "--probe") return RunProbe(args[i + 1]);
             }
             Directory.CreateDirectory(outDir);
             return file != null ? RunFile(file, outDir) : Run(outDir);
