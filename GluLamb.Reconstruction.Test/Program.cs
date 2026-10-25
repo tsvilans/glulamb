@@ -30,6 +30,10 @@ namespace GluLamb.Reconstruction.Test
                 if (args[i] == "--file") file = args[i + 1];
                 if (args[i] == "--probe") return RunProbe(args[i + 1]);
             }
+            if (args.Contains("--dualcon")) return RunDualCon();
+            for (int i = 0; i + 1 < args.Length; ++i)
+            {
+            }
             Directory.CreateDirectory(outDir);
             return file != null ? RunFile(file, outDir) : Run(outDir);
         }

@@ -1,6 +1,6 @@
 # Joint system and G2P: open items
 
-Kept up to date as items are done or added. Last updated 2026-10-24.
+Kept up to date as items are done or added. Last updated 2026-10-25.
 
 ## G2P (Rhino plug-in)
 
@@ -34,6 +34,16 @@ Kept up to date as items are done or added. Last updated 2026-10-24.
 - Cluster Beams: length bands are greedy from the longest beam down; fixed standard blank lengths (round up to increments) aren't supported.
 
 - Blank types: unify them later. `CixBlank` only holds CIX-related variables and derives from `SegmentedBlank`. `SegmentedBlank` is a glulam whose "lamellae" are short overlapping segments cut from straight boards and laid in layers like bricks: single-curved, constrained, and its lamellae aren't continuous, but it shares a lot with `Glulam`.
+
+## Reconstruction
+
+- Dual contouring (`DualCon`, the Remesh component): the code moved over from GluLamb.Raw as it was. It needs the native `dualcon.dll` next to `GluLamb.Reconstruction.dll`, which isn't in the repo yet. Later: package or build the library, give `DualCon` a managed output buffer instead of its instance field (and drop the leftover handle code and console output), and test it on a real scan before Beam From Mesh.
+- Beam From Mesh: Find Plane's eigenvalues have no replacement output (Principal Plane and Principal Box replace the rest); add them if anything needs them.
+
+## Solution clean-up
+
+- RawLam (`GluLamb/RawLam`: boards, logs, lamella performance): kept in core for now; explore later whether it belongs with the glulam material code or in its own project.
+- Consolidation steps 4 to 7 (one Rhino plug-in, `Projects/` out of core, test apps in the solution, net7.0 everywhere): see the solution review.
 
 ## Gallery and catalogue
 

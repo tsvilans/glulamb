@@ -19,6 +19,8 @@
     <BaseOutputPath>..\bin</BaseOutputPath>
     <OutputPath>..\bin</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- DualCon passes pointers to the native dualcon library -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

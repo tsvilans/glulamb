@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 
-namespace GluLamb.Raw
+namespace GluLamb.Reconstruction
 {
     /*
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -75,7 +75,7 @@ namespace GluLamb.Raw
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public unsafe delegate void AddFaceDelegate(IntPtr output, int* data);
 
-        [DllImport(Api.DualConPath, SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DualConApi.DualConPath, SetLastError = false, CallingConvention = CallingConvention.Cdecl)]
         private unsafe static extern IntPtr dualcon(
             DualConInput* input, 
             AllocateOutputDelegate alloc_output, 

@@ -82,6 +82,14 @@ is corrected by where the cluster's edges sit in its sections.
 The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from it, and the
 `Placement` of the beam in the blank.
 
+## Remeshing (`DualCon`)
+
+Dual contouring (Ju et al., 2002, as in Blender's remesher) turns noisy or non-manifold scan meshes into clean quad meshes, through the native `dualcon.dll`, which has to sit next to `GluLamb.Reconstruction.dll`. The Remesh component wraps it. Moved from GluLamb.Raw as it was; see docs/TODO.md.
+
+## Grasshopper components
+
+Beam From Mesh, Blank From Brep, Remesh and BasePlane, under "6. Reconstruction". BasePlane and Remesh keep the GUIDs they had in GluLamb.Raw.GH. Beam From Mesh replaces Raw's Find Centreline (Centreline, Width, Height outputs) and Find Plane (Principal Plane, Principal Box).
+
 ## Numerics
 
 The numerics are in the core library, in `GluLamb/Numerics` (namespace `GluLamb.Numerics`), where other parts of GluLamb use them too. They hold what numpy and scipy did in the Python:

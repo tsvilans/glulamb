@@ -29,10 +29,10 @@ using Grasshopper.Kernel.Types;
 using Grasshopper.Kernel.Data;
 using System.Linq;
 
-using GluLamb.Raw;
+
 using System.Runtime.Versioning;
 
-namespace GluLamb.Raw.GH.Components
+namespace GluLamb.Reconstruction.GH
 {
     /// <summary>
     /// Uses the dual contouring method implemented in Blender, originally
@@ -45,11 +45,11 @@ namespace GluLamb.Raw.GH.Components
         public Cmpt_DualCon()
           : base("Remesh", "Rmsh",
               "Remesh a mesh using the dual-contouring method by Tao Ju.",
-              "GluLamb", UiNames.RawSection)
+              "GluLamb", UiNames.ReconstructionSection)
         {
         }
 
-        protected override System.Drawing.Bitmap Icon => null;
+        protected override System.Drawing.Bitmap Icon => Icons.Load("BeamMesh.png");
         public override Guid ComponentGuid => new Guid("66dd5889-f66e-4a8c-b886-fcb9680f8e0c");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 
