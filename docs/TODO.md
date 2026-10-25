@@ -40,10 +40,13 @@ Kept up to date as items are done or added. Last updated 2026-10-25.
 - Dual contouring (`DualCon`, the Remesh component): the code moved over from GluLamb.Raw as it was. It needs the native `dualcon.dll` next to `GluLamb.Reconstruction.dll`, which isn't in the repo yet. Later: package or build the library, give `DualCon` a managed output buffer instead of its instance field (and drop the leftover handle code and console output), and test it on a real scan before Beam From Mesh.
 - `sketches/machining/RawUtility.cs` (`GetPlanarTCP`, a robot tool-centre-point fit sketch from GluLamb.Raw): move it to the machining project.
 
+- Beam From Mesh on reconstruction-example-02 (the beam with the bevelled, grooved profile): the centreline still does odd things at one end. Investigate.
+
 ## Solution clean-up
 
 - RawLam (`GluLamb/RawLam`: boards, logs, lamella performance): kept in core for now; explore later whether it belongs with the glulam material code or in its own project.
-- Consolidation steps 4 to 7 (one Rhino plug-in, `Projects/` out of core, test apps in the solution, net7.0 everywhere): see the solution review.
+- Consolidation steps 5 to 7 (`Projects/` out of core, test apps in the solution, net7.0 everywhere): see the solution review.
+- GluLamb.Rhino: the old Rhino 7 plug-in's object properties page (`GluLambObjectPropertiesPage`, removed with it, in git history) had more in it than `BeamPropertiesPage`; check whether anything should come back.
 
 ## Gallery and catalogue
 

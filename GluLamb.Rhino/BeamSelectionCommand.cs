@@ -14,14 +14,14 @@ namespace GluLamb
 
         protected override Rhino.Commands.Result RunCommand(RhinoDoc doc, Rhino.Commands.RunMode mode)
         {
-            GluLambPlugin.Instance.Model.ClearBeams();
+            GluLambPlugin.Instance.ActiveModel.ClearBeams();
 
 
             var form = new BeamSelectionForm();
             form.Closed += (sender, e) => form.Dispose();
             form.Show();
 
-            GluLambPlugin.Instance.Model.LoadBeams(RhinoDoc.ActiveDoc);
+            GluLambPlugin.Instance.ActiveModel.LoadBeams(RhinoDoc.ActiveDoc);
 
             //SampleCsDrawMeshConduit conduit = new SampleCsDrawMeshConduit();
             //conduit.Enabled = true;

@@ -27,7 +27,8 @@ namespace GluLamb
     {
         Rhino.Display.DisplayMaterial MeshMaterial;
 
-        public BeamModel Model { get; set; }
+        //public BeamModel Model { get; set; }
+        private readonly Dictionary<uint, BeamModel> _docModels = new Dictionary<uint, BeamModel>();
 
         public GluLambPlugin()
         {
@@ -36,7 +37,7 @@ namespace GluLamb
             Rhino.Display.DisplayPipeline.DrawOverlay += DisplayPipeline_PostDrawObjects;
             Rhino.Display.DisplayPipeline.CalculateBoundingBox += DisplayPipeline_CalculateBoundingBox;
 
-            Model = new BeamModel();
+            //Model = new BeamModel();
         }
 
         ~GluLambPlugin()
@@ -55,20 +56,24 @@ namespace GluLamb
 
         protected override LoadReturnCode OnLoad(ref string errorMessage)
         {
-            Rhino.RhinoApp.WriteLine("GluLamb v2.0");
-            Rhino.RhinoApp.WriteLine(this.Name, this.Version);
+            Rhino.RhinoApp.WriteLine($"GluLamb v{Version}");
+ 
+            Panels.RegisterPanel(GluLambPlugin.Instance, typeof(GluLamb.Views.ModelPanel), "GluLamb", GWorks.Properties.Resources.GluLamb);
+            //Panels.OpenPanel(typeof(GluLamb.Views.SampleCsEtoPanel).GUID);
 
-            // GluLamb's tolerances and units follow the active document
-            GluLamb.Globals.TrackDocument();
-
+            RhinoDoc.NewDocument += (_, e) => _docModels[e.Document.RuntimeSerialNumber] = new BeamModel();
+            RhinoDoc.EndOpenDocument += (_, e) => _docModels[e.Document.RuntimeSerialNumber] = new BeamModel(); // could deserialize here
+            RhinoDoc.CloseDocument += (_, e) => _docModels.Remove(e.Document.RuntimeSerialNumber);
             return base.OnLoad(ref errorMessage);
         }
+
+        public BeamModel ActiveModel => _docModels.TryGetValue(RhinoDoc.ActiveDoc.RuntimeSerialNumber, out var model) ? model : null;
 
         protected override void ReadDocument(RhinoDoc doc, BinaryArchiveReader archive, FileReadOptions options)
         {
             base.ReadDocument(doc, archive, options);
-            Model.ClearBeams();
-            Model.LoadBeams(doc);
+            ActiveModel.ClearBeams();
+            ActiveModel.LoadBeams(doc);
         }
 
         protected override void WriteDocument(RhinoDoc doc, BinaryArchiveWriter archive, FileWriteOptions options)
@@ -80,8 +85,8 @@ namespace GluLamb
         {
             BoundingBox bb = new BoundingBox();
             e.IncludeBoundingBox(bb);
-            /*
-            foreach (var beam in Instance.Model.Beams)
+            
+            foreach (var beam in Instance.ActiveModel.Beams)
             {
                 var box = beam.Bounds;
 
@@ -92,15 +97,16 @@ namespace GluLamb
 
                 e.IncludeBoundingBox(box);
             }
-            */
+            
         }
 
         internal static void DisplayPipeline_PostDrawObjects(object sender, Rhino.Display.DrawEventArgs e)
         {
-            /*
-            foreach (var beam in Instance.Model.Beams)
+            
+            foreach (var beam in Instance.ActiveModel.Beams)
             {
                 var obj = RhinoDoc.ActiveDoc.Objects.FindId(beam.Id);
+                if (obj == null) continue;
                 var ud = obj.Geometry.UserData.Find(typeof(TimberBeamUserData)) as TimberBeamUserData;
                 if (ud != null)
                 {
@@ -124,18 +130,18 @@ namespace GluLamb
                 // e.Display.DrawLine(beam.Plane.Origin, beam.Plane.Origin + beam.Plane.YAxis * 100, System.Drawing.Color.LimeGreen);
                 // e.Display.DrawMeshWires(Mesh.CreateFromBox(beam.Bounds, 1, 1, 1), System.Drawing.Color.Cyan);
 
-            }*/
+            }
         }
 
-        //protected override void OptionsDialogPages(List<OptionsDialogPage> pages)
-        //{
-        //    var page = new SampleCsEtoOptionsPage();
-        //    pages.Add(page);
-        //}
+        protected override void OptionsDialogPages(List<OptionsDialogPage> pages)
+        {
+            var page = new GluLamb.Views.OptionsPage();
+            pages.Add(page);
+        }
 
         protected override void ObjectPropertiesPages(ObjectPropertiesPageCollection collection)
         {
-            var page = new Views.GluLambObjectPropertiesPage();
+            var page = new Views.BeamPropertiesPage();
             collection.Add(page);
         }
     }

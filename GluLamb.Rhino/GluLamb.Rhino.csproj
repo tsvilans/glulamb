@@ -1,13 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net7.0;net48</TargetFrameworks>
+    <TargetFramework>net7.0</TargetFramework>
+    <AssemblyName>GluLamb.Rhino</AssemblyName>
+    <RootNamespace>GWorks</RootNamespace>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Version>8.0</Version>
-    <Title>GluLamb.Works</Title>
+    <Title>GluLamb.Rhino</Title>
     <Description>Rhino plug-in for GluLamb.</Description>
     <Company>Tom Svilans</Company>
-    <Copyright>Copyright © 2025, Tom Svilans</Copyright>
+    <Copyright>Copyright (c) 2025, Tom Svilans</Copyright>
     <TargetExt>.rhp</TargetExt>
     <NoWarn>NU1701</NoWarn>
     <BaseOutputPath>..\bin</BaseOutputPath>
@@ -27,22 +29,20 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\BeamCurved.png" />
-    <EmbeddedResource Include="Resources\GluLamb.ico" />
+    <EmbeddedResource Include="Resources\GluLamb.ico" LogicalName="GluLamb.Resources.GluLamb.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="RhinoCommon" Version="8.10.24226.13001" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Drawing.Common" Version="7.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="System.Resources.Extensions" Version="7.0.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="GluLamb">
-      <HintPath>..\bin\GluLamb.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\GluLamb\GluLamb.csproj">
+      <Private>false</Private>
+    </ProjectReference>
   </ItemGroup>
-
-    <!-- <AssemblyReference Include="GluLamb" HintPath="C:\git\glulamb\bin\GluLamb.dll" /> -->
 
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
