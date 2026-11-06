@@ -139,8 +139,8 @@ namespace G2PComponents.Commands
                     var (targetWidth, targetHeight) = Utility.GetRelativeDimensions(targetBox, bestB.Plane.Normal);
 
                     // The faces the edge widths are measured from: the box's, or the visible faces of profiled boards
-                    var (sourceFace, sourceSpan) = VisibleFace ? Utility.VisibleFace(source, bestA.Plane, sourceWidth, doc) : (bestA.Plane, sourceWidth);
-                    var (targetFace, targetSpan) = VisibleFace ? Utility.VisibleFace(target, bestB.Plane, targetWidth, doc) : (bestB.Plane, targetWidth);
+                    var (sourceFace, sourceSpan) = VisibleFace ? Utility.VisibleFace(source, bestA.Plane, sourceWidth, sourceHeight, doc) : (bestA.Plane, sourceWidth);
+                    var (targetFace, targetSpan) = VisibleFace ? Utility.VisibleFace(target, bestB.Plane, targetWidth, targetHeight, doc) : (bestB.Plane, targetWidth);
 
                     var sourceDivisors = Utility.MakeDivisors(sourceFace, sourceSpan, SourceN, SourceEdgeWidth, Diameter * 1.5);
 
