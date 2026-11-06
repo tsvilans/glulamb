@@ -30,6 +30,8 @@ namespace G2PComponents.Commands
         private double Diameter = 5.0;
         private double MaxDepth = 0;
         private double ExtraDepth = 0;
+        /// <summary>Measure edge widths from the visible face (edge profiles) rather than the box.</summary>
+        private bool VisibleFace = false;
 
 
 
@@ -63,6 +65,9 @@ namespace G2PComponents.Commands
             var optionMaxDepth = new OptionDouble(MaxDepth, 0, double.MaxValue);
             getter.AddOptionDouble("MaxDepth", ref optionMaxDepth);
 
+            var optionEdgeFrom = new OptionToggle(VisibleFace, "Box", "VisibleFace");
+            getter.AddOptionToggle("EdgeFrom", ref optionEdgeFrom);
+
             GetResult res;
             while (true)
             {
@@ -91,6 +96,7 @@ namespace G2PComponents.Commands
             Diameter = optionDiameter.CurrentValue;
             ExtraDepth = optionExtraDepth.CurrentValue;
             MaxDepth = optionMaxDepth.CurrentValue;
+            VisibleFace = optionEdgeFrom.CurrentValue;
 
             var source = Instantiation.InstancesFromObjects(new Guid[] { sourceObject.ObjectId }, Context.settings, doc).FirstOrDefault();
             var target = Instantiation.InstancesFromObjects(new Guid[] { targetObject.ObjectId }, Context.settings, doc).FirstOrDefault();
@@ -115,10 +121,14 @@ namespace G2PComponents.Commands
             var (sourceWidth, sourceHeight) = Utility.GetRelativeDimensions(sourceBox, bestA.Plane.Normal);
             var (targetWidth, targetHeight) = Utility.GetRelativeDimensions(targetBox, bestB.Plane.Normal);
 
-            var sourceDivisors = Utility.MakeDivisors(bestA.Plane, sourceWidth, SourceN, SourceEdgeWidth, Diameter * 1.5);
+            // The faces the edge widths are measured from: the box's, or the visible faces of profiled boards
+            var (sourceFace, sourceSpan) = VisibleFace ? Utility.VisibleFace(source, bestA.Plane, sourceWidth, sourceHeight, doc) : (bestA.Plane, sourceWidth);
+            var (targetFace, targetSpan) = VisibleFace ? Utility.VisibleFace(target, bestB.Plane, targetWidth, targetHeight, doc) : (bestB.Plane, targetWidth);
+
+            var sourceDivisors = Utility.MakeDivisors(sourceFace, sourceSpan, SourceN, SourceEdgeWidth, Diameter * 1.5);
 
             // var sourceDivisors = MakeDivisors(bestA.Plane, sourceWidth, 1, 22.5);
-            var targetDivisors = Utility.MakeDivisors(bestB.Plane, targetWidth, TargetN, TargetEdgeWidth, Diameter * 1.5);
+            var targetDivisors = Utility.MakeDivisors(targetFace, targetSpan, TargetN, TargetEdgeWidth, Diameter * 1.5);
 
             MaxDepth = MaxDepth > 0 ? MaxDepth : double.MaxValue;
 

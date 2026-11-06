@@ -157,6 +157,88 @@ namespace G2PComponents
 
         }
 
+        /// <summary>
+        /// The board's visible face, for laying out connectors with MakeDivisors: the mating
+        /// face's plane (from DeBox) moved across to where the visible face starts, and that
+        /// face's width. The visible face is the board's face opposite the mating face, i.e. its
+        /// front when it is fixed to the component behind it. It is read from the board's
+        /// Geometry: the planar faces lying on the front of its box, so a profile modelled into
+        /// the Geometry (a tongue, a lip that widens the front) is taken into account. A board
+        /// whose edge profile is set with SetEdgeProfile (and not modelled) uses the profile's
+        /// section instead. Otherwise, or if nothing is found, it is the face as it is.
+        /// </summary>
+        /// <param name="face">The mating face's plane, its normal pointing out of the board.</param>
+        /// <param name="width">The box's width across the face (along the face's Y).</param>
+        /// <param name="height">The box's depth through the board, from the mating face to the front.</param>
+        public static (Plane Plane, double Width) VisibleFace(IComponent component, Plane face, double width, double height, RhinoDoc? doc = null)
+        {
+            if (doc == null) doc = RhinoDoc.ActiveDoc;
+            var whole = (face, width);
+
+            var span = EdgeProfile.Read(component, doc) is EdgeProfile profile
+                ? ProfileFront(component, profile, face, doc)
+                : ModelledFront(component, face, height, doc);
+            if (span == null) return whole;
+
+            var (t0, t1) = span.Value;
+            if (t1 - t0 < doc.ModelAbsoluteTolerance) return whole;
+            var plane = face;
+            plane.Origin = face.PointAt(0, t0);
+            return (plane, t1 - t0);
+        }
+
+        /// <summary>
+        /// The extent along the face's Y of the Geometry's planar faces that lie on the front of
+        /// its box (the side opposite the mating face), facing out.
+        /// </summary>
+        private static (double, double)? ModelledFront(IComponent component, Plane face, double height, RhinoDoc doc)
+        {
+            double tol = Math.Max(doc.ModelAbsoluteTolerance * 10, 1e-3);
+            var front = new Plane(face.Origin - face.ZAxis * height, face.XAxis, -face.YAxis); // normal -face.ZAxis
+
+            double min = double.MaxValue, max = double.MinValue;
+            foreach (var geometry in GetMember(component, Detailing.Basic, doc))
+            {
+                var brep = Brep.TryConvertBrep(geometry);
+                if (brep == null) continue;
+                foreach (var bf in brep.Faces)
+                {
+                    if (!bf.TryGetPlane(out var p, tol)) continue;
+                    var normal = bf.OrientationIsReversed ? -p.ZAxis : p.ZAxis;
+                    if (normal * front.ZAxis < 0.999) continue;
+                    if (Math.Abs(front.DistanceTo(p.Origin)) > tol) continue;
+
+                    // In the mating face's coordinates, Y across the board
+                    var bounds = bf.DuplicateFace(false).GetBoundingBox(face);
+                    min = Math.Min(min, bounds.Min.Y);
+                    max = Math.Max(max, bounds.Max.Y);
+                }
+            }
+            return min < max ? (min, max) : null;
+        }
+
+        /// <summary>
+        /// The extent along the face's Y of the front of an edge profile's section (the side
+        /// opposite the mating face), when the face is one of the board's broad faces.
+        /// </summary>
+        private static (double, double)? ProfileFront(IComponent component, EdgeProfile profile, Plane face, RhinoDoc doc)
+        {
+            if (!EdgeProfile.Frame(component, doc, out var section, out _, out var boardWidth, out var thickness)) return null;
+            if (Math.Abs(face.ZAxis * section.YAxis) < 0.99 || Math.Abs(face.YAxis * section.XAxis) < 0.99) return null;
+
+            var outline = profile.Section(boardWidth, thickness, new List<string>(), component.ShortName);
+            if (outline == null) return null;
+
+            // The front is the side of the section away from the mating face
+            double y = face.ZAxis * section.YAxis > 0 ? -thickness / 2 : thickness / 2, tol = 1e-6;
+            var xs = outline.Where(p => Math.Abs(p.Y - y) < tol).Select(p => p.X).ToList();
+            if (xs.Count < 2) return null;
+
+            double Across(double x) => (section.PointAt(x, 0) - face.Origin) * face.YAxis;
+            double t0 = Across(xs.Min()), t1 = Across(xs.Max());
+            return t0 < t1 ? (t0, t1) : (t1, t0);
+        }
+
         public static GluLamb.Beam ComponentToBeam(Component component)
         {
             var plane = component.Label.Plane;
