@@ -43,7 +43,7 @@ namespace GluLamb
         {
             Curve curve = Centreline;
 
-            double multiplier = RhinoMath.UnitScale(UnitSystem.Millimeters, Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem);
+            double multiplier = Globals.FromMillimeters(1.0);
 
             //PolylineCurve discrete = curve.ToPolyline(Glulam.Tolerance * 10, Glulam.AngleTolerance, 0.0, 0.0);
             PolylineCurve discrete = curve.ToPolyline(multiplier * Tolerance, AngleTolerance, multiplier * MininumSegmentLength, curve.GetLength() / MinimumNumSegments);

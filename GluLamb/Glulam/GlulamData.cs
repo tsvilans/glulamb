@@ -88,6 +88,145 @@ namespace GluLamb
         /// </summary>
         public Stick[,] Lamellae;
 
+        /// <summary>
+        /// Whether the lamella count hit MaxNumWidth or MaxNumHeight (a guard against huge counts
+        /// from a tiny or bad curve): in Compute, the lamellae are then thicker than the standard
+        /// allows for the curvature; in AdjustLaminationDimensions, they don't make up the whole section.
+        /// </summary>
+        public bool LamellaCountCapped;
+
+        /// <summary>
+        /// Strength class of the glulam, e.g. GL24h or GL28c (empty: not given).
+        /// </summary>
+        public string StrengthClass = "";
+
+        /// <summary>
+        /// Extra material for machining.
+        /// </summary>
+        public MachiningAllowance Allowance;
+
+        /// <summary>
+        /// How the lamella grades are laid up (null: lamellae keep whatever grades they have). Setting
+        /// it fills the grades, and they are filled again whenever the lamella count changes.
+        /// </summary>
+        public Layup Layup
+        {
+            get => m_layup;
+            set { m_layup = value; Populate(); }
+        }
+        Layup m_layup;
+
+        /// <summary>
+        /// Fill empty lamellae with default ones and apply the layup.
+        /// </summary>
+        void Populate()
+        {
+            if (Lamellae == null) return;
+            for (int i = 0; i < Lamellae.GetLength(0); ++i)
+                for (int j = 0; j < Lamellae.GetLength(1); ++j)
+                    if (Lamellae[i, j] == null) Lamellae[i, j] = new Stick();
+            m_layup?.Apply(this);
+        }
+
+        /// <summary>
+        /// Set the species of every lamella, keeping their grades.
+        /// </summary>
+        public void SetSpecies(string species)
+        {
+            if (string.IsNullOrWhiteSpace(species)) return;
+            Populate();
+            foreach (Stick lamella in Lamellae)
+                lamella.Species = species.Trim();
+        }
+
+        /// <summary>
+        /// The lamellae's grade if they are all the same, "Mixed" if not, or empty if none is given.
+        /// </summary>
+        public string Grade
+        {
+            get
+            {
+                var grades = Lamellae.Cast<Stick>().Where(x => x != null).Select(x => x.Grade ?? "").Distinct().ToList();
+                return grades.Count == 1 ? grades[0] : grades.Count == 0 ? "" : "Mixed";
+            }
+        }
+
+        /// <summary>
+        /// The largest lamella width and height the standard allows for the curvature, from Compute
+        /// (0: not computed).
+        /// </summary>
+        public double MaxLamWidth, MaxLamHeight;
+
+        /// <summary>
+        /// The smallest lamella dimension, in model units (default 5 mm). Compute doesn't go below it
+        /// (the lamellae are then thicker than the standard allows), and FitSection rejects thinner lamellae.
+        /// </summary>
+        public static double MinLamellaSize
+        {
+            get => m_minLamellaSize ?? Globals.FromMillimeters(5.0);
+            set => m_minLamellaSize = value;
+        }
+        static double? m_minLamellaSize;
+
+        /// <summary>
+        /// Whether the lamellae are thicker than the standard allows for the curvature (see MaxLamWidth, MaxLamHeight).
+        /// </summary>
+        public bool ExceedsStandard =>
+            (MaxLamWidth > 0 && LamWidth > MaxLamWidth * (1 + 1e-9)) || (MaxLamHeight > 0 && LamHeight > MaxLamHeight * (1 + 1e-9));
+
+        /// <summary>
+        /// Problems with the lamellae, as messages: the count cap, thicker than the standard allows,
+        /// thinner than the minimum.
+        /// </summary>
+        public List<string> Warnings()
+        {
+            var warnings = new List<string>();
+            if (LamellaCountCapped)
+                warnings.Add($"The lamella count is capped at {MaxNumWidth} x {MaxNumHeight} (a guard against a tiny or bad curve).");
+            if (ExceedsStandard)
+                warnings.Add($"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thicker than the standard allows for the curvature " +
+                    $"({(MaxLamWidth > 0 ? MaxLamWidth.ToString("0.###") : "-")} x {(MaxLamHeight > 0 ? MaxLamHeight.ToString("0.###") : "-")}).");
+            if (LamWidth < MinLamellaSize || LamHeight < MinLamellaSize)
+                warnings.Add($"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thinner than the minimum {MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
+            return warnings;
+        }
+
+        /// <summary>
+        /// Make the section at least width x height from whole lamellae of the current lamella size:
+        /// the lamella counts are rounded up (and capped at MaxNumWidth, MaxNumHeight). Lamellae keep
+        /// their data where they still exist; new ones copy their nearest neighbour.
+        /// </summary>
+        /// <returns>The section's width and height.</returns>
+        public (double Width, double Height) FitSection(double width, double height)
+        {
+            if (!(LamWidth >= MinLamellaSize) || !(LamHeight >= MinLamellaSize))
+                throw new ArgumentOutOfRangeException(nameof(LamWidth),
+                    $"Lamellae {LamWidth:0.###} x {LamHeight:0.###} are thinner than the minimum {MinLamellaSize:0.###} (GlulamData.MinLamellaSize).");
+
+            // A hair under a whole lamella doesn't add another
+            int needWidth = Math.Max(1, (int)Math.Ceiling(width / LamWidth - 1e-9));
+            int needHeight = Math.Max(1, (int)Math.Ceiling(height / LamHeight - 1e-9));
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
+            Resize(Math.Min(MaxNumWidth, needWidth), Math.Min(MaxNumHeight, needHeight));
+
+            return (LamWidth * NumWidth, LamHeight * NumHeight);
+        }
+
+        /// <summary>
+        /// Change the lamella counts, keeping the lamellae that still exist; new ones copy their nearest neighbour.
+        /// </summary>
+        void Resize(int numWidth, int numHeight)
+        {
+            var old = Lamellae;
+            Lamellae = new Stick[numWidth, numHeight];
+
+            if (old != null && old.Length > 0)
+                for (int i = 0; i < numWidth; ++i)
+                    for (int j = 0; j < numHeight; ++j)
+                        Lamellae[i, j] = old[Math.Min(i, old.GetLength(0) - 1), Math.Min(j, old.GetLength(1) - 1)]?.Duplicate();
+            Populate();
+        }
+
         public static GlulamData Default
         { get { return new GlulamData(); } }
 
@@ -96,6 +235,7 @@ namespace GluLamb
             int samples = 50, CrossSectionPosition alignment = CrossSectionPosition.MiddleCentre)
         {
             Lamellae = new Stick[num_width, num_height];
+            Populate();
 
             LamWidth = lam_width;
             LamHeight = lam_height;
@@ -119,8 +259,17 @@ namespace GluLamb
             data.Samples = Samples;
             data.SectionAlignment = SectionAlignment;
             data.InterpolationType = InterpolationType;
+            data.LamellaCountCapped = LamellaCountCapped;
+            data.MaxLamWidth = MaxLamWidth;
+            data.MaxLamHeight = MaxLamHeight;
+            data.StrengthClass = StrengthClass;
+            data.Allowance = Allowance;
+            data.m_layup = m_layup;
+            // New lamellae, so that changing one copy's species doesn't change the other's
             data.Lamellae = new Stick[NumWidth, NumHeight];
-            Array.Copy(Lamellae, data.Lamellae, Lamellae.Length);
+            for (int i = 0; i < NumWidth; ++i)
+                for (int j = 0; j < NumHeight; ++j)
+                    data.Lamellae[i, j] = Lamellae[i, j]?.Duplicate();
 
             return data;
         }
@@ -202,16 +351,24 @@ namespace GluLamb
                     break;
             }
 
+            // What the standard allows; lamellae aren't made thinner than the minimum
+            MaxLamWidth = tempLamWidth;
+            MaxLamHeight = tempLamHeight;
+            tempLamWidth = Math.Max(tempLamWidth, MinLamellaSize);
+            tempLamHeight = Math.Max(tempLamHeight, MinLamellaSize);
+
             // Check that the lamination dimensions don't exceed the total dimensions
             tempLamWidth = Math.Min(tempLamWidth, beamWidth);
             tempLamHeight = Math.Min(tempLamHeight, beamHeight);
 
-            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(beamWidth / tempLamWidth));
-            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(beamHeight / tempLamHeight));
+            int needWidth = (int)Math.Ceiling(beamWidth / tempLamWidth);
+            int needHeight = (int)Math.Ceiling(beamHeight / tempLamHeight);
+            int tempNumWidth = Math.Min(MaxNumWidth, needWidth);
+            int tempNumHeight = Math.Min(MaxNumHeight, needHeight);
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Recalculate number of laminations needed to make up the total dimensions
-            // Lamellae.ResizeArray(tempNumWidth, tempNumHeight);
-            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+            Resize(tempNumWidth, tempNumHeight);
 
             // Resize the laminations so that they add up to the total dimensions
             LamWidth = beamWidth / tempNumWidth;
@@ -231,12 +388,14 @@ namespace GluLamb
             double lamination_width = factory.GetWidth(LamWidth);
             double lamination_height = factory.GetHeight(LamHeight);
 
-            int tempNumWidth = Math.Min(MaxNumWidth, (int)Math.Ceiling(width / lamination_width));
-            int tempNumHeight = Math.Min(MaxNumHeight, (int)Math.Ceiling(height / lamination_height));
+            int needWidth = (int)Math.Ceiling(width / lamination_width);
+            int needHeight = (int)Math.Ceiling(height / lamination_height);
+            int tempNumWidth = Math.Min(MaxNumWidth, needWidth);
+            int tempNumHeight = Math.Min(MaxNumHeight, needHeight);
+            LamellaCountCapped = needWidth > MaxNumWidth || needHeight > MaxNumHeight;
 
             // Adjust number of laminations to cover current cross-section dimensions
-            //Lamellae.ResizeArray((int)Math.Ceiling(width / lamination_width), (int)Math.Ceiling(height / lamination_height));
-            Lamellae = new Stick[tempNumWidth, tempNumHeight];
+            Resize(tempNumWidth, tempNumHeight);
             LamWidth = lamination_width;
             LamHeight = lamination_height;
         }
@@ -291,7 +450,8 @@ namespace GluLamb
 
         public override string ToString()
         {
-            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumHeight} nh {NumHeight} s {Samples}]";
+            return $"GlulamData [ lw {LamWidth} lh {LamHeight} nw {NumWidth} nh {NumHeight} s {Samples}" +
+                (string.IsNullOrEmpty(StrengthClass) ? "" : $" {StrengthClass}") + (m_layup == null ? "" : $" {m_layup}") + "]";
         }
 
 

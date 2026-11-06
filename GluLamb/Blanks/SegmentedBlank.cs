@@ -12,6 +12,7 @@ namespace GluLamb.Blanks
     /// <summary>
     /// A segmented blank developed during the Helen and Hard DAC project.
     /// </summary>
+    [Obsolete("Superseded by SegmentedBlankX (the version Create Segmented Blank and the CIX factory use); nothing creates this one.")]
     public class SegmentedBlank
     {
         public static double AngleLimit = RhinoMath.ToRadians(5);
@@ -599,8 +600,20 @@ namespace GluLamb.Blanks
         }
     }
 
-    public class SegmentedBlankX
+    /// <summary>
+    /// A segmented blank: layers of short overlapping segments cut from straight boards and laid like
+    /// bricks along a single-curved centreline in Plane. Its layers stack along Plane.ZAxis (the
+    /// section's Y-axis, its height); its width runs between InnerOffset and OuterOffset.
+    /// </summary>
+    public class SegmentedBlankX : IBlank
     {
+        /// <summary>
+        /// The blank's own id (kept by Duplicate).
+        /// </summary>
+        public string Id { get; set; } = Beam.NewId();
+
+        public BlankMaterial Material { get; set; }
+
         public static double AngleLimit = RhinoMath.ToRadians(5);
         public static double CentrelineDeviation = 20;
 
@@ -639,7 +652,11 @@ namespace GluLamb.Blanks
         public SegmentedBlankX(SegmentedBlankX sb)
         {
             Name = sb.Name;
-            Centreline = sb.Centreline;
+            Id = sb.Id;
+            Material = sb.Material;
+            Centreline = sb.Centreline?.DuplicateCurve();
+            Offset0 = sb.Offset0;
+            Offset1 = sb.Offset1;
             Plane = sb.Plane;
             Bounds = sb.Bounds;
 
@@ -683,7 +700,7 @@ namespace GluLamb.Blanks
         public SegmentedBlankX(Curve centreline, Curve[] edge_curves, Curve[] offset_curves, Plane plane, double height, double layer_thickness)
         {
             if (plane == Plane.Unset)
-                if (!Centreline.TryGetPlane(out plane))
+                if (!centreline.TryGetPlane(out plane))
                     plane = Plane.WorldXY;
 
             this.Plane = plane;
@@ -728,7 +745,7 @@ namespace GluLamb.Blanks
         public SegmentedBlankX(Curve centreline, Curve[] edge_curves, Plane plane, double width0, double width1, double height, double layer_thickness)
         {
             if (plane == Plane.Unset)
-                if (!Centreline.TryGetPlane(out plane))
+                if (!centreline.TryGetPlane(out plane))
                     plane = Plane.WorldXY;
 
             this.Plane = plane;
@@ -1296,6 +1313,85 @@ namespace GluLamb.Blanks
         {
             return new SegmentedBlankX(this);
         }
+
+        #region IBlank
+
+        Curve IBlank.Centreline => Centreline;
+
+        public Plane GetPlane(double t) => Utility.PlaneFromNormalAndYAxis(Centreline.PointAt(t), Centreline.TangentAt(t), Plane.ZAxis);
+
+        /// <summary>
+        /// Across, from the inner to the outer offset at t; up, the layers' height, centred on Plane.
+        /// </summary>
+        public Rectangle3d GetSection(double t)
+        {
+            var plane = GetPlane(t);
+            var xs = new List<double>();
+            foreach (var curve in new[] { InnerOffset, OuterOffset })
+            {
+                var hits = Rhino.Geometry.Intersect.Intersection.CurvePlane(curve, plane, Globals.Tolerance);
+                if (hits == null || hits.Count == 0) continue;
+                var nearest = hits.OrderBy(x => x.PointA.DistanceTo(plane.Origin)).First();
+                plane.ClosestParameter(nearest.PointA, out double u, out _);
+                xs.Add(u);
+            }
+            var across = xs.Count == 2 ? new Interval(xs.Min(), xs.Max()) : new Interval(-Offset0, Offset1);
+            return new Rectangle3d(plane, across, new Interval(-Height * 0.5, Height * 0.5));
+        }
+
+        /// <summary>
+        /// The outline between the inner and outer offsets, in Plane.
+        /// </summary>
+        Curve Outline()
+        {
+            var loop = Curve.JoinCurves(new Curve[]
+            {
+                InnerOffset.DuplicateCurve(),
+                new LineCurve(InnerOffset.PointAtEnd, OuterOffset.PointAtEnd),
+                OuterOffset.DuplicateCurve(),
+                new LineCurve(OuterOffset.PointAtStart, InnerOffset.PointAtStart)
+            }, Globals.Tolerance * 10, false);
+            return loop != null && loop.Length == 1 ? loop[0] : null;
+        }
+
+        /// <summary>
+        /// The blank's envelope: its outline extruded through its height (not the segments).
+        /// </summary>
+        public Brep ToBrep()
+        {
+            var loop = Outline();
+            if (loop == null || !loop.TryGetPlane(out Plane loopPlane, Globals.Tolerance * 10)) return null;
+            if (loopPlane.ZAxis * Plane.ZAxis < 0)
+                loop.Reverse();
+
+            var brep = Extrusion.Create(loop, Height, true)?.ToBrep();
+            brep?.Transform(Rhino.Geometry.Transform.Translation(Plane.ZAxis * (-Height * 0.5)));
+            return brep;
+        }
+
+        public double GetVolume()
+        {
+            var loop = Outline();
+            var area = loop == null ? null : AreaMassProperties.Compute(loop);
+            return area == null ? 0 : area.Area * Height;
+        }
+
+        /// <summary>
+        /// The courses of segments, LayerThickness each, through the height.
+        /// </summary>
+        public IReadOnlyList<BlankLayer> Layers
+        {
+            get
+            {
+                double length = Centreline.GetLength();
+                int count = LayerThickness > 0 ? (int)(Height / LayerThickness) : 0;
+                return Enumerable.Range(0, count).Select(i => new BlankLayer(LayerThickness, 0, length, Material.Species, "")).ToList();
+            }
+        }
+
+        IBlank IBlank.DuplicateBlank() => Duplicate();
+
+        #endregion
     }
 
     public class CixHelper

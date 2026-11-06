@@ -1,6 +1,6 @@
 # Joint system and G2P: open items
 
-Kept up to date as items are done or added. Last updated 2026-10-24.
+Kept up to date as items are done or added. Last updated 2026-10-25.
 
 ## G2P (Rhino plug-in)
 
@@ -26,6 +26,28 @@ Kept up to date as items are done or added. Last updated 2026-10-24.
 - K plate joist fails in the gallery's layout (the joist overlaps the sill); check how the joist should be arranged.
 - Plates: how plate edges and corners meet the milled slot ends. Plates round only their interior corners now; the original K-joint project modelled plates with their own routine and production marking.
 - Control the order of beams within a joint from the components, so Flip and "first part" are predictable.
+
+## Blanks
+
+- Cluster Beams: sections only match as given (width with width); a beam whose width and height are swapped (a quarter-turn roll) isn't matched, and neither are square sections a quarter turn apart.
+- Cluster Beams: with a very large Length Tolerance, sliding beams along each other is the slow part (about 3.5 s for 1000 beams, against 0.5 s at 500); prune pairs before sliding if it matters.
+- Cluster Beams: length bands are greedy from the longest beam down; fixed standard blank lengths (round up to increments) aren't supported.
+
+- Blank types: unify them later. `CixBlank` only holds CIX-related variables and derives from `SegmentedBlank`. `SegmentedBlank` is a glulam whose "lamellae" are short overlapping segments cut from straight boards and laid in layers like bricks: single-curved, constrained, and its lamellae aren't continuous, but it shares a lot with `Glulam`.
+
+## Reconstruction
+
+- Dual contouring (`DualCon`, the Remesh component): the code moved over from GluLamb.Raw as it was. It needs the native `dualcon.dll` next to `GluLamb.Reconstruction.dll`, which isn't in the repo yet. Later: package or build the library, give `DualCon` a managed output buffer instead of its instance field (and drop the leftover handle code and console output), and test it on a real scan before Beam From Mesh.
+- `sketches/machining/RawUtility.cs` (`GetPlanarTCP`, a robot tool-centre-point fit sketch from GluLamb.Raw): move it to the machining project.
+
+- Beam From Mesh on reconstruction-example-02 (the beam with the bevelled, grooved profile): the centreline still does odd things at one end. Investigate.
+
+## Solution clean-up
+
+- RawLam (`GluLamb/RawLam`: boards, logs, lamella performance): kept in core for now; explore later whether it belongs with the glulam material code or in its own project.
+- Consolidation steps 5 to 7 (`Projects/` out of core, test apps in the solution, net7.0 everywhere): see the solution review.
+- GluLamb.Rhino: the model panel is empty and the beam properties page only shows the beam's GUID. Neither was fleshed out; design and build both.
+- GluLamb.Rhino: the old Rhino 7 plug-in's object properties page (`GluLambObjectPropertiesPage`, removed with it, in git history) had more in it than `BeamPropertiesPage`; check whether anything should come back.
 
 ## Gallery and catalogue
 

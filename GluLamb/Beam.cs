@@ -93,8 +93,12 @@ namespace GluLamb
             get; set;
         }
 
-        public double OffsetX { get; set; }
-        public double OffsetY { get; set; }
+        /// <summary>
+        /// Offset of the section from the centreline, along the section's X- and Y-axes (e.g. to
+        /// line up a face with a reference line). A Glulam has none: see BeamOps.SectionCentreline.
+        /// </summary>
+        public virtual double OffsetX { get; set; }
+        public virtual double OffsetY { get; set; }
 
         public Curve Centreline { get; set; }
         public CrossSectionOrientation Orientation { get; set; }
@@ -157,11 +161,11 @@ namespace GluLamb
             var orientations = Orientation.GetOrientations(curve, tt);
             var planes = new Plane[tt.Count];
 
-            Parallel.For(0, tt.Count, i =>
+            ForEachOnCopy(tt.Count, curve, (i, c) =>
             {
                 planes[i] = Utility.PlaneFromNormalAndYAxis(
-                    curve.PointAt(tt[i]),
-                    curve.TangentAt(tt[i]),
+                    c.PointAt(tt[i]),
+                    c.TangentAt(tt[i]),
                     orientations[i]);
             });
             return planes;
@@ -170,23 +174,34 @@ namespace GluLamb
         public Plane[] GetPlanes(IList<Point3d> pts)
         {
             var tt = new double[pts.Count];
-            Parallel.For(0, pts.Count, i =>
-            {
-                Centreline.ClosestPoint(pts[i], out tt[i]);
-            });
+            ForEachOnCopy(pts.Count, Centreline, (i, c) => c.ClosestPoint(pts[i], out tt[i]));
 
             var orientations = Orientation.GetOrientations(Centreline, tt);
             var planes = new Plane[tt.Length];
 
-            Parallel.For(0, tt.Length, i =>
+            ForEachOnCopy(tt.Length, Centreline, (i, c) =>
             {
                 planes[i] = Utility.PlaneFromNormalAndYAxis(
-                    Centreline.PointAt(tt[i]),
-                    Centreline.TangentAt(tt[i]),
+                    c.PointAt(tt[i]),
+                    c.TangentAt(tt[i]),
                     orientations[i]);
             });
 
             return planes;
+        }
+
+        /// <summary>
+        /// Run body(i, curve) for i in [0, count) in parallel, each thread on its own copy of the
+        /// curve: RhinoCommon curve queries (closest point, frames) from several threads on one
+        /// curve gave results that changed from run to run.
+        /// </summary>
+        static void ForEachOnCopy(int count, Curve curve, Action<int, Curve> body)
+        {
+            Parallel.For(0, count, () => curve.DuplicateCurve(), (i, state, copy) =>
+            {
+                body(i, copy);
+                return copy;
+            }, copy => copy.Dispose());
         }
 
         public Plane GetPlane(Point3d pt)
@@ -244,21 +259,15 @@ namespace GluLamb
         {
             Point3d[] m_output_pts = new Point3d[pts.Count];
 
-
-
             if (approximate)
             {
-                double mu;
-
                 var tt = Centreline.DivideByCount(num_samples, true);
                 var lengths = tt.Select(x => Centreline.GetLength(new Interval(Centreline.Domain.Min, x))).ToArray();
 
-                //for (int i = 0; i < pts.Count; ++i)
-                Parallel.For(0, pts.Count, i =>
-
+                ForEachOnCopy(pts.Count, Centreline, (i, curve) =>
                 {
-                    Centreline.ClosestPoint(pts[i], out double t);
-                    Plane m_plane = GetPlane(t);
+                    curve.ClosestPoint(pts[i], out double t);
+                    Plane m_plane = GetPlane(t, curve);
                     m_plane.RemapToPlaneSpace(pts[i], out Point3d m_temp);
 
                     var res = Array.BinarySearch(tt, t);
@@ -270,7 +279,7 @@ namespace GluLamb
 
                     if (res >= 0 && res < tt.Length - 1)
                     {
-                        mu = (t - tt[res]) / (tt[res + 1] - tt[res]);
+                        double mu = (t - tt[res]) / (tt[res + 1] - tt[res]);
                         m_temp.Z = Interpolation.Lerp(lengths[res], lengths[res + 1], mu);
                     }
                     else if (res < 0)
@@ -283,22 +292,19 @@ namespace GluLamb
                     }
 
                     m_output_pts[i] = m_temp;
-                }
-                );
+                });
             }
             else
             {
-                //for (int i = 0; i < pts.Count; ++i)
-                Parallel.For(0, pts.Count, i =>
+                ForEachOnCopy(pts.Count, Centreline, (i, curve) =>
                 {
-                    Centreline.ClosestPoint(pts[i], out double t);
-                    Plane m_plane = GetPlane(t);
+                    curve.ClosestPoint(pts[i], out double t);
+                    Plane m_plane = GetPlane(t, curve);
                     m_plane.RemapToPlaneSpace(pts[i], out Point3d m_temp);
-                    m_temp.Z = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
+                    m_temp.Z = curve.GetLength(new Interval(curve.Domain.Min, t));
 
                     m_output_pts[i] = m_temp;
-                }
-                );
+                });
             }
 
             return m_output_pts;
@@ -510,35 +516,19 @@ namespace GluLamb
             {
                 curve.Domain = new Interval(0, length);
 
-                Parallel.For(0, pts.Count, i =>
+                ForEachOnCopy(pts.Count, curve, (i, c) =>
                 {
-                    Plane m_plane;
-
-                    //m_plane = Utility.PlaneFromNormalAndYAxis(
-                    //Centreline.PointAtStart + Centreline.TangentAtStart * (pts[i].Z),
-                    //Centreline.TangentAtStart,
-                    //Orientation.GetOrientation(Centreline, pts[i].Z));
-                    
-                    m_plane = GetPlane(pts[i].Z, curve);
-
+                    var m_plane = GetPlane(pts[i].Z, c);
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
                 });
-
             }
-
             else
             {
-                Parallel.For(0, pts.Count, i =>
+                ForEachOnCopy(pts.Count, curve, (i, c) =>
                 {
-                    //for (int i = 0; i < pts.Count; ++i)
-                    //{
-                    Plane m_plane;
-
-                    curve.LengthParameter(pts[i].Z, out double t);
-                    m_plane = GetPlane(t, curve);
-
+                    c.LengthParameter(pts[i].Z, out double t);
+                    var m_plane = GetPlane(t, c);
                     m_output_pts[i] = m_plane.PointAt(pts[i].X, pts[i].Y);
-                //}
                 });
             }
 

@@ -32,7 +32,7 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_DeLaminate()
           : base("Delaminate", "DeLam",
-              "Gets individual lamellas from Glulam.",
+              "Gets individual lamellas from Glulam, and its material data (as set by Glulam Material).",
               "GluLamb", UiNames.BlankSection)
         {
         }
@@ -55,6 +55,11 @@ namespace GluLamb.GH.Components
             pManager.AddGenericParameter("Lamellae", "L", "Lamellae objects from Glulam.", GH_ParamAccess.tree);
             pManager.AddGenericParameter("Species", "S", "Lamellae species.", GH_ParamAccess.tree);
             pManager.AddGenericParameter("Reference", "R", "Lamellae IDs.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Grade", "Gr", "Lamellae grades.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Id", "Id", "Glulam id, per glulam.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Strength Class", "SC", "Strength class, per glulam.", GH_ParamAccess.tree);
+            pManager.AddTextParameter("Layup", "Lu", "Layup, per glulam.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Allowance", "A", "Machining allowances (inside, outside, sides, start, end), per glulam.", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -78,6 +83,11 @@ namespace GluLamb.GH.Components
             DataTree<object> output = new DataTree<object>();
             DataTree<string> species = new DataTree<string>();
             DataTree<Guid> ids = new DataTree<Guid>();
+            DataTree<string> grades = new DataTree<string>();
+            DataTree<string> glulamIds = new DataTree<string>();
+            DataTree<string> strengthClasses = new DataTree<string>();
+            DataTree<string> layups = new DataTree<string>();
+            DataTree<double> allowances = new DataTree<double>();
 
             GH_Path element_path;
 
@@ -93,8 +103,13 @@ namespace GluLamb.GH.Components
                     glulam = gh_glulam.Value;
                     if (glulam == null) continue;
 
-                    GH_Path new_path = new GH_Path(path);
-                    path.AppendElement(i);
+                    // One glulam per branch keeps the branch's path; several get an index each
+                    GH_Path new_path = branch.Count > 1 ? path.AppendElement(i) : new GH_Path(path);
+
+                    glulamIds.Add(glulam.Id, new_path);
+                    strengthClasses.Add(glulam.Data.StrengthClass, new_path);
+                    layups.Add(glulam.Data.Layup?.ToString() ?? "", new_path);
+                    allowances.AddRange(glulam.Data.Allowance.ToValues(), new_path);
 
                     int j = 0;
 
@@ -128,6 +143,7 @@ namespace GluLamb.GH.Components
                             {
                                 species.Add(glulam.Data.Lamellae[x, y].Species, element_path);
                                 ids.Add(glulam.Data.Lamellae[x, y].Reference, element_path);
+                                grades.Add(glulam.Data.Lamellae[x, y].Grade, element_path);
                             }
                             j++;
                         }
@@ -144,6 +160,11 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(0, output);
             DA.SetDataTree(1, species);
             DA.SetDataTree(2, ids);
+            DA.SetDataTree(3, grades);
+            DA.SetDataTree(4, glulamIds);
+            DA.SetDataTree(5, strengthClasses);
+            DA.SetDataTree(6, layups);
+            DA.SetDataTree(7, allowances);
         }
     }
 }

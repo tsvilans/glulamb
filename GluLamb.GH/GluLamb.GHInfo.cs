@@ -78,4 +78,16 @@ namespace GluLamb.GH
             }
         }
     }
+
+    /// <summary>
+    /// GluLamb's tolerances and units follow the active Rhino document.
+    /// </summary>
+    public class GluLambGHPriority : GH_AssemblyPriority
+    {
+        public override GH_LoadingInstruction PriorityLoad()
+        {
+            Globals.TrackDocument();
+            return GH_LoadingInstruction.Proceed;
+        }
+    }
 }

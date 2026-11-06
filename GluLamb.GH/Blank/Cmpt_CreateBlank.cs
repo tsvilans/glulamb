@@ -122,13 +122,26 @@ namespace GluLamb.GH.Components
             }
             else
             {
-                var Nx = (int)Math.Ceiling(beam.Width / lamellaWidth);
-                var Ny = (int)Math.Ceiling(beam.Height / lamellaHeight);
+                Plausibility.LamellaSize(this, "LamellaWidth", lamellaWidth);
+                Plausibility.LamellaSize(this, "LamellaHeight", lamellaHeight);
 
-                glulam = Glulam.CreateGlulam(beam.Centreline, beam.Orientation, new GlulamData(Nx, Ny, lamellaWidth, lamellaHeight));
-                glulam.OffsetX = beam.OffsetX;
-                glulam.OffsetY = beam.OffsetY;
+                // The standard's limits, then the given lamellae, with the section rounded up to whole ones
+                glulam = Glulam.CreateGlulam(beam, beam.Orientation, Standards.Standard.Eurocode);
+                glulam.Data.LamWidth = lamellaWidth;
+                glulam.Data.LamHeight = lamellaHeight;
+                try
+                {
+                    glulam.FitSection(beam.Width, beam.Height);
+                }
+                catch (ArgumentOutOfRangeException e)
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, e.Message);
+                    return;
+                }
             }
+
+            foreach (var warning in glulam.Data.Warnings())
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, warning);
 
             DA.SetData("Glulam", new GH_Glulam(glulam));
         }

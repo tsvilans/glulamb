@@ -55,7 +55,7 @@ namespace GluLamb.Joints
 
             var m_drill_depth = 100.0;
 
-            double tolerance = Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+            double tolerance = Globals.Tolerance;
             double widthA = m_glulam1.Width;
             double heightA = m_glulam1.Height;
             double widthB = m_glulam2.Width;

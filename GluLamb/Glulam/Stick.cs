@@ -28,6 +28,12 @@ namespace GluLamb
     public class Stick
     {
         public string Species = "Spruce";
+
+        /// <summary>
+        /// Strength grade of the lamella, e.g. T22 or C24 (empty: not given). GlulamData.Layup fills it.
+        /// </summary>
+        public string Grade = "";
+
         public Guid Reference;
 
         public Stick(string species = "Spruce")
@@ -43,5 +49,7 @@ namespace GluLamb
                 Species = species;
             Reference = reference;
         }
+
+        public Stick Duplicate() => (Stick)MemberwiseClone();
     }
 }

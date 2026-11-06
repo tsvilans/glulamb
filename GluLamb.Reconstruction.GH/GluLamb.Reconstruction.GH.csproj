@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Grasshopper components for GluLamb.Reconstruction, in their own .gha so that GluLamb.GH doesn't
+    depend on it. Uses GluLamb.GH's beam and glulam types.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Deterministic>false</Deterministic>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <RootNamespace>GluLamb.Reconstruction.GH</RootNamespace>
+    <AssemblyVersion>2.0.*</AssemblyVersion>
+    <FileVersion>2.0.*</FileVersion>
+    <Title>GluLamb.Reconstruction.GH</Title>
+    <Company>Tom Svilans</Company>
+    <Copyright>Copyright (c) 2026</Copyright>
+    <BaseOutputPath>..\bin</BaseOutputPath>
+    <OutputPath>..\bin</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <TargetExt>.gha</TargetExt>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grasshopper" Version="8.10.24226.13001">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GluLamb\GluLamb.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\GluLamb.GH\GluLamb.GH.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\GluLamb.Reconstruction\GluLamb.Reconstruction.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\*.png" />
+  </ItemGroup>
+
+</Project>

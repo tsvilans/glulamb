@@ -44,8 +44,9 @@ namespace GluLamb
         public static int MinimumNumSegments = 25;
 
         #region Static variables and methods
-        public static double Tolerance = Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
-        public static double OverlapTolerance = 1.0 * Rhino.RhinoMath.UnitScale(Rhino.RhinoDoc.ActiveDoc.ModelUnitSystem, Rhino.UnitSystem.Millimeters);
+        // The model's tolerances, from Globals
+        public static double Tolerance { get => Globals.Tolerance; set => Globals.Tolerance = value; }
+        public static double OverlapTolerance => Globals.OverlapTolerance;
         public static double AngleTolerance = Rhino.RhinoMath.ToRadians(2.5);
 
         #endregion
@@ -59,24 +60,65 @@ namespace GluLamb
         public Func<double, Point3d[]> CornerGenerator;
 
         /// <summary>
+        /// A glulam has no section offsets: its centreline is the centre of its section, and
+        /// Glulam.CreateGlulam(beam) moves an offset beam's section onto it. Always 0; kept so
+        /// that old code still compiles. Setting anything other than 0 throws.
+        /// </summary>
+        [Obsolete("A glulam's centreline is the centre of its section, so it has no offsets. Use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline.")]
+        public override double OffsetX
+        {
+            get => 0;
+            set { if (value != 0) throw new InvalidOperationException("A glulam has no section offsets; use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline."); }
+        }
+
+        /// <inheritdoc cref="OffsetX"/>
+        [Obsolete("A glulam's centreline is the centre of its section, so it has no offsets. Use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline.")]
+        public override double OffsetY
+        {
+            get => 0;
+            set { if (value != 0) throw new InvalidOperationException("A glulam has no section offsets; use Glulam.CreateGlulam(beam) or BeamOps.SectionCentreline."); }
+        }
+
+        /// <summary>
         /// Get total width of glulam.
         /// </summary>
+        /// <remarks>
+        /// Made of whole lamellae, so it can't be set: use FitSection.
+        /// </remarks>
         public override double Width
         {
             get
             {
                 return Data.LamWidth * Data.NumWidth;
             }
+            set => throw new InvalidOperationException("A glulam's width is made of whole lamellae; use FitSection.");
         }
         /// <summary>
         /// Get total height of glulam.
         /// </summary>
+        /// <remarks>
+        /// Made of whole lamellae, so it can't be set: use FitSection.
+        /// </remarks>
         public override double Height
         {
             get
             {
                 return Data.LamHeight * Data.NumHeight;
             }
+            set => throw new InvalidOperationException("A glulam's height is made of whole lamellae; use FitSection.");
+        }
+
+        /// <summary>
+        /// Make the section at least width x height from whole lamellae of the current lamella size
+        /// (GlulamData.FitSection).
+        /// </summary>
+        /// <returns>The section's width and height.</returns>
+        public (double Width, double Height) FitSection(double width, double height)
+        {
+            var size = Data.FitSection(width, height);
+            m_section_corners = null;
+            m_lamella_centers = null;
+            return size;
         }
 
         public Dictionary<string, object> GetProperties()
@@ -120,7 +162,11 @@ namespace GluLamb
         /// <returns></returns>
         public new Glulam DuplicateGlulam()
         {
-            var glulam = CreateGlulam(Centreline.DuplicateCurve(), Orientation.Duplicate(), Data.Duplicate());
+            // Same type as this one, rather than deciding it again from the curve
+            var glulam = (Glulam)Activator.CreateInstance(GetType());
+            glulam.Centreline = Centreline.DuplicateCurve();
+            glulam.Orientation = Orientation.Duplicate();
+            glulam.Data = Data.Duplicate();
             CopyIdentityTo(glulam);
             return glulam;
         }
@@ -260,7 +306,7 @@ namespace GluLamb
         /// <returns>List of new glulams.</returns>
         public List<Glulam> Split(double t, double overlap)
         {
-            if (overlap < Rhino.RhinoDoc.ActiveDoc.ModelAbsoluteTolerance) return Split(t);
+            if (overlap < Globals.Tolerance) return Split(t);
 
             if (!Centreline.Domain.IncludesParameter(t)) return null;
             double split_length = Centreline.GetLength(new Interval(Centreline.Domain.Min, t));
@@ -393,8 +439,9 @@ namespace GluLamb
             double x = Width;
             double y = Height;
 
-            offsetX = OffsetX;
-            offsetY = OffsetY;
+            // A glulam has no section offsets
+            offsetX = 0;
+            offsetY = 0;
             return;
 
             //double x0 = 0, y0 = 0;
@@ -455,7 +502,7 @@ namespace GluLamb
             double y = Height;
             double hx = Width * 0.5, hy = Height * 0.5;
 
-            double x0 = -hx + OffsetX, x1 = hx + OffsetX, y0 = -hy + OffsetY, y1 = hy + OffsetY;
+            double x0 = -hx, x1 = hx, y0 = -hy, y1 = hy;
 
             int numCorners = 4;
 
