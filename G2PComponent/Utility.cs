@@ -157,6 +157,47 @@ namespace G2PComponents
 
         }
 
+        /// <summary>
+        /// The part of a mating face (from DeBox) that is the board's visible face, for laying
+        /// out connectors with MakeDivisors: the face's plane moved across to where the visible
+        /// face starts, and its width. Only an edge profile makes it differ from the box, e.g. a
+        /// tongue cut back into the Geometry (TongueProtrudes=No) or a profile that steps the
+        /// board's faces. The span is where both broad faces of the profiled section are, so
+        /// the edge width holds on either face. Without a profile, or when the face isn't one
+        /// of the board's broad faces, it is the face as it is.
+        /// </summary>
+        public static (Plane Plane, double Width) VisibleFace(IComponent component, Plane face, double width, RhinoDoc doc = null)
+        {
+            if (doc == null) doc = RhinoDoc.ActiveDoc;
+            var whole = (face, width);
+
+            var profile = EdgeProfile.Read(component, doc);
+            if (profile == null) return whole;
+            if (!EdgeProfile.Frame(component, doc, out var section, out _, out var boardWidth, out var thickness)) return whole;
+
+            // A broad face (its normal through the thickness), with the face's Y across the width
+            if (Math.Abs(face.ZAxis * section.YAxis) < 0.99 || Math.Abs(face.YAxis * section.XAxis) < 0.99) return whole;
+
+            var outline = profile.Section(boardWidth, thickness, new List<string>(), component.ShortName);
+            if (outline == null) return whole;
+
+            // The extent across the width of each broad face of the section, and where they overlap
+            double halfT = thickness / 2, tol = 1e-6;
+            double Min(double y) => outline.Where(p => Math.Abs(p.Y - y) < tol).Select(p => p.X).DefaultIfEmpty(double.NaN).Min();
+            double Max(double y) => outline.Where(p => Math.Abs(p.Y - y) < tol).Select(p => p.X).DefaultIfEmpty(double.NaN).Max();
+            double x0 = Math.Max(Min(halfT), Min(-halfT)), x1 = Math.Min(Max(halfT), Max(-halfT));
+            if (double.IsNaN(x0) || double.IsNaN(x1) || x1 - x0 < tol) return whole;
+
+            // Into the face's Y coordinate (0 to width from its origin)
+            double Across(double x) => (section.PointAt(x, 0) - face.Origin) * face.YAxis;
+            double t0 = Across(x0), t1 = Across(x1);
+            if (t0 > t1) (t0, t1) = (t1, t0);
+
+            var plane = face;
+            plane.Origin = face.PointAt(0, t0);
+            return (plane, t1 - t0);
+        }
+
         public static GluLamb.Beam ComponentToBeam(Component component)
         {
             var plane = component.Label.Plane;
