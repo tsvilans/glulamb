@@ -44,15 +44,17 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddMeshParameter("Mesh", "M", "Mesh of one beam.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Spacing", "S", "Spacing of the points the centreline is fitted through. It isn't taken below 0.3 x the section's depth, where closer points add freedom but no information.", GH_ParamAccess.item, defaults.SampleSpacing);
             pManager.AddIntegerParameter("Iterations", "I", "Iterations of the fit.", GH_ParamAccess.item, defaults.Iterations);
-            pManager.AddIntegerParameter("Start", "St", "What the fit starts from: 0 sections walked along the beam, 1 an arc through three sections, 2 a straight line.", GH_ParamAccess.item, 0);
+            pManager.AddIntegerParameter("Start", "St", "What the fit starts from: 0 sections walked along the beam, 1 legacy: an arc through three sections (assumes constant curvature), 2 a straight line.", GH_ParamAccess.item, 0);
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
             pManager.AddAngleParameter("Sharp Angle", "A", "Smallest angle between face normals for an edge to count as a sharp edge of the beam.", GH_ParamAccess.item, defaults.SharpAngle);
             pManager.AddIntegerParameter("End", "E", "How the centreline is run out past its first and last typical sections to the ends of the mesh: " +
-                "0 continue the curvature and its rate of change (trend), 1 a circle (constant curvature), 2 straight, 3 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
+                "0 continue the curvature and its rate of change (trend), 1 legacy: a circle (assumes constant curvature), 2 straight, 3 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
             pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature (and its trend) to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
             pManager.AddNumberParameter("Smoothness", "Sm", "Weight of an optional penalty on changes of curvature (default 0, off). It holds the curve to an even curvature, so it suits beams that have one and fights beams whose curvature changes.", GH_ParamAccess.item, defaults.Smoothness);
             pManager.AddNumberParameter("Typical Tolerance", "TT", "How much a section's size may differ from the beam's typical section (as a fraction) and still count fully in the fit. " +
                 "Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
+            pManager.AddIntegerParameter("Fit", "F", "How the centreline is fitted to the section centres: 0 L-BFGS on the fit error, " +
+                "1 alternating section centres and weighted least squares.", GH_ParamAccess.item, (int)defaults.Fit);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -94,6 +96,9 @@ namespace GluLamb.Reconstruction.GH
             DA.GetData(7, ref options.EndFitLength);
             DA.GetData(8, ref options.Smoothness);
             DA.GetData(9, ref options.TypicalTolerance);
+            int fit = (int)options.Fit;
+            DA.GetData(10, ref fit);
+            options.Fit = (CentrelineFit)Math.Clamp(fit, 0, 1);
 
             if (options.SampleSpacing <= 0) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Spacing must be positive."); return; }
 
@@ -121,7 +126,7 @@ namespace GluLamb.Reconstruction.GH
                 return;
             }
 
-            Message = $"{result.Beam.Width:0.#} x {result.Beam.Height:0.#}";
+            Message = $"{result.Beam.Width:0.#} x {result.Beam.Height:0.#} ({options.Fit})";
             DA.SetData(0, new GH_Beam(result.Beam));
             DA.SetData(7, result.Beam.Centreline);
             DA.SetData(8, result.Beam.Width);

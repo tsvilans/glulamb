@@ -33,7 +33,8 @@ namespace GluLamb.Reconstruction
         /// <summary>The point the section was taken at (on the centreline).</summary>
         public Point3d Position;
 
-        /// <summary>Mean of the hull's corners.</summary>
+        /// <summary>Centre of the rectangle around the hull that lines up with its sides (see
+        /// Sections.AlignedRectangle).</summary>
         public Point3d Centre;
 
         /// <summary>Section plane at Position: Z along the centreline, Y along the section's
@@ -127,8 +128,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Centre of the section through the edges at a plane: the mean of its hull's corners. The
-        /// fast path for fitting a centreline.
+        /// Centre of the section through the edges at a plane: the centre of the rectangle around
+        /// its hull that lines up with its sides. The fast path for fitting a centreline.
         /// </summary>
         public bool TryCentre(Point3d origin, Vector3d normal, List<Point3d> hits, out Point3d centre)
         {
@@ -140,8 +141,7 @@ namespace GluLamb.Reconstruction
 
             var corners = new Point3d[hull.Length];
             for (int i = 0; i < hull.Length; ++i) corners[i] = hits[hull[i]];
-            normal.Unitize();
-            Sections.MinimumRectangle(corners, normal, out centre, out _, out _, out _);
+            Sections.AlignedRectangle(corners, normal, out centre, out _, out _, out _);
             return true;
         }
 
@@ -172,10 +172,11 @@ namespace GluLamb.Reconstruction
 
             var hull = hullIndices.Select(i => points[i]).ToArray();
 
-            // The smallest rectangle around the hull: its centre and sides stay put when the
-            // section loses a corner (e.g. near a skew end cut), where the mean of the corners or
-            // the principal axes would move. Its long side is the section's height direction.
-            MinimumRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor);
+            // The rectangle around the hull lined up with its sides: its centre and sides stay put
+            // when the section loses a corner (e.g. near a skew end cut), where the mean of the
+            // corners or the principal axes would move. Its long side is the section's height
+            // direction (on a square section, MakeConsistent settles which side that is).
+            AlignedRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor);
             var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
 
             double width = 0, height = 0;
@@ -200,18 +201,24 @@ namespace GluLamb.Reconstruction
             return true;
         }
 
+        /// <summary>Sides within this fraction of each other count as equal: a square section,
+        /// whose height direction MakeConsistent takes from the direction the beam bends in.</summary>
+        public const double SquareTolerance = 0.02;
+
         /// <summary>
         /// The rectangle around a convex polygon in a plane that lines up with the polygon's
         /// straight sides: of the directions of its edges, the one along or square to which the
-        /// most edge length runs (within 2 degrees), and of equals the one with the smallest
+        /// most edge length runs (within angleTolerance), and of equals the one with the smallest
         /// rectangle. For a rectangle with its corners cut (bevels, a groove) that is the
         /// rectangle's own direction, where the smallest rectangle could line up with a bevel.
         /// Returns its centre, the direction of its long side, and its sides.
         /// </summary>
         /// <param name="hull">Polygon corners, in order.</param>
-        /// <param name="normal">Unit normal of the polygon's plane.</param>
-        public static void MinimumRectangle(IList<Point3d> hull, Vector3d normal, out Point3d centre, out Vector3d longAxis, out double longSide, out double shortSide)
+        /// <param name="normal">Normal of the polygon's plane.</param>
+        public static void AlignedRectangle(IList<Point3d> hull, Vector3d normal, out Point3d centre, out Vector3d longAxis, out double longSide, out double shortSide, double angleTolerance = 0)
         {
+            normal.Unitize();
+            if (angleTolerance <= 0) angleTolerance = RhinoMath.ToRadians(2);
             int n = hull.Count;
             var o = hull[0];
             centre = o; longAxis = Vector3d.Unset; longSide = shortSide = 0;
@@ -226,7 +233,7 @@ namespace GluLamb.Reconstruction
                 directions[i] = e.Unitize() ? e : Vector3d.Unset;
             }
 
-            double cos2 = Math.Cos(RhinoMath.ToRadians(2));
+            double cos2 = Math.Cos(angleTolerance);
             double bestScore = -1, bestArea = double.MaxValue;
             for (int i = 0; i < n; ++i)
             {
@@ -265,20 +272,52 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Flip section frames about their Z-axis where needed so that each one's Y-axis points the
-        /// same way as the one before it.
+        /// Turn section frames about their Z-axis where needed so that each one's Y-axis points the
+        /// same way as its neighbour's: by 180 degrees, or by 90 degrees (swapping its width and
+        /// height) where its sides have swapped, which happens on a square section (which side is
+        /// the height is a matter of rounding) and where a joint has cut a section below its width.
+        /// Starts from the middle section, which is the most likely to be typical.
         /// </summary>
-        public static void MakeConsistent(IList<Section> sections)
+        /// <param name="up">Where the middle section is square: the direction its Y-axis should be
+        /// closest to (e.g. the direction the beam bends in). Unset: as found.</param>
+        public static void MakeConsistent(IList<Section> sections, Vector3d up = default)
         {
-            for (int i = 1; i < sections.Count; ++i)
+            int n = sections.Count;
+            if (n == 0) return;
+            int middle = n / 2;
+
+            var m = sections[middle];
+            if (up.IsValid && !up.IsZero && Math.Abs(m.Major - m.Minor) <= SquareTolerance * Math.Max(m.Major, m.Minor))
+                sections[middle] = Follow(m, up, false);
+
+            for (int i = middle + 1; i < n; ++i) sections[i] = Follow(sections[i], sections[i - 1].Plane.YAxis, true);
+            for (int i = middle - 1; i >= 0; --i) sections[i] = Follow(sections[i], sections[i + 1].Plane.YAxis, true);
+        }
+
+        /// <summary>
+        /// A section turned by 90 degrees about its Z-axis if its X-axis is closer to the direction
+        /// than its Y-axis, then (if flip) by 180 degrees if its Y-axis points away from it.
+        /// </summary>
+        static Section Follow(Section s, Vector3d direction, bool flip)
+        {
+            if (Math.Abs(s.Plane.XAxis * direction) > Math.Abs(s.Plane.YAxis * direction))
             {
-                var s = sections[i];
-                if (s.Plane.YAxis * sections[i - 1].Plane.YAxis < 0)
-                {
-                    s.Plane = new Plane(s.Plane.Origin, -s.Plane.XAxis, -s.Plane.YAxis);
-                    sections[i] = s;
-                }
+                s.Plane = new Plane(s.Plane.Origin, s.Plane.YAxis, -s.Plane.XAxis);
+                (s.Width, s.Height) = (s.Height, s.Width);
             }
+            if (flip && s.Plane.YAxis * direction < 0)
+                s.Plane = new Plane(s.Plane.Origin, -s.Plane.XAxis, -s.Plane.YAxis);
+            return s;
+        }
+
+        /// <summary>
+        /// The direction a square section's height should take along a curve: the direction it bends
+        /// in at its middle, or world Z where it is straight.
+        /// </summary>
+        public static Vector3d PreferredUp(Curve curve)
+        {
+            var k = curve.CurvatureAt(curve.Domain.Mid);
+            return k.IsValid && k.Length > 1e-9 ? k / k.Length : Vector3d.ZAxis;
         }
     }
 }

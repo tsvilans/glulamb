@@ -32,6 +32,7 @@ namespace GluLamb.Numerics
         readonly int m_degree;
         readonly double[] m_knots;     // full knot vector, Count + degree + 1 values
         readonly Point3d[] m_cvs;
+        readonly double[] m_params;    // parameters of the points the spline passes through
 
         public int Degree => m_degree;
         public int Count => m_cvs.Length;
@@ -50,6 +51,7 @@ namespace GluLamb.Numerics
             double total = u[n - 1];
             for (int i = 1; i < n; ++i) u[i] /= total;
             u[n - 1] = 1.0;
+            m_params = u;
 
             // Knots: clamped ends, interior knots at the data parameters (odd degree) or between them
             m_knots = new double[n + k + 1];
@@ -153,6 +155,91 @@ namespace GluLamb.Numerics
             }
             point = new Point3d(x, y, z);
             derivative = new Vector3d(dx, dy, dz);
+        }
+
+        /// <summary>
+        /// The points a spline with the same knots should pass through so that it comes as close
+        /// as it can to targets at parameters t (weighted least squares over its control points).
+        /// Each control point is also held, by damping times the mean weight, where it is now, so
+        /// that stretches without targets stay where they are. Build a new spline through the
+        /// returned points to get the fitted curve.
+        /// </summary>
+        public Point3d[] FitPoints(IList<double> t, IList<Point3d> targets, IList<double> weights, double damping)
+        {
+            int n = m_cvs.Length, k = m_degree;
+            var a = new double[n, n];
+            var bx = new double[n]; var by = new double[n]; var bz = new double[n];
+            var N = new double[k + 1];
+
+            double total = 0;
+            for (int j = 0; j < t.Count; ++j)
+            {
+                double w = weights[j];
+                if (w <= 0) continue;
+                total += w;
+                double tj = Math.Clamp(t[j], 0.0, 1.0);
+                int span = FindSpan(tj);
+                Basis(span, tj, k, N);
+                for (int r = 0; r <= k; ++r)
+                {
+                    int i = span - k + r;
+                    for (int c = 0; c <= k; ++c) a[i, span - k + c] += w * N[r] * N[c];
+                    bx[i] += w * N[r] * targets[j].X; by[i] += w * N[r] * targets[j].Y; bz[i] += w * N[r] * targets[j].Z;
+                }
+            }
+
+            double hold = Math.Max(damping, 1e-9) * Math.Max(total, 1.0) / n;
+            for (int i = 0; i < n; ++i)
+            {
+                a[i, i] += hold;
+                bx[i] += hold * m_cvs[i].X; by[i] += hold * m_cvs[i].Y; bz[i] += hold * m_cvs[i].Z;
+            }
+
+            var cvs = SolveDense(a, bx, by, bz);
+
+            // The points the new control points' spline passes through at the data parameters
+            var points = new Point3d[n];
+            for (int i = 0; i < n; ++i)
+            {
+                int span = FindSpan(m_params[i]);
+                Basis(span, m_params[i], k, N);
+                double x = 0, y = 0, z = 0;
+                for (int r = 0; r <= k; ++r) { var p = cvs[span - k + r]; x += N[r] * p.X; y += N[r] * p.Y; z += N[r] * p.Z; }
+                points[i] = new Point3d(x, y, z);
+            }
+            return points;
+        }
+
+        static Point3d[] SolveDense(double[,] a, double[] x, double[] y, double[] z)
+        {
+            int n = x.Length;
+            for (int c = 0; c < n; ++c)
+            {
+                int pivot = c;
+                for (int r = c + 1; r < n; ++r)
+                    if (Math.Abs(a[r, c]) > Math.Abs(a[pivot, c])) pivot = r;
+                if (Math.Abs(a[pivot, c]) < 1e-300) throw new InvalidOperationException("Singular least-squares system.");
+                if (pivot != c)
+                {
+                    for (int j = 0; j < n; ++j) (a[c, j], a[pivot, j]) = (a[pivot, j], a[c, j]);
+                    (x[c], x[pivot]) = (x[pivot], x[c]); (y[c], y[pivot]) = (y[pivot], y[c]); (z[c], z[pivot]) = (z[pivot], z[c]);
+                }
+                for (int r = c + 1; r < n; ++r)
+                {
+                    double f = a[r, c] / a[c, c];
+                    if (f == 0) continue;
+                    for (int j = c; j < n; ++j) a[r, j] -= f * a[c, j];
+                    x[r] -= f * x[c]; y[r] -= f * y[c]; z[r] -= f * z[c];
+                }
+            }
+            var result = new Point3d[n];
+            for (int i = n - 1; i >= 0; --i)
+            {
+                double sx = x[i], sy = y[i], sz = z[i];
+                for (int j = i + 1; j < n; ++j) { sx -= a[i, j] * result[j].X; sy -= a[i, j] * result[j].Y; sz -= a[i, j] * result[j].Z; }
+                result[i] = new Point3d(sx / a[i, i], sy / a[i, i], sz / a[i, i]);
+            }
+            return result;
         }
 
         /// <summary>
