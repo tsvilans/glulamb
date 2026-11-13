@@ -131,14 +131,25 @@ namespace GluLamb.Blanks
     /// blank (G3). Each layer of G3 is developed from the beam's frame: its in-plane curvature
     /// comes from step 1, its out-of-plane curvature and twist from step 3.
     /// </summary>
-    public class TwoStepResult
+    public class GlulamAnalysis
     {
         /// <summary>The final blank: the beam's section centreline run out by the end allowance,
         /// with whole layers across and along the stacking axis.</summary>
         public Glulam Blank;
 
-        /// <summary>A plane to orient the blank for the press: X along its chord, Y towards its bulge.</summary>
-        public Plane BlankHandle;
+        /// <summary>The key of the press handle in Blank.Frames and SingleCurved.Frames: a plane
+        /// to orient the part for the press, X along its chord, Y towards its bulge.</summary>
+        public const string PressFrame = "press";
+
+        /// <summary>The beam and the options that the analysis was made from.</summary>
+        public Beam Beam;
+        public TwoStepOptions Options;
+
+        StraightLamellaCheck[] m_straight;
+
+        /// <summary>Whether straight lamellas can make the beam, for stacking along Y and along X.
+        /// Found when first asked for.</summary>
+        public StraightLamellaCheck[] StraightLamellas => m_straight ??= Beam == null ? new StraightLamellaCheck[0] : StraightLamella.Evaluate(Beam, Options);
 
         public List<DevelopedLayer> Layers = new List<DevelopedLayer>();
 
@@ -180,10 +191,10 @@ namespace GluLamb.Blanks
 
     public static class TwoStepLamination
     {
-        public static TwoStepResult Develop(Beam beam, TwoStepOptions options = null)
+        public static GlulamAnalysis Develop(Beam beam, TwoStepOptions options = null)
         {
             options ??= new TwoStepOptions();
-            var result = new TwoStepResult();
+            var result = new GlulamAnalysis { Beam = beam, Options = options };
             if (beam?.Centreline == null) { result.Messages.Add("No beam."); return result; }
 
             var rules = options.Rules ?? LaminationRules.None();
@@ -296,7 +307,8 @@ namespace GluLamb.Blanks
                 layer.Developed.Transform(toPress);
                 layer.Outline.Transform(toPress);
             }
-            result.BlankHandle = PressAlignment.Handle(result.Blank.Centreline, result.Blank.GetPlane(result.Blank.Centreline.Domain.Mid).YAxis);
+            result.SingleCurved.Frames[GlulamAnalysis.PressFrame] = Plane.WorldXY;
+            result.Blank.Frames[GlulamAnalysis.PressFrame] = PressAlignment.Handle(result.Blank.Centreline, result.Blank.GetPlane(result.Blank.Centreline.Domain.Mid).YAxis);
 
             // Lift each outline to the height of its slice in G1
             double pitch = t2 + options.Planing + options.Kerf;
@@ -505,7 +517,7 @@ namespace GluLamb.Blanks
         /// the outlines and run to their ends; its height holds them all; its width is the stack of
         /// slices. Boards as thick as its tightest inner radius allows, and their lengths.
         /// </summary>
-        static Glulam SingleCurved(TwoStepResult result, Polyline reference, int layers, double t2, TwoStepOptions options, RuleSet rules, Context bend, out double height)
+        static Glulam SingleCurved(GlulamAnalysis result, Polyline reference, int layers, double t2, TwoStepOptions options, RuleSet rules, Context bend, out double height)
         {
             height = 0;
             var refCurve = Curve.CreateInterpolatedCurve(reference, 3);
@@ -576,7 +588,7 @@ namespace GluLamb.Blanks
         /// slice's outline is found in a layer's development (how far along, how far across) and
         /// put at that place on the layer in the blank, at the lamella's bottom and top faces.
         /// </summary>
-        static void TrueShape(TwoStepResult result, double height, double thickness, double beamAcross)
+        static void TrueShape(GlulamAnalysis result, double height, double thickness, double beamAcross)
         {
             var g1 = result.SingleCurved;
             var curve = g1.Centreline;
