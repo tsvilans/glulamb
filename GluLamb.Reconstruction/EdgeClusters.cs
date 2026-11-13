@@ -29,27 +29,27 @@ namespace GluLamb.Reconstruction
     /// </summary>
     public class EdgeClusterOptions
     {
-        /// <summary>Edges shorter than this fraction of the longest edge are left out.</summary>
+        /// <summary>Ignore edges shorter than this fraction of the longest edge.</summary>
         public double MinEdgeRatio = 0.05;
 
-        /// <summary>Points each edge is resampled to for comparing edges.</summary>
+        /// <summary>Number of points that each edge is resampled to.</summary>
         public int EdgeSamples = 100;
 
-        /// <summary>Distance between two edges: AngleWeight x their mean angle (radians) plus
-        /// DistanceWeight x the standard deviation of the distances between their points.</summary>
+        /// <summary>Distance between two edges: AngleWeight x mean angle (radians) plus
+        /// DistanceWeight x standard deviation of the distances between their points.</summary>
         public double AngleWeight = 1.0;
         public double DistanceWeight = 1.0 / Globals.FromMillimeters(100);
 
-        /// <summary>Edges closer than this (in the distance above) are clustered together.</summary>
+        /// <summary>Edges nearer than this distance go into one cluster.</summary>
         public double ClusterThreshold = 0.25;
     }
 
     /// <summary>
-    /// The longest run of parallel edges of a beam, e.g. the long edges that its joints don't cut.
+    /// The longest run of parallel edges of a beam, e.g. the long edges that no joint cuts.
     /// </summary>
     public class ParallelEdges
     {
-        /// <summary>The edges compared (resampled), their cluster labels, and the edges of the
+        /// <summary>The compared edges (resampled), their cluster labels, and the edges of the
         /// longest cluster.</summary>
         public List<Polyline> Edges = new List<Polyline>();
         public int[] Labels;
@@ -64,9 +64,8 @@ namespace GluLamb.Reconstruction
     public static class EdgeClusters
     {
         /// <summary>
-        /// Group the long edges by how parallel they are (average linkage) and return the group
-        /// with the most length, with the mean of its edges. Port of parallel.py, which compared
-        /// edges only one way round and passed the square distance matrix to linkage().
+        /// Groups the long edges by how parallel they are (average linkage). Gives the group with
+        /// the most length.
         /// </summary>
         public static ParallelEdges FindLargest(IList<Curve> curves, EdgeClusterOptions options)
         {
@@ -105,22 +104,19 @@ namespace GluLamb.Reconstruction
             result.Cluster = members.Select(i => result.Edges[i]).ToList();
             result.Summary = $"{n} edges in {clusterLength.Count} clusters; the centreline follows {members.Count} edges.";
 
-            // The longest edge of the cluster: it runs at a steady place in the section, so it has
-            // the beam's shape, and the place is corrected later. (Averaging the edges point by
-            // point mixes different places along the beam where the edges start and end at
-            // different places, e.g. at skew or shaped ends.)
+            // The longest edge has a constant place in the section, so it has the beam's shape.
+            // A point-by-point mean of the edges mixes places along the beam where edges have
+            // different ends (skew or shaped ends).
             int longest = members.OrderByDescending(i => lengths[kept[i]]).First();
             result.LongestEdge = curves[kept[longest]].DuplicateCurve();
             return result;
         }
 
         /// <summary>
-        /// A better centreline from the cluster's edges. Each edge keeps the same place in the
-        /// section all along a prismatic beam: that place is measured at the stations where all of
-        /// the edges are crossed, and at every station the centreline goes where the edges that are
-        /// crossed there put it. Near a skew end cut, where one edge has ended, the others still
-        /// place the centreline. (The mean of the edges by point count drifts where the edges have
-        /// different lengths, e.g. on a twisted beam; crossings compare them at the same section.)
+        /// Corrects a centreline from the cluster's edges. On a prismatic beam each edge has a
+        /// constant place in the section. That place is measured at the stations where all edges
+        /// are cut. At each station the cut edges then place the centreline. At a skew end, where
+        /// one edge has ended, the others still place it.
         /// </summary>
         public static Curve Recentre(Beam beam, EdgeSet clusterEdges, int main = 0, ReconstructionTolerances tol = null)
         {
@@ -130,15 +126,14 @@ namespace GluLamb.Reconstruction
             Stations(beam, clusterEdges, count, out Plane[] planes, out var local, out var offsets, main, tol);
             if (offsets.Count < 2) return curve;
 
-            // Where the edges crossed at each station put the centreline (relative to the station),
-            // from at least two of them
+            // The place of the centreline at each station, from at least two cut edges
             var correction = new Vector3d?[count];
             for (int i = 0; i < count; ++i)
                 if (local[i] != null && TryPlace(local[i], offsets, out double dx, out double dy, out _, out _, tol.ResidualTolerance(Math.Min(beam.Width, beam.Height)), main))
                     correction[i] = new Vector3d(dx, dy, 0);
             if (correction.Count(c => c.HasValue) < 4) return curve;
 
-            // Stations no edges reach take the correction of the nearest one they do
+            // A station without edges takes the correction of the nearest station with edges
             var points = new Point3d[count];
             for (int i = 0; i < count; ++i)
             {
@@ -155,16 +150,15 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Extend a centreline past its ends by following the cluster's edges, one step at a time:
-        /// each step goes on along the last direction, cuts the edges there, and puts the next
-        /// point where the edges that are still there place the centreline. It stops where fewer
-        /// than two edges are left (the end of the beam, or a joint). Nothing is assumed about the
-        /// curvature: the edges carry it.
+        /// Extends a centreline past its ends along the cluster's edges, step by step. Each step
+        /// goes along the last direction, cuts the edges, and puts the next point where the cut
+        /// edges place the centreline. Stops when fewer than two edges remain (beam end or joint).
+        /// Assumes nothing about the curvature.
         /// </summary>
-        /// <param name="beam">Beam along the part of the centreline that is known.</param>
+        /// <param name="beam">Beam along the known part of the centreline.</param>
         /// <param name="clusterEdges">The longest run of parallel edges.</param>
         /// <param name="step">Length of each step.</param>
-        /// <param name="maxLength">How far to go at each end at most.</param>
+        /// <param name="maxLength">Maximum distance at each end.</param>
         public static Curve ExtendAlongEdges(Beam beam, EdgeSet clusterEdges, double step, double maxLength, int main = 0, ReconstructionTolerances tol = null)
         {
             tol ??= new ReconstructionTolerances();
@@ -174,8 +168,7 @@ namespace GluLamb.Reconstruction
             Stations(beam, clusterEdges, count, out _, out _, out var offsets, main, tol);
             if (offsets.Count < 2) return curve;
 
-            // Start a little inside the known curve, where it is surest (its very ends are where the
-            // fit had the least to go by), and let the edges take over from there
+            // Start inside the known curve. Its ends are the least reliable part of the fit.
             double reach = Math.Sqrt(beam.Width * beam.Width + beam.Height * beam.Height);
             double section = Math.Min(beam.Width, beam.Height);
             double backoff = Math.Min(0.1 * length, 10 * step);
@@ -186,14 +179,12 @@ namespace GluLamb.Reconstruction
             var end = Track(beam, clusterEdges, offsets, tEnd, false, step, maxLength + backoff, reach, section, main, tol);
             if (start.Count == 0 && end.Count == 0) return curve;
 
-            // The known curve between the starting points (or all of it at an end with nothing
-            // tracked), sampled at the step, with the tracked points at either end
+            // The known curve between the start points, sampled at the step, plus the tracked points
             double a = start.Count > 0 ? tStart : curve.Domain.Min, b = end.Count > 0 ? tEnd : curve.Domain.Max;
             var middle = curve.Trim(a, b) ?? curve;
             int n = Math.Max(4, (int)Math.Ceiling(middle.GetLength() / step) + 1);
             var points = new List<Point3d>();
-            // Tracked points about every three steps (and the last), so the spline follows the edges
-            // without picking up each step's small scatter as curvature
+            // Keep each third tracked point (and the last). The spline then ignores the scatter of single steps.
             List<Point3d> Thin(List<Point3d> p) => p.Where((_, i) => (i + 1) % 3 == 0 || i == p.Count - 1).ToList();
             var startPoints = Thin(start);
             for (int i = startPoints.Count - 1; i >= 0; --i) points.Add(startPoints[i]);
@@ -217,8 +208,7 @@ namespace GluLamb.Reconstruction
 
             for (double gone = 0; gone < maxLength; gone += step)
             {
-                // Guess along the last direction, then take the section there square to the step
-                // from the last point, twice over
+                // Estimate along the last direction. Then cut square to the step from the last point. Two passes.
                 var next = centre + direction * step;
                 var normal = direction;
                 bool found = false;
@@ -234,12 +224,11 @@ namespace GluLamb.Reconstruction
                             local[indices[k]] = p;
                         }
 
-                    // The crossed edges' places fitted to their usual places: where the centreline
-                    // is in this section, and how far the frame has turned about the centreline
+                    // Fit the cut edges to their usual places. This gives the centreline's place and the frame's turn.
                     if (!TryPlace(local, offsets, out double dx, out double dy, out double angle, out double residual, residualTolerance, main)) { found = false; break; }
 
-                    // Along a real edge the point lands close to the guess (the bend over one step)
-                    // and the edges keep their places; otherwise the crossings are on something else
+                    // On a real edge the point is near the estimate and the edges keep their places.
+                    // If not, the plane cut something else.
                     if (Math.Sqrt(dx * dx + dy * dy) > tol.JumpFraction * section || residual > residualTolerance) { found = false; break; }
 
                     plane.Rotate(angle, plane.ZAxis);
@@ -261,8 +250,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// A frame moved to a new origin and turned (by the smallest rotation) so its Z-axis is the
-        /// given direction: parallel transport along the centreline.
+        /// Moves a frame to a new origin and turns it (smallest rotation) so that its Z-axis is
+        /// the given direction: parallel transport.
         /// </summary>
         static Plane Transported(Plane frame, Point3d origin, Vector3d z)
         {
@@ -275,21 +264,19 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Where the edges crossed at a station put the centreline, in the station's frame: their
-        /// places fitted to their usual places by a turn about the centreline and a move (a 2D
-        /// rigid fit, so a frame that has turned a little doesn't move the centreline). An edge
-        /// that doesn't fit within the tolerance (e.g. one a joint has just cut away) is left out
-        /// and the rest fitted again. Needs two.
+        /// The place of the centreline in a station's frame, from the cut edges. Fits their places
+        /// to their usual places with a turn and a move (2D rigid fit), so a small turn of the
+        /// frame does not move the centreline. Removes an edge that is outside the tolerance
+        /// (e.g. a joint cut it away) and fits again. Needs two edges.
         /// </summary>
-        /// <param name="dx">Where the centreline is, in the station's frame.</param>
-        /// <param name="angle">How far the edges are turned from their usual places (radians).</param>
+        /// <param name="dx">The centreline's place in the station's frame.</param>
+        /// <param name="angle">Turn of the edges from their usual places (radians).</param>
         /// <param name="residual">Largest distance of an edge from its fitted place.</param>
         static bool TryPlace(Dictionary<int, Point3d> local, Dictionary<int, Point3d> offsets, out double dx, out double dy, out double angle, out double residual, double tolerance = double.MaxValue, int main = 0)
         {
             dx = dy = angle = residual = 0;
 
-            // The main edges alone where two or more of them are there; the helping edges only
-            // where they are needed
+            // Use the main edges alone if two or more are cut. If not, add the helping edges.
             var usable = local.Where(kv => offsets.ContainsKey(kv.Key)).ToList();
             if (main > 0 && usable.Count(kv => kv.Key < main) >= 2) usable = usable.Where(kv => kv.Key < main).ToList();
             var pairs = usable.Select(kv => (Q: kv.Value, O: offsets[kv.Key])).ToList();
@@ -308,7 +295,7 @@ namespace GluLamb.Reconstruction
                 angle = Math.Atan2(sin, cos);
                 double c = Math.Cos(angle), s = Math.Sin(angle);
 
-                // q = R o + t, so the centreline (where o = 0) is at t
+                // q = R o + t. The centreline is at o = 0, so it is at t.
                 dx = qx - (c * ox - s * oy);
                 dy = qy - (s * ox + c * oy);
 
@@ -329,13 +316,13 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Cut the edges at stations along a beam: each station's frame (lined up with the main
-        /// edges where all of them are crossed), each crossed edge's place in it, and each edge's
-        /// usual place: the median over the stations where all the main edges are crossed, for the
-        /// edges that keep a steady place there (edges along the beam; not, say, across a joint).
+        /// Cuts the edges at stations along a beam. Gives each station's frame (aligned to the
+        /// main edges where all are cut), the place of each cut edge in it, and the usual place of
+        /// each edge: its median over the stations where all main edges are cut. Only edges with a
+        /// constant place get a usual place.
         /// </summary>
-        /// <param name="main">The first this many edges are the main ones (the longest run of
-        /// parallel edges); the rest only help. Below 1: all of them.</param>
+        /// <param name="main">The first edges are the main edges (the longest run of parallel
+        /// edges). The others help. Below 1: all edges are main.</param>
         static void Stations(Beam beam, EdgeSet clusterEdges, int count, out Plane[] planes, out Dictionary<int, Point3d>[] local, out Dictionary<int, Point3d> offsets, int main, ReconstructionTolerances tol)
         {
             var curve = beam.Centreline;
@@ -356,15 +343,13 @@ namespace GluLamb.Reconstruction
                 planes[i] = beam.GetPlane(curve.Domain.ParameterAt(tt[i]));
                 clusterEdges.Cut(planes[i].Origin, planes[i].ZAxis, hits, indices);
 
-                // Where a joint or an end has cut an edge away, its nearest crossing is somewhere
-                // else along it, outside the section
+                // Where a joint or an end cut an edge away, its nearest crossing is outside the section
                 var origin = planes[i].Origin;
                 var near = Enumerable.Range(0, hits.Count).Where(k => hits[k].DistanceTo(origin) <= reach).ToList();
                 if (near.Count == 0) continue;
 
-                // Measure in a frame lined up with the main edges where they are all there: a small
-                // error in the beam's orientation would otherwise move the centreline by the edges'
-                // distance from it times the angle
+                // Measure in a frame aligned to the main edges. A small orientation error would
+                // otherwise move the centreline by the edge distance times the angle.
                 var mainHits = near.Where(k => indices[k] < main).Select(k => hits[k]).ToList();
                 full[i] = mainHits.Count == main;
                 if (full[i]) planes[i] = AlignPlane(planes[i], mainHits, tol.AlignAngle);
@@ -386,8 +371,7 @@ namespace GluLamb.Reconstruction
                 if (xs.Count < 3) continue;
                 xs.Sort(); ys.Sort();
 
-                // A helping edge has to keep its place (the middle half of its places within a
-                // small fraction of the section)
+                // A helping edge must keep its place: the middle half of its places within the tolerance
                 int lo = xs.Count / 4, hi = (3 * xs.Count) / 4;
                 double spread = Math.Max(xs[hi] - xs[lo], ys[hi] - ys[lo]);
                 if (e >= main && spread > tol.ResidualTolerance(section)) continue;
@@ -397,10 +381,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Turn a section's frame about its Z-axis so that the line through the cluster's edges
-        /// (e.g. two corners of one face) lies exactly along its X- or Y-axis, whichever is closer.
-        /// The edges are exact, where the section's principal axes lean when the section is a
-        /// little oblique or cut into by a joint.
+        /// Turns a section's frame about Z to align it with the cluster's edges. The edges are
+        /// exact. The section's own axes lean when the section is oblique or cut by a joint.
         /// </summary>
         public static void AlignToEdges(ref Section section, EdgeSet clusterEdges, ReconstructionTolerances tol = null)
         {
@@ -410,12 +392,9 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Turn a section plane about its Z-axis so that the lines between the points where it
-        /// crosses the cluster's edges (e.g. the corners of the section) lie along its X- and
-        /// Y-axes: by the mean, weighted by length, of how far each line between two points is
-        /// turned from the closer axis, over the lines within maxAngle of one. (Diagonals, and lines
-        /// along bevels, are further off and left out; the principal axis of the points, used
-        /// before, is undefined for the corners of a square.)
+        /// Turns a plane about Z so that the lines between the points lie along its X- and Y-axes.
+        /// The turn is the length-weighted mean angle between each line and its nearer axis, over
+        /// the lines within maxAngle of an axis. Diagonals and bevel lines are outside that angle.
         /// </summary>
         static Plane AlignPlane(Plane plane, List<Point3d> hits, double maxAngle)
         {
@@ -430,7 +409,7 @@ namespace GluLamb.Reconstruction
                     double length = Math.Sqrt(x * x + y * y);
                     if (length <= 0) continue;
 
-                    // Angle from the X-axis, folded into (-45, 45] degrees about the closer axis
+                    // Angle from the X-axis, folded into (-45, 45] degrees about the nearer axis
                     double angle = Math.Atan2(y, x);
                     angle -= Math.Round(angle / (Math.PI / 2)) * (Math.PI / 2);
                     if (Math.Abs(angle) > maxAngle) continue;
@@ -446,9 +425,9 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// How far two resampled edges are from running parallel: AngleWeight x the mean angle
-        /// between their segments plus DistanceWeight x the spread of the distances between their
-        /// points. Reversing b compares it running the other way.
+        /// How far two resampled edges are from parallel: AngleWeight x mean angle between their
+        /// segments plus DistanceWeight x spread of the distances between their points.
+        /// reverse: compare b in the other direction.
         /// </summary>
         static double Parallelness(Point3d[] a, Point3d[] b, bool reverse, EdgeClusterOptions options)
         {

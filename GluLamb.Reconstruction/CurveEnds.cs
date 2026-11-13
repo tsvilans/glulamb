@@ -22,37 +22,34 @@ using Rhino.Geometry;
 namespace GluLamb.Reconstruction
 {
     /// <summary>
-    /// How a centreline is run out past the part of it that was fitted.
+    /// How a centreline continues past its fitted part.
     /// </summary>
     public enum EndExtension
     {
-        /// <summary>Continue the curve's curvature and its rate of change, as measured over the
-        /// last stretch of the curve (curvature changing linearly with length). Assumes nothing
-        /// about the shape beyond that trend.</summary>
+        /// <summary>Continue the curvature and its rate of change, measured over the end of the
+        /// curve. Assumes only that trend.</summary>
         Trend,
 
-        /// <summary>Legacy: continue the curvature of the last stretch of the curve as a circle.
-        /// Assumes constant curvature at the ends; kept only to compare with.</summary>
+        /// <summary>Legacy. Continue the end curvature as a circle. Assumes constant curvature.</summary>
         LegacyArc,
 
         /// <summary>Continue straight along the end tangent.</summary>
         Straight,
 
-        /// <summary>Rhino's smooth extension, from the curvature at the very end.</summary>
+        /// <summary>Rhino's smooth extension, from the curvature at the end point.</summary>
         Smooth
     }
 
     public static class CurveEnds
     {
         /// <summary>
-        /// Extend a curve at both ends.
+        /// Extends a curve at both ends.
         /// </summary>
         /// <param name="curve">Curve to extend.</param>
         /// <param name="length">Length to add at each end.</param>
-        /// <param name="style">How to extend it.</param>
-        /// <param name="fitLength">For EndExtension.Trend and LegacyArc: the length of curve at each end that the
-        /// arc's curvature is taken from (as a circle through its ends and middle), so that the
-        /// last few millimetres don't decide it. 0: 15% of the curve's length.</param>
+        /// <param name="style">How to extend.</param>
+        /// <param name="fitLength">Trend and LegacyArc: length at each end that gives the
+        /// curvature. 0: 15% of the curve's length.</param>
         public static Curve Extend(Curve curve, double length, EndExtension style, double fitLength = 0)
         {
             if (length <= 0) return curve.DuplicateCurve();
@@ -78,7 +75,7 @@ namespace GluLamb.Reconstruction
             if (joined == null || joined.Length != 1) return curve.Extend(CurveEnd.Both, length, CurveExtensionStyle.Line) ?? curve.DuplicateCurve();
 
             var result = joined[0];
-            // JoinCurves can reverse the result; keep the input's direction
+            // JoinCurves can reverse the result. Keep the input's direction.
             if ((result.PointAtStart - curve.PointAtEnd).Length < (result.PointAtStart - curve.PointAtStart).Length
                 && (result.PointAtEnd - curve.PointAtStart).Length < (result.PointAtEnd - curve.PointAtEnd).Length)
                 result.Reverse();
@@ -86,16 +83,15 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// A curve of the given length that continues the curve from one end, following the trend
-        /// of its curvature: the curvature vector is fitted as a straight-line function of length
-        /// over the last fitLength of the curve, and the run-out is integrated along that, starting
+        /// A curve that continues a curve from one end along the trend of its curvature. Fits the
+        /// curvature vector as a linear function of length over the last fitLength. Integrates
         /// from the end point and tangent.
         /// </summary>
         static Curve EndTrend(Curve curve, bool atStart, double length, double fitLength)
         {
             double total = curve.GetLength();
 
-            // Curvature vectors over the end stretch, against distance in from the end
+            // Curvature vectors over the end stretch, against distance from the end
             const int samples = 16;
             var us = new double[samples];
             var ks = new Vector3d[samples];
@@ -117,8 +113,8 @@ namespace GluLamb.Reconstruction
             var b = det > 0 ? (n * suk - su * sk) / det : Vector3d.Zero;
             var a = (sk - b * su) / n;
 
-            // A trend measured over a short stretch is uncertain: over the run-out the curvature
-            // may change by at most half of the larger of the end's curvature and its average
+            // A trend from a short stretch is uncertain. Limit the change of curvature over the
+            // extension to half of the larger of the end curvature and the mean curvature.
             double change = b.Length * length, cap = 0.5 * Math.Max(a.Length, sk.Length / n);
             if (change > cap && change > 0) b *= cap / change;
 
@@ -127,8 +123,8 @@ namespace GluLamb.Reconstruction
             var tangent = curve.TangentAt(t0);
             if (atStart) tangent.Reverse();
 
-            // Integrate outwards (u goes negative past the end); the curvature is kept to a few
-            // times the largest measured, so a steep trend can't curl the run-out up
+            // Integrate outwards (u is negative past the end). Limit the curvature to three times
+            // the largest measured, so a steep trend cannot curl the extension.
             int steps = Math.Max(20, (int)Math.Ceiling(length / Globals.FromMillimeters(5)));
             double h = length / steps;
             double limit = 3 * Math.Max(kMax, 1e-12);
@@ -156,9 +152,9 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// An arc of the given length that continues the curve from one end: tangent to it, with
-        /// the curvature of the circle through the end, and the points fitLength and fitLength / 2
-        /// in from it. A straight line where that circle is (nearly) flat.
+        /// An arc that continues a curve from one end, tangent to it. Its curvature is that of the
+        /// circle through the end and the points fitLength / 2 and fitLength from it. A flat
+        /// circle gives a straight line.
         /// </summary>
         static Curve EndArc(Curve curve, bool atStart, double length, double fitLength)
         {
@@ -177,8 +173,7 @@ namespace GluLamb.Reconstruction
             if (double.IsInfinity(radius) || radius > 1000 * total)
                 return new LineCurve(p, p + tangent * length);
 
-            // Continue the circle itself: its tangent at the end, rather than the curve's, which the
-            // last few millimetres of the curve can turn
+            // Use the circle's tangent at the end. The last millimetres can turn the curve's tangent.
             circle.ClosestParameter(p, out double a);
             var circleTangent = circle.TangentAt(a);
             if (circleTangent * tangent < 0) circleTangent.Reverse();

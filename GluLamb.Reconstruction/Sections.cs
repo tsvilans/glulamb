@@ -25,37 +25,33 @@ using GluLamb.Numerics;
 namespace GluLamb.Reconstruction
 {
     /// <summary>
-    /// A cross-section of a beam's edges: where a plane crosses them, and the convex hull of those
-    /// points.
+    /// A cross-section of a beam's edges: the points where a plane cuts them, and their convex hull.
     /// </summary>
     public struct Section
     {
-        /// <summary>The point the section was taken at (on the centreline).</summary>
+        /// <summary>The point of the section on the centreline.</summary>
         public Point3d Position;
 
-        /// <summary>Centre of the rectangle around the hull that lines up with its sides (see
-        /// Sections.AlignedRectangle).</summary>
+        /// <summary>Centre of the aligned rectangle around the hull. See Sections.AlignedRectangle.</summary>
         public Point3d Centre;
 
-        /// <summary>Section plane at Position: Z along the centreline, Y along the section's
-        /// largest spread (the beam's height direction), X across it.</summary>
+        /// <summary>Plane at Position. Z: along the centreline. Y: the long side (height). X: across.</summary>
         public Plane Plane;
 
         /// <summary>Hull corners, counter-clockwise.</summary>
         public Point3d[] Hull;
 
-        /// <summary>Extent across (X) and along (Y) the section, measured both ways from
-        /// Position, so that a section centred on the centreline covers the hull.</summary>
+        /// <summary>Extents along X and Y, measured both ways from Position. A section centred on
+        /// the centreline with these extents covers the hull.</summary>
         public double Width, Height;
 
-        /// <summary>Extent of the hull along its own principal axes, measured both ways from its
-        /// centre: a measure of the section's size that doesn't depend on where the centreline is,
-        /// for comparing sections.</summary>
+        /// <summary>Sides of the aligned rectangle. They do not depend on the centreline, so they
+        /// compare sections.</summary>
         public double Major, Minor;
 
         /// <summary>
-        /// How far this section's size is from a reference section's, as the larger relative
-        /// difference of the two extents (0: the same).
+        /// Difference in size from a reference section: the larger relative difference of the two
+        /// sides. 0: the same.
         /// </summary>
         public double DifferenceFrom(Section reference) => Math.Max(
             Math.Abs(Major / reference.Major - 1),
@@ -73,7 +69,7 @@ namespace GluLamb.Reconstruction
     }
 
     /// <summary>
-    /// Edge polylines prepared for cutting with planes many times over. Thread-safe.
+    /// Edge polylines, prepared to be cut by many planes. Thread-safe.
     /// </summary>
     public sealed class EdgeSet
     {
@@ -81,7 +77,7 @@ namespace GluLamb.Reconstruction
 
         readonly double m_rectangleAngle;
 
-        /// <param name="rectangleAngle">See ReconstructionTolerances.RectangleAngle; 0 for its default.</param>
+        /// <param name="rectangleAngle">See ReconstructionTolerances.RectangleAngle. 0: its default.</param>
         public EdgeSet(IEnumerable<Polyline> polylines, double rectangleAngle = 0)
         {
             m_rectangleAngle = rectangleAngle;
@@ -91,14 +87,12 @@ namespace GluLamb.Reconstruction
         public int Count => m_polylines.Length;
 
         /// <summary>
-        /// Where a plane crosses each polyline, one point per polyline: the crossing nearest the
-        /// origin. (The Python version took the first crossing along the polyline, which on a
-        /// strongly curved beam can be a crossing far away from the section.)
+        /// Cuts each polyline with a plane. One point per polyline: the crossing nearest the origin.
         /// </summary>
         public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits) => Cut(origin, normal, hits, null);
 
         /// <summary>
-        /// As Cut, also listing which polyline each point is on.
+        /// As Cut. Also gives the polyline index of each point.
         /// </summary>
         public int Cut(Point3d origin, Vector3d normal, List<Point3d> hits, List<int> indices)
         {
@@ -115,7 +109,7 @@ namespace GluLamb.Reconstruction
                 for (int i = 1; i < poly.Length; ++i)
                 {
                     double d1 = (poly[i] - origin) * normal;
-                    // Only segments that change side (or touch the plane) can cross it
+                    // A segment crosses the plane only if its ends are on different sides (or on the plane)
                     if ((d0 <= 0 && d1 >= 0) || (d0 >= 0 && d1 <= 0))
                     {
                         double denom = d0 - d1;
@@ -132,8 +126,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Centre of the section through the edges at a plane: the centre of the rectangle around
-        /// its hull that lines up with its sides. The fast path for fitting a centreline.
+        /// Centre of the section at a plane: the centre of the aligned rectangle around its hull.
+        /// The fast path for the fit.
         /// </summary>
         public bool TryCentre(Point3d origin, Vector3d normal, List<Point3d> hits, out Point3d centre)
         {
@@ -150,7 +144,7 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// The section through the edges at a plane, with its frame and extents.
+        /// The section at a plane, with its frame and extents.
         /// </summary>
         public bool TrySection(Point3d origin, Vector3d normal, out Section section)
         {
@@ -163,8 +157,7 @@ namespace GluLamb.Reconstruction
     public static class Sections
     {
         /// <summary>
-        /// A section from points in (or near) the plane at origin with this normal: their convex
-        /// hull, its principal axes and its extents about origin.
+        /// A section from points in the plane at origin: their convex hull, frame and extents.
         /// </summary>
         public static bool TryFromPoints(IList<Point3d> points, Point3d origin, Vector3d normal, out Section section, double rectangleAngle = 0)
         {
@@ -176,10 +169,9 @@ namespace GluLamb.Reconstruction
 
             var hull = hullIndices.Select(i => points[i]).ToArray();
 
-            // The rectangle around the hull lined up with its sides: its centre and sides stay put
-            // when the section loses a corner (e.g. near a skew end cut), where the mean of the
-            // corners or the principal axes would move. Its long side is the section's height
-            // direction (on a square section, MakeConsistent settles which side that is).
+            // The aligned rectangle keeps its centre and sides when the section loses a corner
+            // (e.g. at a skew end cut). The mean of the corners and the principal axes do not.
+            // Its long side is the height direction. For a square, MakeConsistent chooses the side.
             AlignedRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor, rectangleAngle);
             var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
 
@@ -205,17 +197,15 @@ namespace GluLamb.Reconstruction
             return true;
         }
 
-        /// <summary>Sides within this fraction of each other count as equal: a square section,
-        /// whose height direction MakeConsistent takes from the direction the beam bends in.</summary>
+        /// <summary>Sides within this fraction of each other are equal: a square section.</summary>
         public const double SquareTolerance = 0.02;
 
         /// <summary>
-        /// The rectangle around a convex polygon in a plane that lines up with the polygon's
-        /// straight sides: of the directions of its edges, the one along or square to which the
-        /// most edge length runs (within angleTolerance), and of equals the one with the smallest
-        /// rectangle. For a rectangle with its corners cut (bevels, a groove) that is the
-        /// rectangle's own direction, where the smallest rectangle could line up with a bevel.
-        /// Returns its centre, the direction of its long side, and its sides.
+        /// The rectangle around a convex polygon, aligned to its straight sides. Its direction is
+        /// the edge direction with the most edge length along or square to it (within
+        /// angleTolerance). Of equals: the smallest rectangle. A rectangle with cut corners
+        /// (bevels, a groove) keeps its own direction. Gives the centre, the direction of the long
+        /// side, and the sides.
         /// </summary>
         /// <param name="hull">Polygon corners, in order.</param>
         /// <param name="normal">Normal of the polygon's plane.</param>
@@ -276,14 +266,13 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Turn section frames about their Z-axis where needed so that each one's Y-axis points the
-        /// same way as its neighbour's: by 180 degrees, or by 90 degrees (swapping its width and
-        /// height) where its sides have swapped, which happens on a square section (which side is
-        /// the height is a matter of rounding) and where a joint has cut a section below its width.
-        /// Starts from the middle section, which is the most likely to be typical.
+        /// Turns section frames about Z so that each Y-axis points the same way as its
+        /// neighbour's. A turn is 180 degrees, or 90 degrees (width and height swap) where the
+        /// sides swapped: on a square section, or where a joint cut the section below its width.
+        /// Starts from the middle section.
         /// </summary>
-        /// <param name="up">Where the middle section is square: the direction its Y-axis should be
-        /// closest to (e.g. the direction the beam bends in). Unset: as found.</param>
+        /// <param name="up">If the middle section is square: its Y-axis takes the side nearest
+        /// this direction. Unset: no change.</param>
         public static void MakeConsistent(IList<Section> sections, Vector3d up = default)
         {
             int n = sections.Count;
@@ -299,8 +288,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// A section turned by 90 degrees about its Z-axis if its X-axis is closer to the direction
-        /// than its Y-axis, then (if flip) by 180 degrees if its Y-axis points away from it.
+        /// Turns a section 90 degrees about Z if its X-axis is nearer the direction than its
+        /// Y-axis. Then, if flip, 180 degrees if its Y-axis points away.
         /// </summary>
         static Section Follow(Section s, Vector3d direction, bool flip)
         {
@@ -315,8 +304,8 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// The direction a square section's height should take along a curve: the direction it bends
-        /// in at its middle, or world Z where it is straight.
+        /// The height direction for a square section: the direction that the curve bends at its
+        /// middle. A straight curve: world Z.
         /// </summary>
         public static Vector3d PreferredUp(Curve curve)
         {
