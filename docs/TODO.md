@@ -1,6 +1,6 @@
 # Joint system and G2P: open items
 
-Kept up to date as items are done or added. Last updated 2026-10-25.
+Kept up to date as items are done or added. Last updated 2026-11-12.
 
 ## G2P (Rhino plug-in)
 
@@ -34,6 +34,16 @@ Kept up to date as items are done or added. Last updated 2026-10-25.
 - Cluster Beams: length bands are greedy from the longest beam down; fixed standard blank lengths (round up to increments) aren't supported.
 
 - Blank types: unify them later. `CixBlank` only holds CIX-related variables and derives from `SegmentedBlank`. `SegmentedBlank` is a glulam whose "lamellae" are short overlapping segments cut from straight boards and laid in layers like bricks: single-curved, constrained, and its lamellae aren't continuous, but it shares a lot with `Glulam`.
+
+## Two-step lamination (prototype)
+
+- Springback, at both steps: G1 springs back when it comes off its form, and the free-form blank (G3) when it comes out of the press. Model form and released geometry for both (see docs/blank-model.md) and overbend accordingly.
+- Glue lines in both directions in G3 (G1's board joints run along each G3 lamella): implications for strength class and for where joints may cut.
+- Which axis to stack along can depend on the beam's geometry, so the blank's section orientation may differ from the beam's; choose it per beam.
+- Twist strain uses the larger of the edge stretch of a twisted strip, (w/2)^2 tau^2 / 2, and half the face shear, t tau / 2, against the bending limit 1 / (2 x radius ratio). Check that rule against how lamellas actually take twist.
+- True shape: the lamellas are lined up by best fit over their length; add lining up at a mark (locators), as the press does it.
+- Allowed strain per standard, species and thickness: a rule set to query (see the constraint-system proposal) instead of one radius ratio.
+- `Utility.GetTrueGlulamBlank` / `GetGlulamBlankSurfaces` (Unroller and Sporph) are superseded by `TwoStepLamination`; retire them once it is confirmed.
 
 ## Reconstruction
 
