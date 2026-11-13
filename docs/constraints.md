@@ -63,8 +63,9 @@ standards. The ANSI set differs from `Standards.ANSI` in one place: a radius bet
 
 ## Not yet
 
-- `GlulamData.Compute` and `Glulam.RadiusMultiplier` still use the `Standards` classes. Move them
-  to rule sets, then remove the classes.
+- `GlulamData.Compute` takes its lamella thicknesses from the rule set of its standard, or from a
+  rule set and material that the caller gives. The `Standards` classes are now unused there.
+  Remove them, and let the callers pass rule sets in place of the `Standard` enum.
 - Other quantities: lamella lengths, press and machine envelopes, blank sizes.
 - Numbers only compare to fixed ranges. A limit that is a formula of other facts needs a new
   kind of rule.

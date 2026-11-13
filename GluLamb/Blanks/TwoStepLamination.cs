@@ -128,6 +128,10 @@ namespace GluLamb.Blanks
         /// <summary>The final blank: the beam's section centreline run out by the end allowance,
         /// with whole layers across and along the stacking axis.</summary>
         public Glulam Blank;
+
+        /// <summary>A plane to orient the blank for the press: X along its chord, Y towards its bulge.</summary>
+        public Plane BlankHandle;
+
         public List<DevelopedLayer> Layers = new List<DevelopedLayer>();
 
         /// <summary>The single-curved glulam, in the world XY plane: its height lies in the
@@ -273,6 +277,18 @@ namespace GluLamb.Blanks
             TrueShape(result, g1Height, t2, stackY ? beam.Width : beam.Height);
             if (result.EdgeMargin < 0)
                 result.Messages.Add($"The beam sticks out of a lamella by {-result.EdgeMargin:0.##}: more edge allowance is needed.");
+
+            // Lay the flat geometry along the X-axis on average, for the press: G1 starts at the
+            // origin and ends on the +X axis
+            var toPress = PressAlignment.FlatToPress(result.SingleCurved.Centreline);
+            result.SingleCurved.Transform(toPress);
+            result.SliceOutline.Transform(toPress);
+            foreach (var layer in result.Layers)
+            {
+                layer.Developed.Transform(toPress);
+                layer.Outline.Transform(toPress);
+            }
+            result.BlankHandle = PressAlignment.Handle(result.Blank.Centreline, result.Blank.GetPlane(result.Blank.Centreline.Domain.Mid).YAxis);
 
             // Lift each outline to the height of its slice in G1
             double pitch = t2 + options.Planing + options.Kerf;

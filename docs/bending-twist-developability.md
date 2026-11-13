@@ -171,6 +171,29 @@ each layer needs a slightly different flat shape. Two things follow:
 really sits (steps and all), `TwoStepResult.TrueShape` the outside through the lamellas' edges,
 and `EdgeMargin` says how much material is left outside the beam's section at the worst place.
 
+## Choosing a blank
+
+The blank's orientation does not have to be the beam's. `BlankOptions.Evaluate` (Grasshopper:
+Blank Options) gives the smallest blank of each kind that encloses the beam:
+
+| Kind | Blank | Work | Material |
+| --- | --- | --- | --- |
+| Straight | along the best-fit line, turned to the smallest section | none: straight lamination | most waste |
+| SingleCurved | along the centreline projected to its best-fit plane | one bend | less |
+| Untwisted | along the centreline, section at one angle to the RMF (the angle with the smallest section) | bends in two directions, no twist: developable lamellas | a little waste, where the beam turns in the blank |
+| AsBeam | the beam's own section | bends in two directions and twists | none |
+
+Each option reports its volume, the fraction that is waste, the number of lamellae that the
+rules give it, and its twist. The beam is then machined out of the blank that is the best trade
+for the job.
+
+## Laying parts in the press
+
+`PressAlignment.Handle` gives a plane for a curved part: X from its start to its end, so the part
+runs along X on average, and Y towards its bulge. `ToPress` moves that plane to the world XY
+plane. The flat outputs of `TwoStepLamination` (G1, the slice, the lamella outlines) are already
+laid this way: G1 starts at the origin and ends on the +X axis.
+
 ## Quick reference
 
 | Beam | kn | kg | tg | Lamellas | Blank |

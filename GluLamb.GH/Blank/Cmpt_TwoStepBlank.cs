@@ -81,6 +81,7 @@ namespace GluLamb.GH.Components
                 "Neighbours' edges don't line up, so the blank's sides are skewed and stepped.", GH_ParamAccess.list);
             pManager.AddBrepParameter("True Shape", "TS", "The outside of the blank through the lamellas' edges: skewed sides (steps smoothed over), bottom and top.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Slice", "Sl", "The flat outline of a slice of G1: every lamella as it is sawn.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Handle", "H", "A plane to orient the blank for the press: X along its chord, Y towards its bulge. The flat outputs (G1, G2, Slice) already lie along the world X-axis.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Edge Margin", "EM", "The least any lamella's edges stand out past the beam's section (negative: the beam sticks out).", GH_ParamAccess.item);
         }
 
@@ -145,7 +146,8 @@ namespace GluLamb.GH.Components
             DA.SetDataList(12, result.Layers.Select(l => l.TrueMesh));
             DA.SetDataList(13, result.TrueShape);
             DA.SetData(14, new PolylineCurve(result.SliceOutline));
-            DA.SetData(15, result.EdgeMargin);
+            DA.SetData(15, result.BlankHandle);
+            DA.SetData(16, result.EdgeMargin);
             Message = $"{result.Layers.Count} x {result.LayerThickness:0.#}";
         }
     }
