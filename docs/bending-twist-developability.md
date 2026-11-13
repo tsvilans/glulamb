@@ -171,6 +171,18 @@ each layer needs a slightly different flat shape. Two things follow:
 really sits (steps and all), `TwoStepResult.TrueShape` the outside through the lamellas' edges,
 and `EdgeMargin` says how much material is left outside the beam's section at the worst place.
 
+## Straight lamellas
+
+`StraightLamella.Evaluate` tests whether a beam can be made from straight lamellas, for each
+stacking axis. Every layer must pass. A layer passes in one of two ways:
+
+- **Forced**: a straight lamella is bent sideways into place. Its edge strain, kg x width / 2,
+  stays within the allowed strain.
+- **From a straight board**: the flat layer bows from its chord by no more than the spare width
+  on each side (the edge allowance), so a straight board covers it.
+
+In both, the twist and the out-of-plane bending must stay within their limits.
+
 ## Choosing a blank
 
 The blank's orientation does not have to be the beam's. `BlankOptions.Evaluate` (Grasshopper:
