@@ -28,8 +28,9 @@ namespace GluLamb.GH.Components
     public class Cmpt_GetHandle : GH_Component
     {
         public Cmpt_GetHandle()
-          : base("Beam Handle", "BHandle",
-              "Get plane handle that can be used for orienting the beam.",
+          : base("Get Handle", "Handle",
+              "Gets a plane to orient a beam or blank. With a name: the beam's plane of that name (e.g. \"press\"). " +
+              "Without: the beam's first named plane, or a plane along the beam's chord that bulges to +Y.",
               "GluLamb", UiNames.BeamSection)
         {
         }
@@ -40,25 +41,25 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Beam", "B", "Beam to get plane from.", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Flip", "F", "Flip plane around Y-axis.", GH_ParamAccess.item, false);
-            pManager.AddBooleanParameter("Bounds", "B", "Locate the plane at the corner of the beam bounding box. " +
-                "Otherwise its origin will line at the start of the centreline. Currently this is done very inefficiently.", GH_ParamAccess.item, false);
+            pManager.AddGenericParameter("Beam", "B", "Beam or blank.", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Flip", "F", "Flip the plane around its Y-axis.", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("Bounds", "B", "Put the plane at the corner of the beam's bounding box in the plane. Slow.", GH_ParamAccess.item, false);
+            pManager.AddTextParameter("Name", "N", "Name of the plane to get.", GH_ParamAccess.item);
+            pManager[3].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddPlaneParameter("Plane", "P", "Output plane.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Plane", "P", "The plane.", GH_ParamAccess.item);
+            pManager.AddTextParameter("Names", "N", "Names of the beam's planes.", GH_ParamAccess.list);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             bool m_flip = false, m_bounds = false;
-
             DA.GetData("Flip", ref m_flip);
             DA.GetData("Bounds", ref m_bounds);
 
-            // Get Beam
             Beam m_beam = null;
             DA.GetData<Beam>("Beam", ref m_beam);
             if (m_beam == null)
@@ -67,16 +68,29 @@ namespace GluLamb.GH.Components
                 return;
             }
 
-            var xaxis = m_beam.Centreline.PointAtEnd - m_beam.Centreline.PointAtStart;
-            var yaxis = m_beam.Centreline.PointAt(m_beam.Centreline.Domain.Mid) - m_beam.Centreline.PointAtStart;
-            if (m_beam.Centreline.IsLinear())
+            var frames = m_beam.Frames ?? new Dictionary<string, Plane>();
+            DA.SetDataList("Names", frames.Keys);
+
+            // The named plane, else the first plane, else a plane along the chord
+            string name = null;
+            DA.GetData("Name", ref name);
+            Plane plane;
+            if (!string.IsNullOrEmpty(name))
             {
-                yaxis = m_beam.GetPlane(m_beam.Centreline.Domain.Min).YAxis;
+                if (!frames.TryGetValue(name, out plane))
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"The beam has no plane named \"{name}\". Using a plane along its chord.");
+                    plane = Chord(m_beam);
+                }
             }
-
-            var origin = m_beam.Centreline.PointAtStart;
-
-            Plane plane = new Plane(origin, xaxis, yaxis);
+            else if (frames.Count > 0)
+            {
+                var first = System.Linq.Enumerable.First(frames);
+                plane = first.Value;
+                Message = first.Key;
+            }
+            else
+                plane = Chord(m_beam);
 
             if (m_flip)
                 plane = plane.FlipAroundYAxis();
@@ -85,13 +99,16 @@ namespace GluLamb.GH.Components
             {
                 var brep = m_beam.ToBrep();
                 var bb = brep.GetBoundingBox(plane);
-
-                origin = plane.PointAt(bb.Min.X, bb.Min.Y, bb.Min.Z);
-
-                plane.Origin = origin;
+                plane.Origin = plane.PointAt(bb.Min.X, bb.Min.Y, bb.Min.Z);
             }
 
             DA.SetData("Plane", plane);
         }
+
+        /// <summary>
+        /// A plane at the beam's start: X along its chord, Y towards its bulge.
+        /// </summary>
+        static Plane Chord(Beam beam) =>
+            GluLamb.Blanks.PressAlignment.Handle(beam.Centreline, beam.GetPlane(beam.Centreline.Domain.Min).YAxis);
     }
 }

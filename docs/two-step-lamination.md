@@ -7,10 +7,16 @@ Twist Orientation, under "4. Blank". Written 2026-11-12.
 
 - **Lamination Options**: stacking axis, thicknesses, allowances, rules and material.
 - **Two-Step Blank**: a beam and options in; G1, G3 and an analysis out.
-- **Analyze Glulam**: opens the analysis (`GlulamAnalysis`): layers, flat lamellas, slice, true
-  shape, boards, thicknesses, strains, curvatures, twist, edge margin, the straight-lamella check.
-- **Named Frame**: gets a named plane of a beam or blank. The plane "press" orients a blank for
-  the press (X along its chord, Y towards its bulge). G1 already lies along the world X-axis.
+- **Analyze Glulam**: takes a glulam or the analysis from Two-Step Blank (`GlulamAnalysis`). A
+  glulam gives the strain of each lamella along its length over its allowed strain
+  (utilisation). A two-step analysis also gives layers, flat lamellas, slice, true shape, boards,
+  curvatures, twist, edge margin and the straight-lamella check. In a two-step blank the in-plane
+  curve of a lamella is no strain: step 1 made it.
+- **Visualize Lamella**: a coloured mesh of each lamella from values per lamella (one value, or
+  values along its length), e.g. the utilisation.
+- **Get Handle** (under Beam): a named plane of a beam or blank, its first plane, or a plane
+  along its chord. The plane "press" orients a blank for the press (X along its chord, Y towards
+  its bulge). G1 already lies along the world X-axis.
 
 ## The process
 

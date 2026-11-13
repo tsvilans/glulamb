@@ -137,6 +137,14 @@ namespace GluLamb.Blanks
         /// with whole layers across and along the stacking axis.</summary>
         public Glulam Blank;
 
+        /// <summary>The glulam that the lamella strains are for: the blank, or the glulam given
+        /// to FromGlulam.</summary>
+        public Glulam Glulam;
+
+        /// <summary>Strains of each lamella along its length. Order: across the width, then up
+        /// the height (the order of Delaminate).</summary>
+        public List<LamellaStrain> Lamellas = new List<LamellaStrain>();
+
         /// <summary>The key of the press handle in Blank.Frames and SingleCurved.Frames: a plane
         /// to orient the part for the press, X along its chord, Y towards its bulge.</summary>
         public const string PressFrame = "press";
@@ -186,11 +194,175 @@ namespace GluLamb.Blanks
         public List<Rule> Decided = new List<Rule>();
 
         public List<string> Messages = new List<string>();
-        public bool Success => Blank != null && SingleCurved != null;
+        public bool Success => Glulam != null;
+
+        /// <summary>The analysis has the two-step geometry (G1, layers, true shape).</summary>
+        public bool IsTwoStep => Blank != null && SingleCurved != null;
+
+        /// <summary>
+        /// The analysis of a glulam as it is: the strains of its lamellae from bending in both
+        /// directions and from twist, against the limits of the rules.
+        /// </summary>
+        /// <param name="rules">Null: Eurocode.</param>
+        public static GlulamAnalysis FromGlulam(Glulam glulam, RuleSet rules = null, Context material = null)
+        {
+            var analysis = new GlulamAnalysis { Beam = glulam };
+            if (glulam?.Centreline == null) { analysis.Messages.Add("No glulam."); return analysis; }
+            analysis.Options = new TwoStepOptions { Rules = rules ?? LaminationRules.Eurocode(), Material = material ?? new Context() };
+            TwoStepLamination.LamellaStrains(analysis, glulam, analysis.Options.Rules, analysis.Options.Material);
+
+            analysis.PressStrain = analysis.Lamellas.Max(l => l.MaxBend);
+            analysis.TwistStrain = analysis.Lamellas.Max(l => l.MaxTwist);
+            double worst = analysis.Lamellas.Max(l => l.Utilisation.Max());
+            analysis.Messages.Add($"{glulam.Data.NumWidth} x {glulam.Data.NumHeight} lamellae of {glulam.Data.LamWidth:0.##} x {glulam.Data.LamHeight:0.##}. " +
+                $"Strain per mille: bending {analysis.PressStrain * 1000:0.###}, twist {analysis.TwistStrain * 1000:0.###}. Largest utilisation {worst:0.##}.");
+            if (worst > 1.0001) analysis.Messages.Add("A lamella exceeds its allowed strain: thinner lamellae or less twist are needed.");
+            return analysis;
+        }
+    }
+
+    /// <summary>
+    /// The strains of one lamella of a glulam, along its length.
+    /// </summary>
+    public class LamellaStrain
+    {
+        /// <summary>Index across the width and up the height.</summary>
+        public int X, Y;
+
+        /// <summary>Along the lamella: arc length, bending strain (the larger of the two
+        /// directions), twist strain, and the larger of each over its allowed strain.</summary>
+        public double[] S, Bend, Twist, Utilisation;
+
+        public double MaxBend, MaxTwist;
     }
 
     public static class TwoStepLamination
     {
+        /// <summary>
+        /// Fills the lamella strains of an analysis from a glulam. A lamella bends about its
+        /// height (thickness LamHeight) and about its width (thickness LamWidth); the bending strain
+        /// is the larger. Twist strain: edge stretch or half the face shear, as for the layers.
+        /// </summary>
+        /// <param name="trim">Length at each end to leave out (an end allowance, where the
+        /// orientation is held still): its strains take the value of the nearest station inside.</param>
+        /// <param name="preCurved">The lamellae are made with their curve in one direction (the
+        /// sliced lamellas of a two-step blank), so bending in that direction is no strain.
+        /// 0: across the width. 1: up the height. -1: neither.</param>
+        internal static void LamellaStrains(GlulamAnalysis analysis, Glulam glulam, RuleSet rules, Context material, double trim = 0, int preCurved = -1)
+        {
+            analysis.Glulam = glulam;
+            analysis.Lamellas.Clear();
+            var data = glulam.Data;
+            var curve = glulam.Centreline;
+            int count = Math.Clamp((int)Math.Ceiling(curve.GetLength() / Globals.FromMillimeters(50)) + 1, 20, 1000);
+            var frames = glulam.GetPlanes(curve.DivideByCount(count - 1, true));
+            var normals = frames.Select(f => f.YAxis).ToArray();
+
+            var context = (material ?? new Context()).Duplicate().With(ContextKeys.Step, "press");
+            double allowedY = rules.AllowedStrain(data.LamHeight, context, out _);
+            double allowedX = rules.AllowedStrain(data.LamWidth, context, out _);
+            double thin = Math.Min(data.LamWidth, data.LamHeight), wide = Math.Max(data.LamWidth, data.LamHeight);
+            double allowedTwist = rules.AllowedTwistStrain(thin, context, out _);
+            analysis.AllowedStrain = analysis.AllowedPressStrain = Math.Min(allowedX, allowedY);
+            analysis.AllowedTwistStrain = allowedTwist;
+
+            double w = data.NumWidth * data.LamWidth, h = data.NumHeight * data.LamHeight;
+            for (int x = 0; x < data.NumWidth; ++x)
+                for (int y = 0; y < data.NumHeight; ++y)
+                {
+                    double ox = (x + 0.5) * data.LamWidth - w / 2, oy = (y + 0.5) * data.LamHeight - h / 2;
+                    var points = frames.Select(f => f.PointAt(ox, oy)).ToArray();
+                    var m = Measure(points, normals);
+                    int n = points.Length;
+                    var lamella = new LamellaStrain { X = x, Y = y, S = m.S, Bend = new double[n], Twist = new double[n], Utilisation = new double[n] };
+                    for (int i = 0; i < n; ++i)
+                    {
+                        double bendY = preCurved == 1 ? 0 : data.LamHeight * Math.Abs(m.Kn[i]) / 2;
+                        double bendX = preCurved == 0 ? 0 : data.LamWidth * Math.Abs(m.Kg[i]) / 2;
+                        double tau = Math.Abs(m.Tg[i]);
+                        lamella.Bend[i] = Math.Max(bendX, bendY);
+                        lamella.Twist[i] = Math.Max(0.5 * (wide / 2) * (wide / 2) * tau * tau, thin * tau / 2);
+                        lamella.Utilisation[i] = Math.Max(Math.Max(bendX / allowedX, bendY / allowedY), lamella.Twist[i] / allowedTwist);
+                    }
+                    if (trim > 0)
+                    {
+                        double margin = trim + 2 * (m.S[n - 1] / (n - 1));
+                        int first = Array.FindIndex(m.S, v => v >= margin), last = Array.FindLastIndex(m.S, v => v <= m.S[n - 1] - margin);
+                        if (first >= 0 && last >= first)
+                            for (int i = 0; i < n; ++i)
+                            {
+                                int from = i < first ? first : i > last ? last : i;
+                                lamella.Bend[i] = lamella.Bend[from]; lamella.Twist[i] = lamella.Twist[from]; lamella.Utilisation[i] = lamella.Utilisation[from];
+                            }
+                    }
+                    lamella.MaxBend = lamella.Bend.Max();
+                    lamella.MaxTwist = lamella.Twist.Max();
+                    analysis.Lamellas.Add(lamella);
+                }
+        }
+
+        /// <summary>
+        /// A mesh of each lamella of a glulam, coloured by values along its length. Order: across
+        /// the width, then up the height (the order of Delaminate).
+        /// </summary>
+        /// <param name="values">For each lamella: one value, or values along its length.</param>
+        /// <param name="domain">The values that the first and the last colour stand for.</param>
+        /// <param name="colours">The gradient. Null: blue, green, yellow, red.</param>
+        public static List<Mesh> LamellaMeshes(Glulam glulam, IList<IList<double>> values, Interval domain, IList<System.Drawing.Color> colours = null)
+        {
+            colours ??= new[] { System.Drawing.Color.FromArgb(40, 90, 200), System.Drawing.Color.FromArgb(60, 180, 90), System.Drawing.Color.FromArgb(240, 210, 60), System.Drawing.Color.FromArgb(215, 50, 40) };
+            System.Drawing.Color Colour(double value)
+            {
+                double f = domain.Length > 0 ? Math.Clamp((value - domain.Min) / domain.Length, 0, 1) : 0;
+                double at = f * (colours.Count - 1);
+                int i = Math.Min((int)at, colours.Count - 2);
+                if (colours.Count == 1) return colours[0];
+                double u = at - i;
+                var a = colours[i]; var b = colours[i + 1];
+                return System.Drawing.Color.FromArgb((int)(a.R + (b.R - a.R) * u), (int)(a.G + (b.G - a.G) * u), (int)(a.B + (b.B - a.B) * u));
+            }
+
+            var data = glulam.Data;
+            var curve = glulam.Centreline;
+            int count = Math.Clamp((int)Math.Ceiling(curve.GetLength() / Globals.FromMillimeters(50)) + 1, 20, 1000);
+            var frames = glulam.GetPlanes(curve.DivideByCount(count - 1, true));
+            double w = data.NumWidth * data.LamWidth, h = data.NumHeight * data.LamHeight;
+            double hw = data.LamWidth / 2, hh = data.LamHeight / 2;
+
+            var meshes = new List<Mesh>();
+            for (int x = 0; x < data.NumWidth; ++x)
+                for (int y = 0; y < data.NumHeight; ++y)
+                {
+                    double ox = (x + 0.5) * data.LamWidth - w / 2, oy = (y + 0.5) * data.LamHeight - h / 2;
+                    var edges = new[] { new Polyline(), new Polyline(), new Polyline(), new Polyline() };
+                    foreach (var f in frames)
+                    {
+                        edges[0].Add(f.PointAt(ox + hw, oy - hh));
+                        edges[1].Add(f.PointAt(ox - hw, oy - hh));
+                        edges[2].Add(f.PointAt(ox - hw, oy + hh));
+                        edges[3].Add(f.PointAt(ox + hw, oy + hh));
+                    }
+                    var mesh = TubeMesh(edges);
+
+                    int index = x * data.NumHeight + y;
+                    var v = values != null && index < values.Count ? values[index] : null;
+                    if (v != null && v.Count > 0)
+                    {
+                        for (int j = 0; j < count; ++j)
+                        {
+                            // The value at this station: the list spread over the length
+                            double at = v.Count == 1 ? 0 : j / (double)(count - 1) * (v.Count - 1);
+                            int i = Math.Min((int)at, Math.Max(0, v.Count - 2));
+                            double value = v.Count == 1 ? v[0] : v[i] + (v[i + 1] - v[i]) * (at - i);
+                            var colour = Colour(value);
+                            for (int e = 0; e < 4; ++e) mesh.VertexColors.SetColor(4 * j + e, colour);
+                        }
+                    }
+                    meshes.Add(mesh);
+                }
+            return meshes;
+        }
+
         public static GlulamAnalysis Develop(Beam beam, TwoStepOptions options = null)
         {
             options ??= new TwoStepOptions();
@@ -308,6 +480,9 @@ namespace GluLamb.Blanks
                 layer.Outline.Transform(toPress);
             }
             result.SingleCurved.Frames[GlulamAnalysis.PressFrame] = Plane.WorldXY;
+            LamellaStrains(result, result.Blank, rules, options.Material, options.EndAllowance, stackY ? 0 : 1);
+            result.AllowedStrain = result.AllowedPressStrain = allowed;
+            result.AllowedTwistStrain = allowedTwist;
             result.Blank.Frames[GlulamAnalysis.PressFrame] = PressAlignment.Handle(result.Blank.Centreline, result.Blank.GetPlane(result.Blank.Centreline.Domain.Mid).YAxis);
 
             // Lift each outline to the height of its slice in G1
