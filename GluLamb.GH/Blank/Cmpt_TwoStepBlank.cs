@@ -63,7 +63,7 @@ namespace GluLamb.GH.Components
         {
             pManager.AddGenericParameter("Blank", "G3", "The final free-form blank (a glulam with the layers).", GH_ParamAccess.item);
             pManager.AddBrepParameter("Layers", "L", "The layers in the final blank (their mid-surfaces).", GH_ParamAccess.list);
-            pManager.AddCurveParameter("Lamellas", "G2", "Outline of each curved lamella, flat, at the height of its slice in G1.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Lamellas", "G2", "The outline each layer needs of its lamella, flat, at the height of its slice in G1 (all inside the slice outline).", GH_ParamAccess.list);
             pManager.AddGenericParameter("Single-Curved", "G1", "The single-curved glulam in the XY plane that the lamellas are sliced from.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Boards", "G0", "Length of each board of G1.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Board Thickness", "BT", "Thickness of the boards of G1.", GH_ParamAccess.item);
@@ -73,6 +73,11 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Geodesic Curvature", "Kg", "In-plane curvature along each layer (made in step 1).", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Normal Curvature", "Kn", "Out-of-plane curvature along each layer (made in step 3).", GH_ParamAccess.tree);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
+            pManager.AddMeshParameter("True Lamellas", "TL", "Each lamella as it really sits in the blank: the same flat slice of G1 pressed onto its own layer. " +
+                "Neighbours' edges don't line up, so the blank's sides are skewed and stepped.", GH_ParamAccess.list);
+            pManager.AddBrepParameter("True Shape", "TS", "The outside of the blank through the lamellas' edges: skewed sides (steps smoothed over), bottom and top.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Slice", "Sl", "The flat outline of a slice of G1: every lamella as it is sawn.", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Edge Margin", "EM", "The least any lamella's edges stand out past the beam's section (negative: the beam sticks out).", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -124,6 +129,10 @@ namespace GluLamb.GH.Components
             DA.SetDataTree(8, twist);
             DA.SetDataTree(9, kg);
             DA.SetDataTree(10, kn);
+            DA.SetDataList(12, result.Layers.Select(l => l.TrueMesh));
+            DA.SetDataList(13, result.TrueShape);
+            DA.SetData(14, new PolylineCurve(result.SliceOutline));
+            DA.SetData(15, result.EdgeMargin);
             Message = $"{result.Layers.Count} x {result.LayerThickness:0.#}";
         }
     }

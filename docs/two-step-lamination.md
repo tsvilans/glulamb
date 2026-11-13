@@ -29,6 +29,25 @@ is the single-curved glulam around them: its centreline follows the middle layer
 moved to the middle of all the outlines; its height (in the plane) holds them all; its width is
 the stack of slices, layers x (thickness + planing) + (layers - 1) x kerf.
 
+## The true shape of the blank
+
+Every lamella is the same flat slice of G1 (`TwoStepResult.SliceOutline`), but each layer needs a
+slightly different flat shape, so a slice lands a little differently on each layer and the pressed
+blank is not a clean swept rectangle. Each point of the slice's outline is found in a layer's
+development (how far along the beam, how far across the layer) and put at that place on the layer
+in the blank, at the lamella's bottom and top faces:
+
+- `DevelopedLayer.TrueMesh` / `TrueEdges`: each lamella where it really sits. Together they show
+  the steps between neighbours and the staggered ends (the high-resolution shape).
+- `TwoStepResult.TrueShape`: the outside through the lamellas' edges, sides skewed, steps smoothed
+  over.
+- `EdgeMargin`: the least material left outside the beam's section.
+
+The lamellas are assumed to be laid up the way their developments were lined up: best fit over
+their whole length. A press that lines them up at one mark would shift the steps.
+
+For the reasoning, see [bending-twist-developability.md](bending-twist-developability.md).
+
 ## Limits
 
 The allowed strain is the bending strain of a lamella at the radius ratio limit, 1 / (2 x ratio)

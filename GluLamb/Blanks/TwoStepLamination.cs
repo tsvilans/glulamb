@@ -82,12 +82,33 @@ namespace GluLamb.Blanks
         /// the layer (made in step 3; zero all along for a developable layer).</summary>
         public double[] S, GeodesicCurvature, NormalCurvature, Twist;
 
-        /// <summary>Largest strains: bending in step 3 (the layer's thickness), twist (the edge
-        /// stretch of a twisted strip, which is also how far the layer is from developable, and the
-        /// shear of its faces), all against the allowed strain.</summary>
-        public double PressStrain, TwistStrain;
+        /// <summary>Largest strains, all against the allowed strain: bending in step 3 (the
+        /// layer's thickness); the stretch of the edges of a twisted strip, which is how far the
+        /// layer is from developable; half the shear of its faces from the twist; and the larger
+        /// of those two, the twist strain.</summary>
+        public double PressStrain, StretchStrain, ShearStrain, TwistStrain;
 
+        /// <summary>The stretch a flat lamella needs to take this shape is under 1% of the allowed
+        /// strain.</summary>
         public bool Developable;
+
+        /// <summary>The lamella as it really sits in the blank: the slice of G1 (the same flat
+        /// outline for every layer) pressed onto this layer. Its four long edges (bottom left,
+        /// bottom right, top right, top left, seen along the beam) and its body as a mesh. The
+        /// edges of neighbouring lamellas don't line up: the blank's sides are skewed and stepped.</summary>
+        public Polyline[] TrueEdges;
+        public Mesh TrueMesh;
+
+        /// <summary>The least the lamella's edges stand out past the beam's section over the
+        /// beam's length (negative: the beam sticks out of the lamella).</summary>
+        public double EdgeMargin;
+
+        // The layer's samples in the blank and its development lined up with the others (in the
+        // XY plane, before it is lifted to its slice), for mapping flat points onto the layer
+        internal Point3d[] Points;
+        internal Vector3d[] Across, Normal;
+        internal Point3d[] Flat;
+        internal double EndAllowance;
     }
 
     /// <summary>
@@ -106,6 +127,17 @@ namespace GluLamb.Blanks
         /// <summary>The single-curved glulam, in the world XY plane: its height lies in the
         /// plane and holds the boards; its width (along Z) is the stack of slices.</summary>
         public Glulam SingleCurved;
+
+        /// <summary>The flat outline of a slice of G1: every lamella (G2) as it is sawn.</summary>
+        public Polyline SliceOutline;
+
+        /// <summary>The true shape of the blank's outside: its two sides through the lamellas'
+        /// edges (skewed, steps smoothed over), its bottom and its top. The lamellas' own meshes
+        /// (DevelopedLayer.TrueMesh) show the steps.</summary>
+        public List<Brep> TrueShape = new List<Brep>();
+
+        /// <summary>The least any lamella's edges stand out past the beam's section.</summary>
+        public double EdgeMargin;
 
         /// <summary>Board thickness and the length of each board of G1 (G0).</summary>
         public double BoardThickness;
@@ -206,12 +238,18 @@ namespace GluLamb.Blanks
                 var fit = Fit2d(layer.Developed, reference);
                 layer.Developed.Transform(fit);
                 layer.Outline.Transform(fit);
+                layer.Flat = layer.Developed.ToArray();
             }
 
             // G1: the reference curve, moved across to the middle of all the outlines and run to
             // their ends, with all the outlines inside it
             result.SingleCurved = SingleCurved(result, reference, layers, t2, options, out double g1Height);
             if (result.SingleCurved == null) { result.Messages.Add("Couldn't make the single-curved glulam."); return result; }
+
+            // The true shape: the slice of G1 pressed onto each layer
+            TrueShape(result, g1Height, t2, stackY ? beam.Width : beam.Height);
+            if (result.EdgeMargin < 0)
+                result.Messages.Add($"The beam sticks out of a lamella by {-result.EdgeMargin:0.##}: more edge allowance is needed.");
 
             // Lift each outline to the height of its slice in G1
             double pitch = t2 + options.Planing + options.Kerf;
@@ -253,7 +291,8 @@ namespace GluLamb.Blanks
             {
                 Offset = offset,
                 Curve = new Polyline(points),
-                S = m.S, GeodesicCurvature = m.Kg, NormalCurvature = m.Kn, Twist = m.Tg
+                S = m.S, GeodesicCurvature = m.Kg, NormalCurvature = m.Kn, Twist = m.Tg,
+                Points = points, Across = m.B, Normal = m.N, EndAllowance = endAllowance
             };
 
             var left = new Point3d[n];
@@ -307,8 +346,10 @@ namespace GluLamb.Blanks
             // needs) or the shear of its faces t tau / 2, whichever is larger
             double kn = m.Kn.Max(Math.Abs), tau = m.Tg.Max(Math.Abs);
             layer.PressStrain = thickness * kn / 2;
-            layer.TwistStrain = Math.Max(0.5 * (width / 2) * (width / 2) * tau * tau, thickness * tau / 2);
-            layer.Developable = 0.5 * (width / 2) * (width / 2) * tau * tau <= 0.01 * allowed;
+            layer.StretchStrain = 0.5 * (width / 2) * (width / 2) * tau * tau;
+            layer.ShearStrain = thickness * tau / 2;
+            layer.TwistStrain = Math.Max(layer.StretchStrain, layer.ShearStrain);
+            layer.Developable = layer.StretchStrain <= 0.01 * allowed;
             return layer;
         }
 
@@ -318,7 +359,7 @@ namespace GluLamb.Blanks
         struct Measures
         {
             public double[] S, Kg, Kn, Tg, Turn;
-            public Vector3d[] B;
+            public Vector3d[] B, N;
         }
 
         /// <summary>
@@ -329,9 +370,9 @@ namespace GluLamb.Blanks
         static Measures Measure(Point3d[] p, Vector3d[] normals)
         {
             int n = p.Length;
-            var m = new Measures { S = new double[n], Kg = new double[n], Kn = new double[n], Tg = new double[n], Turn = new double[n], B = new Vector3d[n] };
-            var T = new Vector3d[n];
             var N = new Vector3d[n];
+            var m = new Measures { S = new double[n], Kg = new double[n], Kn = new double[n], Tg = new double[n], Turn = new double[n], B = new Vector3d[n], N = N };
+            var T = new Vector3d[n];
             for (int i = 0; i < n; ++i)
             {
                 var t = p[Math.Min(i + 1, n - 1)] - p[Math.Max(i - 1, 0)];
@@ -459,6 +500,183 @@ namespace GluLamb.Blanks
                 result.BoardLengths.Add(new Polyline(pts).Length);
             }
             return glulam;
+        }
+
+        /// <summary>
+        /// The true shape of the blank. Every lamella is the same flat slice of G1; pressed onto
+        /// its own layer it lands a little differently on each (the layers differ in length and
+        /// in-plane curvature), so the blank's sides are skewed and stepped. Each point of the
+        /// slice's outline is found in a layer's development (how far along, how far across) and
+        /// put at that place on the layer in the blank, at the lamella's bottom and top faces.
+        /// </summary>
+        static void TrueShape(TwoStepResult result, double height, double thickness, double beamAcross)
+        {
+            var g1 = result.SingleCurved;
+            var curve = g1.Centreline;
+            int stations = Math.Clamp(result.Layers[0].Points.Length, 20, 400);
+            var tt = curve.DivideByCount(stations - 1, true);
+
+            // The slice's two long edges in the plane
+            var left = new Point3d[tt.Length];
+            var right = new Point3d[tt.Length];
+            for (int j = 0; j < tt.Length; ++j)
+            {
+                var p = curve.PointAt(tt[j]);
+                var tan = curve.TangentAt(tt[j]);
+                var side = new Vector3d(-tan.Y, tan.X, 0) * (height / 2);
+                left[j] = new Point3d(p.X, p.Y, 0) + side;
+                right[j] = new Point3d(p.X, p.Y, 0) - side;
+            }
+            var outline = new Polyline(left);
+            outline.AddRange(right.Reverse());
+            outline.Add(left[0]);
+            result.SliceOutline = outline;
+
+            result.EdgeMargin = double.MaxValue;
+            foreach (var layer in result.Layers)
+            {
+                var map = new FlatMap(layer);
+                var edges = new[] { new Polyline(), new Polyline(), new Polyline(), new Polyline() };
+                double margin = double.MaxValue;
+                for (int j = 0; j < tt.Length; ++j)
+                {
+                    map.Place(left[j], out double sl, out double vl, out Point3d pl, out Vector3d nl);
+                    map.Place(right[j], out double sr, out double vr, out Point3d pr, out Vector3d nr);
+                    edges[0].Add(pl - nl * (thickness / 2));
+                    edges[1].Add(pr - nr * (thickness / 2));
+                    edges[2].Add(pr + nr * (thickness / 2));
+                    edges[3].Add(pl + nl * (thickness / 2));
+
+                    if (sl >= 0 && sl <= map.Length) margin = Math.Min(margin, vl - beamAcross / 2);
+                    if (sr >= 0 && sr <= map.Length) margin = Math.Min(margin, -vr - beamAcross / 2);
+                }
+                layer.TrueEdges = edges;
+                layer.TrueMesh = TubeMesh(edges);
+                layer.EdgeMargin = margin;
+                result.EdgeMargin = Math.Min(result.EdgeMargin, margin);
+            }
+
+            // The outside: each side through the lamellas' edges (bottom edge of the first, the
+            // middle of each lamella's side, top edge of the last), the bottom and the top
+            Curve Through(Polyline p) => Curve.CreateInterpolatedCurve(p, 3) ?? new PolylineCurve(p);
+            Polyline Middle(Polyline a, Polyline b) => new Polyline(a.Select((q, i) => q + (b[i] - q) * 0.5));
+
+            var first = result.Layers[0].TrueEdges;
+            var last = result.Layers[result.Layers.Count - 1].TrueEdges;
+            var leftCurves = new List<Curve> { Through(first[0]) };
+            var rightCurves = new List<Curve> { Through(first[1]) };
+            foreach (var layer in result.Layers)
+            {
+                leftCurves.Add(Through(Middle(layer.TrueEdges[0], layer.TrueEdges[3])));
+                rightCurves.Add(Through(Middle(layer.TrueEdges[1], layer.TrueEdges[2])));
+            }
+            leftCurves.Add(Through(last[3]));
+            rightCurves.Add(Through(last[2]));
+
+            void Loft(IEnumerable<Curve> curves)
+            {
+                var loft = Brep.CreateFromLoft(curves, Point3d.Unset, Point3d.Unset, LoftType.Normal, false);
+                if (loft != null) result.TrueShape.AddRange(loft);
+            }
+            Loft(leftCurves);
+            Loft(rightCurves);
+            Loft(new[] { Through(first[0]), Through(first[1]) });
+            Loft(new[] { Through(last[3]), Through(last[2]) });
+
+            var joined = Brep.JoinBreps(result.TrueShape, Globals.FromMillimeters(0.1));
+            if (joined != null && joined.Length > 0 && joined.Length < result.TrueShape.Count)
+                result.TrueShape = joined.ToList();
+        }
+
+        /// <summary>
+        /// A closed mesh around four edge polylines with the same number of points: quads between
+        /// neighbouring edges and a quad at each end.
+        /// </summary>
+        static Mesh TubeMesh(Polyline[] edges)
+        {
+            var mesh = new Mesh();
+            int n = edges[0].Count;
+            for (int j = 0; j < n; ++j)
+                for (int e = 0; e < 4; ++e)
+                    mesh.Vertices.Add(edges[e][j]);
+            for (int j = 0; j < n - 1; ++j)
+                for (int e = 0; e < 4; ++e)
+                {
+                    int a = 4 * j + e, b = 4 * j + (e + 1) % 4;
+                    mesh.Faces.AddFace(a, b, b + 4, a + 4);
+                }
+            mesh.Faces.AddFace(3, 2, 1, 0);
+            int z = 4 * (n - 1);
+            mesh.Faces.AddFace(z, z + 1, z + 2, z + 3);
+            mesh.Normals.ComputeNormals();
+            mesh.Compact();
+            return mesh;
+        }
+
+        /// <summary>
+        /// Finds a flat point in a layer's development (how far along the beam, how far across the
+        /// layer) and puts it on the layer in the blank. Past the beam's ends (the end allowance)
+        /// the layer runs on straight.
+        /// </summary>
+        sealed class FlatMap
+        {
+            readonly DevelopedLayer m_layer;
+            readonly Polyline m_flat;
+            readonly double[] m_along;   // length along the development to each of its points
+            readonly double m_start;     // the development's length before the beam starts
+
+            public double Length => m_layer.S[m_layer.S.Length - 1];
+
+            public FlatMap(DevelopedLayer layer)
+            {
+                m_layer = layer;
+                m_flat = new Polyline(layer.Flat);
+                m_along = new double[m_flat.Count];
+                for (int i = 1; i < m_flat.Count; ++i) m_along[i] = m_along[i - 1] + m_flat[i].DistanceTo(m_flat[i - 1]);
+                m_start = layer.Flat.Length > layer.Points.Length ? layer.EndAllowance : 0;
+            }
+
+            /// <param name="s">Length along the beam (negative before its start).</param>
+            /// <param name="v">Distance across the layer, along its Across direction.</param>
+            public void Place(Point3d q, out double s, out double v, out Point3d point, out Vector3d normal)
+            {
+                double t = m_flat.ClosestParameter(q);
+                int i = Math.Min((int)Math.Floor(t), m_flat.Count - 2);
+                var a = m_flat[i];
+                var dir = m_flat[i + 1] - a;
+                double segment = dir.Length;
+                dir /= segment;
+
+                // Along the segment's line, so that points past the development's ends run on
+                double along = (q - a) * dir;
+                if (i > 0) along = Math.Max(along, 0);
+                if (i < m_flat.Count - 2) along = Math.Min(along, segment);
+                v = (q - a) * new Vector3d(-dir.Y, dir.X, 0);
+                s = m_along[i] + along - m_start;
+
+                var S = m_layer.S;
+                var P = m_layer.Points;
+                int n = P.Length;
+                if (s <= 0 || s >= Length)
+                {
+                    int e = s <= 0 ? 0 : n - 1;
+                    var tangent = e == 0 ? P[1] - P[0] : P[n - 1] - P[n - 2];
+                    tangent.Unitize();
+                    normal = m_layer.Normal[e];
+                    point = P[e] + tangent * (s <= 0 ? s : s - Length) + m_layer.Across[e] * v;
+                    return;
+                }
+
+                int k = Array.BinarySearch(S, s);
+                if (k < 0) k = ~k - 1;
+                k = Math.Clamp(k, 0, n - 2);
+                double f = (s - S[k]) / Math.Max(S[k + 1] - S[k], 1e-12);
+                var across = m_layer.Across[k] + (m_layer.Across[k + 1] - m_layer.Across[k]) * f;
+                across.Unitize();
+                normal = m_layer.Normal[k] + (m_layer.Normal[k + 1] - m_layer.Normal[k]) * f;
+                normal.Unitize();
+                point = P[k] + (P[k + 1] - P[k]) * f + across * v;
+            }
         }
     }
 }
