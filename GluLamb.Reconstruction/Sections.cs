@@ -79,8 +79,12 @@ namespace GluLamb.Reconstruction
     {
         readonly Point3d[][] m_polylines;
 
-        public EdgeSet(IEnumerable<Polyline> polylines)
+        readonly double m_rectangleAngle;
+
+        /// <param name="rectangleAngle">See ReconstructionTolerances.RectangleAngle; 0 for its default.</param>
+        public EdgeSet(IEnumerable<Polyline> polylines, double rectangleAngle = 0)
         {
+            m_rectangleAngle = rectangleAngle;
             m_polylines = polylines.Where(p => p != null && p.Count > 1).Select(p => p.ToArray()).ToArray();
         }
 
@@ -141,7 +145,7 @@ namespace GluLamb.Reconstruction
 
             var corners = new Point3d[hull.Length];
             for (int i = 0; i < hull.Length; ++i) corners[i] = hits[hull[i]];
-            Sections.AlignedRectangle(corners, normal, out centre, out _, out _, out _);
+            Sections.AlignedRectangle(corners, normal, out centre, out _, out _, out _, m_rectangleAngle);
             return true;
         }
 
@@ -152,7 +156,7 @@ namespace GluLamb.Reconstruction
         {
             var hits = new List<Point3d>();
             Cut(origin, normal, hits);
-            return Sections.TryFromPoints(hits, origin, normal, out section);
+            return Sections.TryFromPoints(hits, origin, normal, out section, m_rectangleAngle);
         }
     }
 
@@ -162,7 +166,7 @@ namespace GluLamb.Reconstruction
         /// A section from points in (or near) the plane at origin with this normal: their convex
         /// hull, its principal axes and its extents about origin.
         /// </summary>
-        public static bool TryFromPoints(IList<Point3d> points, Point3d origin, Vector3d normal, out Section section)
+        public static bool TryFromPoints(IList<Point3d> points, Point3d origin, Vector3d normal, out Section section, double rectangleAngle = 0)
         {
             section = default;
             if (points.Count < 3 || !normal.Unitize()) return false;
@@ -176,7 +180,7 @@ namespace GluLamb.Reconstruction
             // when the section loses a corner (e.g. near a skew end cut), where the mean of the
             // corners or the principal axes would move. Its long side is the section's height
             // direction (on a square section, MakeConsistent settles which side that is).
-            AlignedRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor);
+            AlignedRectangle(hull, normal, out Point3d centre, out Vector3d y, out double major, out double minor, rectangleAngle);
             var plane = Utility.PlaneFromNormalAndYAxis(origin, normal, y);
 
             double width = 0, height = 0;

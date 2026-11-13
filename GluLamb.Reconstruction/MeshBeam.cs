@@ -177,7 +177,7 @@ namespace GluLamb.Reconstruction
             if (mesh == null || mesh.Vertices.Count < 4) { result.Messages.Add("No mesh."); return result; }
 
             result.Edges = Reconstruction.Edges.SharpMeshEdges(mesh, options.SharpAngle, options.JoinAngle, options.WeldAngle);
-            var edges = new EdgeSet(result.Edges);
+            var edges = new EdgeSet(result.Edges, tol.RectangleAngle);
             if (edges.Count < 3) { result.Messages.Add($"Only {edges.Count} sharp edges found; at least 3 are needed."); return result; }
 
             var bounds = Pca.WeightedMesh(mesh);
@@ -252,6 +252,8 @@ namespace GluLamb.Reconstruction
             // end cuts don't pull the centreline. The weights are found again from each round's
             // result (iteratively reweighted). At least three samples per point, or closely spaced
             // points are free to wander between samples.
+            if (options.Fit == CentrelineFit.LeastSquares && options.Smoothness > 0)
+                result.Messages.Add("The LeastSquares fit doesn't use Smoothness; use Lbfgs for the curvature penalty.");
             var fitT = Sampling.Linspace(options.FitRange.Min, options.FitRange.Max, Math.Max(options.FitSamples, 3 * points.Length));
             var weights = Weights(points, edges, fitT, reference, options.TypicalTolerance, tol);
             result.InitialError = Error(points, edges, fitT, weights, options.Smoothness, tol);

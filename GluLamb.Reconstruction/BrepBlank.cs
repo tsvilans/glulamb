@@ -28,7 +28,8 @@ namespace GluLamb.Reconstruction
 {
     public class BrepBlankOptions
     {
-        /// <summary>How the long edges are grouped into runs of parallel edges.</summary>
+        /// <summary>How the long edges are grouped into runs of parallel edges. Also used for the
+        /// mesh centreline (it replaces Mesh.Clustering).</summary>
         public EdgeClusterOptions Clustering = new EdgeClusterOptions();
 
         /// <summary>Number and range (0 to 1 along the centreline) of the sections that give the
@@ -207,7 +208,7 @@ namespace GluLamb.Reconstruction
                 foreach (var c in sectionCurves)
                     points.AddRange(Reconstruction.Edges.ToPolyline(c, 16));
 
-                if (Sections.TryFromPoints(points, plane.Origin, plane.ZAxis, out Section section))
+                if (Sections.TryFromPoints(points, plane.Origin, plane.ZAxis, out Section section, tol.RectangleAngle))
                 {
                     if (clusterEdges != null) EdgeClusters.AlignToEdges(ref section, clusterEdges, tol);
                     sections.Add(section);
