@@ -70,7 +70,9 @@ namespace GluLamb.Blanks
         /// <param name="stackAxis">The beam's axis the layers are stacked along (1 Y, 0 X).</param>
         /// <param name="layerWidth">Width of a layer across (0: the beam's), and its thickness, for the twist limit.</param>
         /// <param name="radiusRatio">Smallest radius over lamella thickness; the allowed strain is 1 / (2 x this).</param>
-        public static LeastTwistResult Suggest(Beam beam, TwistMode mode, int stackAxis = 1, double layerWidth = 0, double layerThickness = 0, double radiusRatio = 0, double sampleSpacing = 0)
+        /// <param name="envelope">Widen the section so that the suggested beam encloses the design.
+        /// The centreline stays; the section gets offsets. False: the design's section, turned.</param>
+        public static LeastTwistResult Suggest(Beam beam, TwistMode mode, int stackAxis = 1, double layerWidth = 0, double layerThickness = 0, double radiusRatio = 0, double sampleSpacing = 0, bool envelope = true)
         {
             var result = new LeastTwistResult();
             if (beam?.Centreline == null) { result.Messages.Add("No beam."); return result; }
@@ -169,6 +171,31 @@ namespace GluLamb.Blanks
                 OffsetX = beam.OffsetX,
                 OffsetY = beam.OffsetY
             };
+
+            // The section that encloses the design: the corners of the design's sections in the
+            // suggested frames
+            if (envelope)
+            {
+                double x0 = double.MaxValue, x1 = double.MinValue, y0 = double.MaxValue, y1 = double.MinValue;
+                double hw = beam.Width / 2, hh = beam.Height / 2;
+                for (int i = 0; i < n; ++i)
+                {
+                    var from = beam.GetPlane(tt[i]);
+                    var to = Utility.PlaneFromNormalAndYAxis(from.Origin, rmf[i].ZAxis, vectors[i]);
+                    foreach (var (cx, cy) in new[] { (hw, hh), (-hw, hh), (-hw, -hh), (hw, -hh) })
+                    {
+                        var d = from.PointAt(cx + beam.OffsetX, cy + beam.OffsetY) - to.Origin;
+                        double x = d * to.XAxis, y = d * to.YAxis;
+                        if (x < x0) x0 = x; if (x > x1) x1 = x;
+                        if (y < y0) y0 = y; if (y > y1) y1 = y;
+                    }
+                }
+                result.Beam.Width = x1 - x0;
+                result.Beam.Height = y1 - y0;
+                result.Beam.OffsetX = 0.5 * (x0 + x1);
+                result.Beam.OffsetY = 0.5 * (y0 + y1);
+                result.Messages.Add($"Section {beam.Width:0.#} x {beam.Height:0.#} widened to {result.Beam.Width:0.#} x {result.Beam.Height:0.#} to enclose the design.");
+            }
 
             result.Messages.Add($"{mode}: turns up to {Rhino.RhinoMath.ToDegrees(result.MaxDeviation):0.##} deg from the design; " +
                 $"twist {Rhino.RhinoMath.ToDegrees(result.MaxTwist) * Globals.FromMillimeters(1000):0.##} deg/m (design {Rhino.RhinoMath.ToDegrees(result.DesignTwist) * Globals.FromMillimeters(1000):0.##} deg/m, allowed {Rhino.RhinoMath.ToDegrees(result.AllowedTwist) * Globals.FromMillimeters(1000):0.##} deg/m).");

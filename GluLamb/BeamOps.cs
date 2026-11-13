@@ -22,7 +22,7 @@ namespace GluLamb
         {
             orientation = beam.Orientation?.Duplicate();
             var curve = beam.Centreline;
-            if (beam.OffsetX == 0 && beam.OffsetY == 0) return curve.DuplicateCurve();
+            if (Math.Abs(beam.OffsetX) < Globals.Tolerance && Math.Abs(beam.OffsetY) < Globals.Tolerance) return curve.DuplicateCurve();
 
             Curve section;
             var start = beam.GetPlane(curve.Domain.Min);

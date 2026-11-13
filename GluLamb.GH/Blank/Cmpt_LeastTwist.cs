@@ -49,12 +49,13 @@ namespace GluLamb.GH.Components
                 "1 even twist between the design's end orientations, 2 the orientation closest to the design whose twist stays within the allowed strain.", GH_ParamAccess.item, 0);
             pManager.AddIntegerParameter("Stack Axis", "SA", "The beam's axis the layers are stacked along: 1 its Y-axis (height), 0 its X-axis (width).", GH_ParamAccess.item, 1);
             pManager.AddNumberParameter("Layer Thickness", "LT", "Thickness of the layers, for the twist limit (shear of their faces). 0: leave it out.", GH_ParamAccess.item, 0);
+            pManager.AddBooleanParameter("Envelope", "E", "Widen the section so that the result encloses the design. False: the design's section, turned.", GH_ParamAccess.item, true);
             pManager.AddNumberParameter("Radius Ratio", "RR", "Smallest radius over lamella thickness (Eurocode: 200). The allowed strain is 1 / (2 x this).", GH_ParamAccess.item, Glulam.RadiusMultiplier);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Beam", "B", "The beam with the suggested orientation.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Beam", "B", "The beam with the suggested orientation. With Envelope: its section encloses the design.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Deviation", "D", "How far the suggestion turns the section from the design, along the beam (degrees).", GH_ParamAccess.list);
             pManager.AddNumberParameter("Twist", "T", "The suggestion's twist along the beam (degrees per metre).", GH_ParamAccess.list);
             pManager.AddNumberParameter("Design Twist", "DT", "The design's twist along the beam (degrees per metre).", GH_ParamAccess.list);
@@ -72,9 +73,11 @@ namespace GluLamb.GH.Components
             DA.GetData(1, ref mode);
             DA.GetData(2, ref stack);
             DA.GetData(3, ref thickness);
-            DA.GetData(4, ref ratio);
+            bool envelope = true;
+            DA.GetData(4, ref envelope);
+            DA.GetData(5, ref ratio);
 
-            var result = LeastTwist.Suggest(beam, (TwistMode)Math.Clamp(mode, 0, 2), stack, 0, thickness, ratio);
+            var result = LeastTwist.Suggest(beam, (TwistMode)Math.Clamp(mode, 0, 2), stack, 0, thickness, ratio, 0, envelope);
             DA.SetDataList(6, result.Messages);
             if (result.Beam == null) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, result.Messages.LastOrDefault() ?? "Failed."); return; }
 
