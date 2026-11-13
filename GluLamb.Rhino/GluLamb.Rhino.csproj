@@ -5,7 +5,9 @@
     <AssemblyName>GluLamb.Rhino</AssemblyName>
     <RootNamespace>GWorks</RootNamespace>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <Version>8.0</Version>
+    <Deterministic>false</Deterministic>
+    <AssemblyVersion>2.0.*</AssemblyVersion>
+    <FileVersion>2.0.*</FileVersion>
     <Title>GluLamb.Rhino</Title>
     <Description>Rhino plug-in for GluLamb.</Description>
     <Company>Tom Svilans</Company>
