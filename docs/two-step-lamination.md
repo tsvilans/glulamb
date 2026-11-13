@@ -50,8 +50,9 @@ For the reasoning, see [bending-twist-developability.md](bending-twist-developab
 
 ## Limits
 
-The allowed strain is the bending strain of a lamella at the radius ratio limit, 1 / (2 x ratio)
-(Eurocode: 1 / 400). It sets:
+The limits come from a rule set (`TwoStepOptions.Rules`, see [constraints.md](constraints.md)),
+asked with the material and the step. The allowed strain is the bending strain of a lamella at
+its radius ratio limit, 1 / (2 x ratio) (Eurocode: 1 / 400). The rules set:
 
 - the board thickness of G1 from its tightest inner radius (step 1);
 - the layer thickness from the tightest out-of-plane radius over all layers (step 3);

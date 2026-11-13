@@ -19,6 +19,8 @@
 
 using Rhino.Geometry;
 
+using GluLamb.Constraints;
+
 namespace GluLamb.Blanks
 {
     /// <summary>
@@ -36,7 +38,7 @@ namespace GluLamb.Blanks
         public double LayerThickness = 0;
         public double BoardThickness = 0;
 
-        /// <summary>Thickest layer or board, however gentle the curvature.</summary>
+        /// <summary>Thickest layer or board that production uses, whatever the rules allow.</summary>
         public double MaxThickness = Globals.FromMillimeters(45);
 
         /// <summary>Saw kerf between the slices of G1, and what planing takes off each slice
@@ -48,10 +50,14 @@ namespace GluLamb.Blanks
         public double EdgeAllowance = Globals.FromMillimeters(5);
         public double EndAllowance = Globals.FromMillimeters(50);
 
-        /// <summary>Smallest radius over lamella thickness (Eurocode: 200). The allowed strain,
-        /// for bending and for twist, is 1 / (2 x this): the bending strain of a lamella at that
-        /// limit.</summary>
-        public double RadiusRatio = Glulam.RadiusMultiplier;
+        /// <summary>The rules that limit radius over thickness, thickness and twist strain (a
+        /// standard, or a factory's own). The allowed strain is the bending strain at the radius
+        /// ratio limit, 1 / (2 x ratio).</summary>
+        public RuleSet Rules = LaminationRules.Eurocode();
+
+        /// <summary>What the rules are asked about: species, species group. The step ("bend" for
+        /// G1's boards, "press" for the layers) and the thickness are added.</summary>
+        public Context Material = new Context();
 
         /// <summary>Spacing of the samples along the beam.</summary>
         public double SampleSpacing = Globals.FromMillimeters(20);
@@ -149,6 +155,13 @@ namespace GluLamb.Blanks
         /// boards of G1 at its inner face), step 3 and twist.</summary>
         public double AllowedStrain, BendStrain, PressStrain, TwistStrain;
 
+        /// <summary>Allowed strains of step 1 (G1's boards), step 3 (the layers; the same as
+        /// AllowedStrain) and twist.</summary>
+        public double AllowedBendStrain, AllowedPressStrain, AllowedTwistStrain;
+
+        /// <summary>The rules that set the layer thickness, the board thickness and the strains.</summary>
+        public List<Rule> Decided = new List<Rule>();
+
         public List<string> Messages = new List<string>();
         public bool Success => Blank != null && SingleCurved != null;
     }
@@ -161,8 +174,10 @@ namespace GluLamb.Blanks
             var result = new TwoStepResult();
             if (beam?.Centreline == null) { result.Messages.Add("No beam."); return result; }
 
-            double allowed = 1.0 / (2 * options.RadiusRatio);
-            result.AllowedStrain = allowed;
+            var rules = options.Rules ?? LaminationRules.None();
+            var press = (options.Material ?? new Context()).Duplicate().With(ContextKeys.Step, "press");
+            var bend = (options.Material ?? new Context()).Duplicate().With(ContextKeys.Step, "bend");
+            void Decide(Rule rule) { if (rule != null && !result.Decided.Contains(rule)) result.Decided.Add(rule); }
 
             // The final blank's centreline: the beam's section centreline, run out straight by the
             // end allowance (a few centimetres; the beam itself ends inside it)
@@ -197,9 +212,17 @@ namespace GluLamb.Blanks
                     var probe = Measure(OffsetPoints(frames, normals, y), normals);
                     kMax = Math.Max(kMax, probe.Kn.Max(Math.Abs));
                 }
-                double tMax = Math.Min(options.MaxThickness, kMax > 1e-12 ? 1 / kMax / options.RadiusRatio : depth);
+                var thickest = rules.ThickestLamella(kMax > 1e-12 ? 1 / kMax : double.MaxValue, press);
+                Decide(thickest.Rule);
+                double tMax = Math.Min(options.MaxThickness, thickest.Found ? thickest.Value : depth);
                 t2 = depth / Math.Max(1, (int)Math.Ceiling(depth / tMax - 1e-9));
             }
+
+            double allowed = rules.AllowedStrain(t2, press, out Rule pressRule);
+            double allowedTwist = rules.AllowedTwistStrain(t2, press, out Rule twistRule);
+            Decide(pressRule); Decide(twistRule);
+            result.AllowedStrain = result.AllowedPressStrain = allowed;
+            result.AllowedTwistStrain = allowedTwist;
             int layers = Math.Max(1, (int)Math.Round(depth / t2));
             if (Math.Abs(layers * t2 - depth) > 1e-6 * depth)
             {
@@ -226,7 +249,7 @@ namespace GluLamb.Blanks
             for (int k = 0; k < layers; ++k)
             {
                 double offset = -layers * t2 / 2 + (k + 0.5) * t2;
-                var layer = DevelopLayer(frames, normals, offset, across, t2, allowed, options.EndAllowance);
+                var layer = DevelopLayer(frames, normals, offset, across, t2, allowedTwist, options.EndAllowance);
                 layer.Index = k;
                 result.Layers.Add(layer);
             }
@@ -243,7 +266,7 @@ namespace GluLamb.Blanks
 
             // G1: the reference curve, moved across to the middle of all the outlines and run to
             // their ends, with all the outlines inside it
-            result.SingleCurved = SingleCurved(result, reference, layers, t2, options, out double g1Height);
+            result.SingleCurved = SingleCurved(result, reference, layers, t2, options, rules, bend, out double g1Height);
             if (result.SingleCurved == null) { result.Messages.Add("Couldn't make the single-curved glulam."); return result; }
 
             // The true shape: the slice of G1 pressed onto each layer
@@ -267,12 +290,14 @@ namespace GluLamb.Blanks
             int twisted = result.Layers.Count(l => !l.Developable);
 
             result.Messages.Add($"{layers} layers of {t2:0.##}, {across:0.##} wide; G1 {result.SingleCurved.Width:0.##} x {g1Height:0.##} from {result.BoardLengths.Count} boards of {result.BoardThickness:0.##}.");
-            result.Messages.Add($"Strain allowed {allowed * 1000:0.###} per mille; step 1 {result.BendStrain * 1000:0.###}, step 3 {result.PressStrain * 1000:0.###}, twist {result.TwistStrain * 1000:0.###}.");
+            result.Messages.Add($"Strain per mille, actual / allowed: step 1 {result.BendStrain * 1000:0.###} / {result.AllowedBendStrain * 1000:0.###}, " +
+                $"step 3 {result.PressStrain * 1000:0.###} / {allowed * 1000:0.###}, twist {result.TwistStrain * 1000:0.###} / {allowedTwist * 1000:0.###}.");
             if (twisted > 0)
-                result.Messages.Add($"{twisted} of {layers} layers are not developable (they twist); the largest twist strain is {result.TwistStrain / allowed:0.##} x the allowed strain.");
-            if (result.BendStrain > allowed * 1.0001) result.Messages.Add("Step 1 exceeds the allowed strain: thinner boards are needed.");
+                result.Messages.Add($"{twisted} of {layers} layers are not developable (they twist); the largest twist strain is {result.TwistStrain / allowedTwist:0.##} x the allowed strain.");
+            if (result.BendStrain > result.AllowedBendStrain * 1.0001) result.Messages.Add("Step 1 exceeds the allowed strain: thinner boards are needed.");
             if (result.PressStrain > allowed * 1.0001) result.Messages.Add("Step 3 exceeds the allowed strain: thinner layers are needed.");
-            if (result.TwistStrain > allowed * 1.0001) result.Messages.Add("Twist exceeds the allowed strain: narrower or thinner layers, or less twist (see Least Twist Orientation).");
+            if (result.TwistStrain > allowedTwist * 1.0001) result.Messages.Add("Twist exceeds the allowed strain: narrower or thinner layers, or less twist (see Least Twist Orientation).");
+            foreach (var rule in result.Decided) result.Messages.Add($"Rule ({rules.Name}): {rule}");
 
             return result;
         }
@@ -442,7 +467,7 @@ namespace GluLamb.Blanks
         /// the outlines and run to their ends; its height holds them all; its width is the stack of
         /// slices. Boards as thick as its tightest inner radius allows, and their lengths.
         /// </summary>
-        static Glulam SingleCurved(TwoStepResult result, Polyline reference, int layers, double t2, TwoStepOptions options, out double height)
+        static Glulam SingleCurved(TwoStepResult result, Polyline reference, int layers, double t2, TwoStepOptions options, RuleSet rules, Context bend, out double height)
         {
             height = 0;
             var refCurve = Curve.CreateInterpolatedCurve(reference, 3);
@@ -481,8 +506,12 @@ namespace GluLamb.Blanks
             // Boards: as thick as the tightest inner radius allows
             double kMax = g1Curve.DivideByCount(200, true).Max(t => g1Curve.CurvatureAt(t).Length);
             double inner = kMax > 1e-12 ? 1 / kMax - height / 2 : double.MaxValue;
-            double t1Max = Math.Min(options.MaxThickness, inner > 0 && inner < double.MaxValue ? inner / options.RadiusRatio : height);
+            var thickest = rules.ThickestLamella(inner > 0 ? inner : 0, bend);
+            if (thickest.Rule != null && !result.Decided.Contains(thickest.Rule)) result.Decided.Add(thickest.Rule);
+            double t1Max = Math.Min(options.MaxThickness, thickest.Found && thickest.Value > 0 ? thickest.Value : height);
             double t1 = options.BoardThickness > 0 ? options.BoardThickness : height / Math.Max(1, (int)Math.Ceiling(height / t1Max - 1e-9));
+            result.AllowedBendStrain = rules.AllowedStrain(t1, bend, out Rule bendRule);
+            if (bendRule != null && !result.Decided.Contains(bendRule)) result.Decided.Add(bendRule);
             int boards = Math.Max(1, (int)Math.Ceiling(height / t1 - 1e-9));
             result.BoardThickness = t1;
             result.BendStrain = inner > 0 && inner < double.MaxValue ? t1 / (2 * inner) : (kMax > 1e-12 ? double.PositiveInfinity : 0);
