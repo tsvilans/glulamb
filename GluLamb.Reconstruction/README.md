@@ -14,8 +14,9 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
 3. Start: centres of sections across the main axis, then of sections normal to the spline through
    them, a few times over. Atypical sections are left out (see below). The start curve is then run
    out to the ends of the mesh, so the fit sees the whole beam: on a strongly curved beam the
-   principal axis is much shorter than the beam. `InitialCentreline.Arc` is the Python version's arc
-   through three section centres.
+   principal axis is much shorter than the beam. If the walk fails, the start is a straight line.
+   `InitialCentreline.LegacyArc`, the Python version's arc through three section centres, is kept
+   only to compare with: it assumes constant curvature.
 4. Sections: each is the convex hull of where its plane crosses the sharp edges, centred on the
    rectangle around the hull that lines up with its straight sides. That is the direction along or
    square to which the most hull edge length runs, so a profile with bevels or a groove keeps its
@@ -24,7 +25,12 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
    section's frames are lined up with the parallel edges only within 10°. The typical section is the median section along the
    middle of the start curve. A section counts as typical if its sides are within
    `TypicalTolerance` (5%) of it. Tapers, joints and end cuts make sections atypical.
-5. Fit: L-BFGS over the spline's points. The error is, over at least 40 samples (2–98% along, and
+5. Fit (`Fit`), one of two ways that minimise the same thing and can be compared head to head:
+   `Lbfgs` runs L-BFGS over the spline's points with finite-difference gradients;
+   `LeastSquares` alternates finding the section centres along the current spline and moving its
+   control points to them by weighted linear least squares (each point also held a little where it
+   was, so stretches without sections stay put), until no point moves by more than 0.01 mm. The
+   error is, over at least 40 samples (2–98% along, and
    at least three per point), each sample's weight times its distance to the section's centre
    there. A sample's weight is how typical its section is, so atypical samples count little or not
    at all. The weights are found again after each of three rounds. An optional penalty on changes
@@ -42,8 +48,8 @@ This is for meshes from IFC, OBJ or STL. Port of `MeshBeamConverter` in
    assumed about the curvature: the edges carry it right up to a skew end face.
 8. The last stretch, past the last edge crossing, is run out to the ends of the mesh (`End`). By
    default it continues the curvature and its rate of change measured over the end of the curve
-   (`EndFitLength`, default 15% of its length), with the change limited. `Arc` (constant curvature),
-   `Straight` and Rhino's `Smooth` extension are also available.
+   (`EndFitLength`, default 15% of its length), with the change limited. `Straight` and Rhino's
+   `Smooth` extension are also available, and `LegacyArc` (constant curvature) to compare with.
 9. Typical sections at 20 samples give the frames, the width and the height (the largest, measured
    both ways from the centreline).
 10. Edge correction: at stations all along, the centreline goes where the crossed edges put it, in
@@ -57,23 +63,31 @@ curve to wander but no information. There are at least three fit samples per poi
 The section's Y-axis (height) is its direction of largest spread. Twist is taken from the typical
 sections; past the last one it stays as it is there.
 
+The thresholds these steps use (weights, residuals, jumps, station spacing, run-outs, meshing)
+are in `ReconstructionTolerances`, on `MeshBeamOptions.Tolerances`.
+
+On a square section the height side is a matter of rounding, so `Sections.MakeConsistent` turns a
+square section's frame by 90 degrees where that lines it up with the one before.
+
 ## Blank from a Brep (`BrepBlank`)
 
 This is for detailed beam Breps (joints, cuts, drillings, shaped profiles). It is based on
 `parallel.py`.
 
-1. The Brep's long edges are compared for parallelness (mean angle plus spread of distances,
-   either way round) and clustered with average linkage. The cluster with the most length is the
-   longest run of parallel edges.
-2. Centreline: MeshBeam on a mesh of the Brep (`UseMeshCentreline`, the default), which follows
-   the sections and tracks the edges out to the ends.
+1. The Brep is meshed once, fine enough to follow its curved faces.
+2. Centreline: MeshBeam on that mesh (`UseMeshCentreline`, the default), which follows the sections
+   and tracks the edges out to the ends. Its longest run of parallel sharp edges stands in for the
+   Brep's.
 3. Sections of the Brep normal to that centreline give the orientation.
-4. The Brep's points are mapped into the beam's curved space. Their bounding box gives the width,
-   height and length, and the centreline is moved to the box's centre.
+4. The mesh's vertices and points along the Brep's edges are mapped into the beam's curved space.
+   Their bounding box gives the width, height and length, and the centreline is moved to the box's
+   centre.
 
-If the mesh centreline fails, or is turned off, the older route is used: the longest edge of the
-cluster is the starting centreline, and steps 3 and 4 are repeated from the centred curve, which
-is corrected by where the cluster's edges sit in its sections.
+If the mesh centreline fails, or is turned off, the older route is used: the Brep's long edges are
+compared for parallelness (mean angle plus spread of distances, either way round) and clustered
+with average linkage; the longest edge of the cluster with the most length is the starting
+centreline, and steps 3 and 4 are repeated from the centred curve, which is corrected by where the
+cluster's edges sit in its sections.
 
 The result is a `Beam` (centred, enclosing the Brep), a `Glulam` blank made from it, and the
 `Placement` of the beam in the blank.
@@ -90,7 +104,9 @@ Beam From Mesh, Blank From Brep, Remesh, Find Plane and BasePlane, under "6. Rec
 
 The numerics are in the core library, in `GluLamb/Numerics` (namespace `GluLamb.Numerics`), where other parts of GluLamb use them too. They hold what numpy and scipy did in the Python:
 
-- `InterpolatingSpline` is scipy's `splprep(s=0, k=3)` and converts exactly to a `NurbsCurve`.
+- `InterpolatingSpline` is scipy's `splprep(s=0, k=3)` and converts exactly to a `NurbsCurve`. It
+  also fits its control points to targets by weighted least squares (`FitPoints`).
+- `Sampling.Linspace`, numpy's `linspace`.
 - `Lbfgs` is `minimize(method="L-BFGS-B")` with finite-difference gradients, evaluated in parallel.
 - `Hull2d`, `Pca` and `AverageLinkage` (UPGMA, cut at a distance).
 - `SymmetricEigen` (cyclic Jacobi), also used by Cluster Beams, `Strain` and `VectorListOrientation`.
@@ -109,3 +125,4 @@ and compares the results with the beams they came from:
 It writes a `.3dm` of each case to `--out`. `--file model.3dm` reconstructs every mesh and Brep in a
 file and compares the results with any curve in it. Set `RECON_DEBUG=1` to print the fit's
 points, weights and deviations along the length.
+Set `RECON_FIT=LeastSquares` to run the cases with the least-squares fit instead of L-BFGS.

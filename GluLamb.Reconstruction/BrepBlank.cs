@@ -28,7 +28,8 @@ namespace GluLamb.Reconstruction
 {
     public class BrepBlankOptions
     {
-        /// <summary>How the long edges are grouped into runs of parallel edges.</summary>
+        /// <summary>How the long edges are grouped into runs of parallel edges. Also used for the
+        /// mesh centreline (it replaces Mesh.Clustering).</summary>
         public EdgeClusterOptions Clustering = new EdgeClusterOptions();
 
         /// <summary>Number and range (0 to 1 along the centreline) of the sections that give the
@@ -75,8 +76,9 @@ namespace GluLamb.Reconstruction
         public int[] Labels;
         public List<Polyline> Cluster = new List<Polyline>();
 
-        /// <summary>Mean of the cluster's edges, before it is moved to the section centre.</summary>
-        public Curve MeanCurve;
+        /// <summary>Without the mesh centreline: the longest edge of the cluster, which the
+        /// centreline starts from before it is moved to the section centre.</summary>
+        public Curve LongestEdge;
 
         public List<Section> Sections = new List<Section>();
 
@@ -99,57 +101,65 @@ namespace GluLamb.Reconstruction
             var result = new BrepBlankResult();
             if (brep == null) { result.Messages.Add("No Brep."); return result; }
 
-            // 1-3. The longest run of parallel edges, and their mean
-            var curves = brep.Edges.Select(e => (Curve)e).Where(c => c != null).ToList();
-            var parallel = EdgeClusters.FindLargest(curves, options.Clustering);
-            if (parallel == null) { result.Messages.Add("The Brep has no edges."); return result; }
+            var tol = options.Mesh?.Tolerances ?? new ReconstructionTolerances();
 
-            result.Edges = parallel.Edges;
-            result.Labels = parallel.Labels;
-            result.Cluster = parallel.Cluster;
-            result.Messages.Add(parallel.Summary);
+            // One mesh of the Brep, fine enough to follow its curved faces: MeshBeam finds the
+            // centreline on it, and its vertices (with points along the Brep's edges) give the
+            // envelope
+            var mesh = MeshOf(brep, tol);
+            var brepPoints = new List<Point3d>(new HashSet<Point3d>(mesh.Vertices.ToPoint3dArray()));
+            foreach (var edge in brep.Edges)
+                brepPoints.AddRange(Reconstruction.Edges.ToPolyline(edge, 20));
 
-            var meanCurve = parallel.MeanCurve;
-            result.MeanCurve = meanCurve;
-
-            // 4-6. The centreline and frames, the Brep's extents in the beam's curved space, and the
-            // centred beam
-            var brepPoints = BrepPoints(brep);
             Beam beam = null;
             MeshBeamResult fromMesh = null;
             if (options.UseMeshCentreline)
             {
-                var mesh = new Mesh();
-                foreach (var m in Mesh.CreateFromBrep(brep, new MeshingParameters { MaximumEdgeLength = Globals.FromMillimeters(150), SimplePlanes = false }) ?? Array.Empty<Mesh>())
-                    mesh.Append(m);
-                fromMesh = MeshBeam.Reconstruct(mesh, options.Mesh);
+                var meshOptions = options.Mesh ?? new MeshBeamOptions();
+                meshOptions.Clustering = options.Clustering;
+                fromMesh = MeshBeam.Reconstruct(mesh, meshOptions);
                 if (!fromMesh.Success) result.Messages.Add("The mesh centreline failed; following the parallel edges instead.");
             }
 
             if (fromMesh != null && fromMesh.Success)
             {
+                // The mesh's sharp edges and their longest parallel run stand in for the Brep's
+                result.Edges = fromMesh.Edges;
+                result.Cluster = fromMesh.ParallelEdges;
                 result.Messages.AddRange(fromMesh.Messages.Select(m => "Centreline: " + m));
+
                 // Frames from true sections of the Brep along that centreline (the mesh's frames
                 // come from its typical sections only), else the mesh's
-                var sections = BrepSections(brep, fromMesh.Beam.Centreline, new EdgeSet(result.Cluster), options);
+                var sections = BrepSections(brep, fromMesh.Beam.Centreline, new EdgeSet(result.Cluster), options, tol);
                 if (sections.Count == 0) sections = fromMesh.Sections;
                 result.Sections = sections;
-                if (!Envelope(brepPoints, fromMesh.Beam.Centreline, sections, options, true, result, out beam))
+                if (!Envelope(brepPoints, fromMesh.Beam.Centreline, sections, options, tol, true, result, out beam))
                     return result;
             }
             else
             {
-                // The mean curve can be off the section centre (e.g. the mean of two edges on one
-                // face), which tilts its sections on a twisted beam, so the pass is repeated from
-                // the centred curve.
+                // The longest run of parallel edges of the Brep, and the longest of them as the
+                // starting centreline
+                var curves = brep.Edges.Select(e => (Curve)e).Where(c => c != null).ToList();
+                var parallel = EdgeClusters.FindLargest(curves, options.Clustering);
+                if (parallel == null) { result.Messages.Add("The Brep has no edges."); return result; }
+
+                result.Edges = parallel.Edges;
+                result.Labels = parallel.Labels;
+                result.Cluster = parallel.Cluster;
+                result.LongestEdge = parallel.LongestEdge;
+                result.Messages.Add(parallel.Summary);
+
+                // The longest edge is off the section centre (on a face), which tilts its sections
+                // on a twisted beam, so the pass is repeated from the centred curve.
                 var clusterEdges = new EdgeSet(result.Cluster);
-                Curve curve = meanCurve;
+                Curve curve = parallel.LongestEdge;
                 for (int pass = 0; pass <= options.Refinements; ++pass)
                 {
                     bool last = pass == options.Refinements;
-                    if (!Pass(brep, brepPoints, clusterEdges, curve, options, last, result, out beam))
+                    if (!Pass(brep, brepPoints, clusterEdges, curve, options, tol, last, result, out beam))
                         return result;
-                    if (!last) curve = EdgeClusters.Recentre(beam, clusterEdges);
+                    if (!last) curve = EdgeClusters.Recentre(beam, clusterEdges, 0, tol);
                 }
             }
             result.Beam = beam;
@@ -172,23 +182,23 @@ namespace GluLamb.Reconstruction
         /// Brep's extents in the curved space of a beam along it give the section, and the curve is
         /// moved to the section's centre and trimmed to the Brep's length.
         /// </summary>
-        static bool Pass(Brep brep, List<Point3d> brepPoints, EdgeSet clusterEdges, Curve curve, BrepBlankOptions options, bool last, BrepBlankResult result, out Beam beam)
+        static bool Pass(Brep brep, List<Point3d> brepPoints, EdgeSet clusterEdges, Curve curve, BrepBlankOptions options, ReconstructionTolerances tol, bool last, BrepBlankResult result, out Beam beam)
         {
             beam = null;
-            var sections = BrepSections(brep, curve, clusterEdges, options);
+            var sections = BrepSections(brep, curve, clusterEdges, options, tol);
             if (sections.Count == 0) { result.Messages.Add("No sections of the Brep found along the centreline."); return false; }
             result.Sections = sections;
-            return Envelope(brepPoints, curve, sections, options, last, result, out beam);
+            return Envelope(brepPoints, curve, sections, options, tol, last, result, out beam);
         }
 
         /// <summary>
         /// Sections of the Brep normal to a curve, with frames lined up with the parallel edges (a
         /// small correction) and made consistent.
         /// </summary>
-        static List<Section> BrepSections(Brep brep, Curve curve, EdgeSet clusterEdges, BrepBlankOptions options)
+        static List<Section> BrepSections(Brep brep, Curve curve, EdgeSet clusterEdges, BrepBlankOptions options, ReconstructionTolerances tol)
         {
             var sections = new List<Section>();
-            foreach (var t in MeshBeam.Linspace(options.SectionRange.Min, options.SectionRange.Max, options.SectionSamples))
+            foreach (var t in Sampling.Linspace(options.SectionRange.Min, options.SectionRange.Max, options.SectionSamples))
             {
                 double u = curve.Domain.ParameterAt(t);
                 var plane = new Plane(curve.PointAt(u), curve.TangentAt(u));
@@ -198,13 +208,13 @@ namespace GluLamb.Reconstruction
                 foreach (var c in sectionCurves)
                     points.AddRange(Reconstruction.Edges.ToPolyline(c, 16));
 
-                if (Sections.TryFromPoints(points, plane.Origin, plane.ZAxis, out Section section))
+                if (Sections.TryFromPoints(points, plane.Origin, plane.ZAxis, out Section section, tol.RectangleAngle))
                 {
-                    if (clusterEdges != null) EdgeClusters.AlignToEdges(ref section, clusterEdges);
+                    if (clusterEdges != null) EdgeClusters.AlignToEdges(ref section, clusterEdges, tol);
                     sections.Add(section);
                 }
             }
-            Sections.MakeConsistent(sections);
+            Sections.MakeConsistent(sections, Sections.PreferredUp(curve));
             return sections;
         }
 
@@ -213,17 +223,17 @@ namespace GluLamb.Reconstruction
         /// the sections) give the section; the curve is moved to the section's centre and trimmed
         /// to the Brep's length.
         /// </summary>
-        static bool Envelope(List<Point3d> brepPoints, Curve curve, List<Section> sections, BrepBlankOptions options, bool last, BrepBlankResult result, out Beam beam)
+        static bool Envelope(List<Point3d> brepPoints, Curve curve, List<Section> sections, BrepBlankOptions options, ReconstructionTolerances tol, bool last, BrepBlankResult result, out Beam beam)
         {
             beam = null;
             var messages = last ? result.Messages : new List<string>();
 
             // The Brep in the curved space of a beam along the (extended) curve
-            var extended = CurveEnds.Extend(curve, 0.1 * curve.GetLength(), EndExtension.Straight);
+            var extended = CurveEnds.Extend(curve, tol.EnvelopeRunOutFraction * curve.GetLength(), EndExtension.Straight);
             extended.Domain = new Interval(0, 1);
 
             var probe = new Beam { Centreline = extended };
-            probe.Orientation = MeshBeam.Orientation(extended, sections, false, 0, messages);
+            probe.Orientation = MeshBeam.Orientation(extended, sections.Select(s => s.Plane).ToList(), false, 0, messages);
 
             var extents = new BoundingBox(probe.ToBeamSpace(brepPoints, true, 200));
             result.Extents = extents;
@@ -257,7 +267,7 @@ namespace GluLamb.Reconstruction
             {
                 var p = s.Plane;
                 p.Origin = p.PointAt(offset.OffsetX, offset.OffsetY);
-                return new Section { Plane = p };
+                return p;
             }).ToList();
 
             beam = new Beam { Centreline = centreline, Width = offset.Width, Height = offset.Height };
@@ -266,28 +276,21 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// Points over a Brep that find its extents: mesh vertices (with a mesh fine enough to
-        /// follow curved faces) and points along its edges.
+        /// A mesh of a Brep with its faces' meshes joined, no longer-edged than MeshEdgeLength and
+        /// the Brep's diagonal over MeshDivisions, so that it follows curved faces.
         /// </summary>
-        static List<Point3d> BrepPoints(Brep brep)
+        static Mesh MeshOf(Brep brep, ReconstructionTolerances tol)
         {
-            var bbox = brep.GetBoundingBox(false);
+            double diagonal = brep.GetBoundingBox(false).Diagonal.Length;
             var parameters = new MeshingParameters
             {
-                MaximumEdgeLength = bbox.Diagonal.Length / 50,
-                SimplePlanes = false,
-                JaggedSeams = true
+                MaximumEdgeLength = Math.Min(tol.MeshEdgeLength, diagonal / tol.MeshDivisions),
+                SimplePlanes = false
             };
-
-            var points = new List<Point3d>();
-            var meshes = Mesh.CreateFromBrep(brep, parameters);
-            if (meshes != null)
-                foreach (var m in meshes) points.AddRange(m.Vertices.ToPoint3dArray());
-
-            foreach (var edge in brep.Edges)
-                points.AddRange(Reconstruction.Edges.ToPolyline(edge, 20));
-
-            return points;
+            var mesh = new Mesh();
+            foreach (var m in Mesh.CreateFromBrep(brep, parameters) ?? Array.Empty<Mesh>())
+                mesh.Append(m);
+            return mesh;
         }
     }
 }

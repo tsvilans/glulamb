@@ -31,9 +31,6 @@ namespace GluLamb.Reconstruction.Test
                 if (args[i] == "--probe") return RunProbe(args[i + 1]);
             }
             if (args.Contains("--dualcon")) return RunDualCon();
-            for (int i = 0; i + 1 < args.Length; ++i)
-            {
-            }
             Directory.CreateDirectory(outDir);
             return file != null ? RunFile(file, outDir) : Run(outDir);
         }
@@ -142,6 +139,10 @@ namespace GluLamb.Reconstruction.Test
             return s_failures == 0 ? 0 : 1;
         }
 
+        /// <summary>RECON_FIT=LeastSquares runs the cases with the least-squares fit instead of L-BFGS.</summary>
+        static CentrelineFit FitFromEnvironment() =>
+            Enum.TryParse(System.Environment.GetEnvironmentVariable("RECON_FIT"), true, out CentrelineFit fit) ? fit : CentrelineFit.Lbfgs;
+
         static void Check(bool ok, string what)
         {
             Console.WriteLine($"  [{(ok ? "ok" : "FAIL")}] {what}");
@@ -207,6 +208,8 @@ namespace GluLamb.Reconstruction.Test
             mesh.Faces.ConvertQuadsToTriangles();
             mesh.Unweld(0, true); // like an STL
 
+            options ??= new MeshBeamOptions();
+            options.Fit = FitFromEnvironment();
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var result = MeshBeam.Reconstruct(mesh, options);
             watch.Stop();
@@ -251,7 +254,9 @@ namespace GluLamb.Reconstruction.Test
             Console.WriteLine($"  {(cut ? "joints cut" : "joints NOT cut (Boolean failed)")}, {brep.Edges.Count} edges");
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            var result = BrepBlank.Reconstruct(brep);
+            var brepOptions = new BrepBlankOptions();
+            brepOptions.Mesh.Fit = FitFromEnvironment();
+            var result = BrepBlank.Reconstruct(brep, brepOptions);
             watch.Stop();
 
             foreach (var m in result.Messages) Console.WriteLine($"  {m}");
