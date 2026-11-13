@@ -31,9 +31,9 @@ namespace GluLamb.Reconstruction
         /// about the shape beyond that trend.</summary>
         Trend,
 
-        /// <summary>Continue the curvature of the last stretch of the curve as a circle. Only
-        /// right for a beam of constant curvature at its ends.</summary>
-        Arc,
+        /// <summary>Legacy: continue the curvature of the last stretch of the curve as a circle.
+        /// Assumes constant curvature at the ends; kept only to compare with.</summary>
+        LegacyArc,
 
         /// <summary>Continue straight along the end tangent.</summary>
         Straight,
@@ -50,7 +50,7 @@ namespace GluLamb.Reconstruction
         /// <param name="curve">Curve to extend.</param>
         /// <param name="length">Length to add at each end.</param>
         /// <param name="style">How to extend it.</param>
-        /// <param name="fitLength">For EndExtension.Arc: the length of curve at each end that the
+        /// <param name="fitLength">For EndExtension.Trend and LegacyArc: the length of curve at each end that the
         /// arc's curvature is taken from (as a circle through its ends and middle), so that the
         /// last few millimetres don't decide it. 0: 15% of the curve's length.</param>
         public static Curve Extend(Curve curve, double length, EndExtension style, double fitLength = 0)

@@ -55,8 +55,8 @@ namespace GluLamb.Reconstruction
         public int[] Labels;
         public List<Polyline> Cluster = new List<Polyline>();
 
-        /// <summary>Mean of the cluster's edges, all running the same way.</summary>
-        public Curve MeanCurve;
+        /// <summary>The longest edge of the cluster.</summary>
+        public Curve LongestEdge;
 
         public string Summary;
     }
@@ -110,7 +110,7 @@ namespace GluLamb.Reconstruction
             // point mixes different places along the beam where the edges start and end at
             // different places, e.g. at skew or shaped ends.)
             int longest = members.OrderByDescending(i => lengths[kept[i]]).First();
-            result.MeanCurve = curves[kept[longest]].DuplicateCurve();
+            result.LongestEdge = curves[kept[longest]].DuplicateCurve();
             return result;
         }
 
@@ -122,18 +122,19 @@ namespace GluLamb.Reconstruction
         /// place the centreline. (The mean of the edges by point count drifts where the edges have
         /// different lengths, e.g. on a twisted beam; crossings compare them at the same section.)
         /// </summary>
-        public static Curve Recentre(Beam beam, EdgeSet clusterEdges, int main = 0)
+        public static Curve Recentre(Beam beam, EdgeSet clusterEdges, int main = 0, ReconstructionTolerances tol = null)
         {
+            tol ??= new ReconstructionTolerances();
             var curve = beam.Centreline;
-            int count = Math.Clamp((int)(curve.GetLength() / Globals.FromMillimeters(100)) + 1, 10, 200);
-            Stations(beam, clusterEdges, count, out Plane[] planes, out var local, out var offsets, main);
+            int count = tol.StationCount(curve.GetLength());
+            Stations(beam, clusterEdges, count, out Plane[] planes, out var local, out var offsets, main, tol);
             if (offsets.Count < 2) return curve;
 
             // Where the edges crossed at each station put the centreline (relative to the station),
             // from at least two of them
             var correction = new Vector3d?[count];
             for (int i = 0; i < count; ++i)
-                if (local[i] != null && TryPlace(local[i], offsets, out double dx, out double dy, out _, out _, 0.02 * Math.Min(beam.Width, beam.Height) + Globals.FromMillimeters(1), main))
+                if (local[i] != null && TryPlace(local[i], offsets, out double dx, out double dy, out _, out _, tol.ResidualTolerance(Math.Min(beam.Width, beam.Height)), main))
                     correction[i] = new Vector3d(dx, dy, 0);
             if (correction.Count(c => c.HasValue) < 4) return curve;
 
@@ -164,12 +165,13 @@ namespace GluLamb.Reconstruction
         /// <param name="clusterEdges">The longest run of parallel edges.</param>
         /// <param name="step">Length of each step.</param>
         /// <param name="maxLength">How far to go at each end at most.</param>
-        public static Curve ExtendAlongEdges(Beam beam, EdgeSet clusterEdges, double step, double maxLength, int main = 0)
+        public static Curve ExtendAlongEdges(Beam beam, EdgeSet clusterEdges, double step, double maxLength, int main = 0, ReconstructionTolerances tol = null)
         {
+            tol ??= new ReconstructionTolerances();
             var curve = beam.Centreline;
             double length = curve.GetLength();
-            int count = Math.Clamp((int)(length / Globals.FromMillimeters(100)) + 1, 10, 200);
-            Stations(beam, clusterEdges, count, out _, out _, out var offsets, main);
+            int count = tol.StationCount(length);
+            Stations(beam, clusterEdges, count, out _, out _, out var offsets, main, tol);
             if (offsets.Count < 2) return curve;
 
             // Start a little inside the known curve, where it is surest (its very ends are where the
@@ -180,8 +182,8 @@ namespace GluLamb.Reconstruction
             curve.LengthParameter(backoff, out double tStart);
             curve.LengthParameter(length - backoff, out double tEnd);
 
-            var start = Track(beam, clusterEdges, offsets, tStart, true, step, maxLength + backoff, reach, section, main);
-            var end = Track(beam, clusterEdges, offsets, tEnd, false, step, maxLength + backoff, reach, section, main);
+            var start = Track(beam, clusterEdges, offsets, tStart, true, step, maxLength + backoff, reach, section, main, tol);
+            var end = Track(beam, clusterEdges, offsets, tEnd, false, step, maxLength + backoff, reach, section, main, tol);
             if (start.Count == 0 && end.Count == 0) return curve;
 
             // The known curve between the starting points (or all of it at an end with nothing
@@ -200,7 +202,7 @@ namespace GluLamb.Reconstruction
             return new InterpolatingSpline(points).ToNurbsCurve();
         }
 
-        static List<Point3d> Track(Beam beam, EdgeSet clusterEdges, Dictionary<int, Point3d> offsets, double t0, bool atStart, double step, double maxLength, double reach, double section, int main)
+        static List<Point3d> Track(Beam beam, EdgeSet clusterEdges, Dictionary<int, Point3d> offsets, double t0, bool atStart, double step, double maxLength, double reach, double section, int main, ReconstructionTolerances tol)
         {
             var curve = beam.Centreline;
             var frame = beam.GetPlane(t0);
@@ -211,7 +213,7 @@ namespace GluLamb.Reconstruction
             var hits = new List<Point3d>();
             var indices = new List<int>();
             var tracked = new List<Point3d>();
-            int edges = clusterEdges.Count;
+            double residualTolerance = tol.ResidualTolerance(section);
 
             for (double gone = 0; gone < maxLength; gone += step)
             {
@@ -234,11 +236,11 @@ namespace GluLamb.Reconstruction
 
                     // The crossed edges' places fitted to their usual places: where the centreline
                     // is in this section, and how far the frame has turned about the centreline
-                    if (!TryPlace(local, offsets, out double dx, out double dy, out double angle, out double residual, 0.02 * section + Globals.FromMillimeters(1), main)) { found = false; break; }
+                    if (!TryPlace(local, offsets, out double dx, out double dy, out double angle, out double residual, residualTolerance, main)) { found = false; break; }
 
                     // Along a real edge the point lands close to the guess (the bend over one step)
                     // and the edges keep their places; otherwise the crossings are on something else
-                    if (Math.Sqrt(dx * dx + dy * dy) > 0.25 * section || residual > 0.02 * section + Globals.FromMillimeters(1)) { found = false; break; }
+                    if (Math.Sqrt(dx * dx + dy * dy) > tol.JumpFraction * section || residual > residualTolerance) { found = false; break; }
 
                     plane.Rotate(angle, plane.ZAxis);
                     next = plane.PointAt(dx * Math.Cos(-angle) - dy * Math.Sin(-angle), dx * Math.Sin(-angle) + dy * Math.Cos(-angle));
@@ -334,7 +336,7 @@ namespace GluLamb.Reconstruction
         /// </summary>
         /// <param name="main">The first this many edges are the main ones (the longest run of
         /// parallel edges); the rest only help. Below 1: all of them.</param>
-        static void Stations(Beam beam, EdgeSet clusterEdges, int count, out Plane[] planes, out Dictionary<int, Point3d>[] local, out Dictionary<int, Point3d> offsets, int main = 0)
+        static void Stations(Beam beam, EdgeSet clusterEdges, int count, out Plane[] planes, out Dictionary<int, Point3d>[] local, out Dictionary<int, Point3d> offsets, int main, ReconstructionTolerances tol)
         {
             var curve = beam.Centreline;
             int edges = clusterEdges.Count;
@@ -346,7 +348,7 @@ namespace GluLamb.Reconstruction
             local = new Dictionary<int, Point3d>[count];
             var full = new bool[count];
 
-            var tt = MeshBeam.Linspace(0, 1, count);
+            var tt = Sampling.Linspace(0, 1, count);
             double reach = Math.Sqrt(beam.Width * beam.Width + beam.Height * beam.Height);
             double section = Math.Min(beam.Width, beam.Height);
             for (int i = 0; i < count; ++i)
@@ -365,7 +367,7 @@ namespace GluLamb.Reconstruction
                 // distance from it times the angle
                 var mainHits = near.Where(k => indices[k] < main).Select(k => hits[k]).ToList();
                 full[i] = mainHits.Count == main;
-                if (full[i]) planes[i] = AlignPlane(planes[i], mainHits);
+                if (full[i]) planes[i] = AlignPlane(planes[i], mainHits, tol.AlignAngle);
 
                 local[i] = new Dictionary<int, Point3d>();
                 foreach (int k in near)
@@ -388,7 +390,7 @@ namespace GluLamb.Reconstruction
                 // small fraction of the section)
                 int lo = xs.Count / 4, hi = (3 * xs.Count) / 4;
                 double spread = Math.Max(xs[hi] - xs[lo], ys[hi] - ys[lo]);
-                if (e >= main && spread > 0.02 * section + Globals.FromMillimeters(1)) continue;
+                if (e >= main && spread > tol.ResidualTolerance(section)) continue;
 
                 offsets[e] = new Point3d(xs[xs.Count / 2], ys[ys.Count / 2], 0);
             }
@@ -400,49 +402,47 @@ namespace GluLamb.Reconstruction
         /// The edges are exact, where the section's principal axes lean when the section is a
         /// little oblique or cut into by a joint.
         /// </summary>
-        public static void AlignToEdges(ref Section section, EdgeSet clusterEdges)
+        public static void AlignToEdges(ref Section section, EdgeSet clusterEdges, ReconstructionTolerances tol = null)
         {
             var hits = new List<Point3d>();
             if (clusterEdges.Cut(section.Plane.Origin, section.Plane.ZAxis, hits) < 2) return;
-            section.Plane = AlignPlane(section.Plane, hits);
+            section.Plane = AlignPlane(section.Plane, hits, (tol ?? new ReconstructionTolerances()).AlignAngle);
         }
 
         /// <summary>
-        /// Turn a section plane about its Z-axis so that the line through the points where it
-        /// crosses the cluster's edges lies along its X- or Y-axis, whichever is closer.
+        /// Turn a section plane about its Z-axis so that the lines between the points where it
+        /// crosses the cluster's edges (e.g. the corners of the section) lie along its X- and
+        /// Y-axes: by the mean, weighted by length, of how far each line between two points is
+        /// turned from the closer axis, over the lines within maxAngle of one. (Diagonals, and lines
+        /// along bevels, are further off and left out; the principal axis of the points, used
+        /// before, is undefined for the corners of a square.)
         /// </summary>
-        static Plane AlignPlane(Plane plane, List<Point3d> hits)
+        static Plane AlignPlane(Plane plane, List<Point3d> hits, double maxAngle)
         {
             if (hits.Count < 2) return plane;
 
-            Vector3d line;
-            if (hits.Count == 2)
-                line = hits[1] - hits[0];
-            else
-            {
-                Pca.PrincipalAxes(hits, out _, out Vector3d[] axes);
-                line = axes[0];
-            }
+            double sum = 0, weight = 0;
+            for (int i = 0; i < hits.Count; ++i)
+                for (int j = i + 1; j < hits.Count; ++j)
+                {
+                    var d = hits[j] - hits[i];
+                    double x = d * plane.XAxis, y = d * plane.YAxis;
+                    double length = Math.Sqrt(x * x + y * y);
+                    if (length <= 0) continue;
 
-            line -= plane.ZAxis * (line * plane.ZAxis);
-            if (!line.Unitize()) return plane;
+                    // Angle from the X-axis, folded into (-45, 45] degrees about the closer axis
+                    double angle = Math.Atan2(y, x);
+                    angle -= Math.Round(angle / (Math.PI / 2)) * (Math.PI / 2);
+                    if (Math.Abs(angle) > maxAngle) continue;
 
-            // Only a small correction: on a section that isn't a rectangle (bevels, rebates) the
-            // edges can lie along a face at an angle to the section's sides
-            double closest = Math.Max(Math.Abs(line * plane.XAxis), Math.Abs(line * plane.YAxis));
-            if (closest < Math.Cos(RhinoMath.ToRadians(10))) return plane;
+                    sum += angle * length;
+                    weight += length;
+                }
+            if (weight <= 0) return plane;
 
-            // Closest axis, keeping the frame's direction
-            Vector3d y;
-            if (Math.Abs(line * plane.XAxis) >= Math.Abs(line * plane.YAxis))
-            {
-                var x = line * plane.XAxis >= 0 ? line : -line;
-                y = Vector3d.CrossProduct(plane.ZAxis, x);
-            }
-            else
-                y = line * plane.YAxis >= 0 ? line : -line;
-
-            return Utility.PlaneFromNormalAndYAxis(plane.Origin, plane.ZAxis, y);
+            var turned = plane;
+            turned.Rotate(sum / weight, plane.ZAxis);
+            return turned;
         }
 
         /// <summary>
