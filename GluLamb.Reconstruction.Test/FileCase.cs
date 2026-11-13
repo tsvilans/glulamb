@@ -53,6 +53,23 @@ namespace GluLamb.Reconstruction.Test
                             Console.WriteLine($"  [brep] beam {blank.Beam.Width:0.#} x {blank.Beam.Height:0.#}, length {blank.Beam.Centreline.GetLength():0.#}");
                             output.Objects.AddBrep(blank.Beam.ToBrep(), On(lBeam, "brep blank"));
                             output.Objects.AddCurve(blank.Beam.Centreline, On(lBeam, "brep blank centreline"));
+                            ReportLongEdges(brep, blank.Beam);
+                            CompareWithCurves(model, blank.Beam.Centreline, "centred");
+
+                            // The same with the top or the bottom parallel edges as guides
+                            var found = EdgeClusters.FindLargest(brep.Edges.Select(e => (Curve)e).ToList(), new EdgeClusterOptions());
+                            foreach (var (side, sign) in new[] { ("top edges", 1.0), ("bottom edges", -1.0) })
+                            {
+                                var guides = found.Cluster.Where(e => blank.Beam.ToBeamSpace(e.ToArray()).Average(p => p.Y) * sign > 0.8 * blank.Beam.Height / 2)
+                                    .Select(e => (Curve)new PolylineCurve(e)).ToList();
+                                if (guides.Count < 2) { Console.WriteLine($"  [brep] {side}: only {guides.Count} found"); continue; }
+                                var guided = BrepBlank.Reconstruct(brep, new BrepBlankOptions { Guides = guides });
+                                if (!guided.Success) { Console.WriteLine($"  [brep] {side}: failed"); continue; }
+                                Console.WriteLine($"  [brep] guided by {guides.Count} {side}: beam {guided.Beam.Width:0.#} x {guided.Beam.Height:0.#}, length {guided.Beam.Centreline.GetLength():0.#}. {guided.Messages.LastOrDefault(m => m.Contains("guide"))}");
+                                ReportLongEdges(brep, guided.Beam);
+                                CompareWithCurves(model, guided.Beam.Centreline, side);
+                                output.Objects.AddBrep(guided.Beam.ToBrep(), On(lBeam, "brep blank, " + side));
+                            }
                         }
                         output.Objects.AddBrep(brep, On(lInput));
                         // Also try it as a mesh
@@ -167,6 +184,46 @@ namespace GluLamb.Reconstruction.Test
                 Console.WriteLine($"Wrote {file}");
             }
             return 0;
+        }
+
+        /// <summary>
+        /// Where the Brep's longest run of parallel edges sits in the beam's section, along each
+        /// edge: an edge that guides the beam keeps one place, at a corner or on a face.
+        /// </summary>
+        static void ReportLongEdges(Brep brep, Beam beam)
+        {
+            var found = EdgeClusters.FindLargest(brep.Edges.Select(e => (Curve)e).ToList(), new EdgeClusterOptions());
+            if (found == null) return;
+            double hw = beam.Width / 2, hh = beam.Height / 2;
+            Console.WriteLine($"  [brep] {found.Summary} Half section {hw:0.##} x {hh:0.##}. Each parallel edge in the beam's section (x range, y range; drift = how far it wanders):");
+            foreach (var edge in found.Cluster.OrderByDescending(e => e.Length).Take(12))
+            {
+                var local = beam.ToBeamSpace(edge.ToArray());
+                double x0 = local.Min(p => p.X), x1 = local.Max(p => p.X), y0 = local.Min(p => p.Y), y1 = local.Max(p => p.Y);
+                if (System.Environment.GetEnvironmentVariable("RECON_DEBUG") == "1")
+                    Console.WriteLine("      along: " + string.Join(" ", Enumerable.Range(0, 13).Select(i => local[Math.Min(local.Length - 1, i * (local.Length - 1) / 12)]).Select(p => $"({p.X:0.0},{p.Y:0.0},{p.Z:0})")));
+                Console.WriteLine($"    length {edge.Length,7:0}: x {x0,8:0.00}..{x1,8:0.00}, y {y0,8:0.00}..{y1,8:0.00}; drift {Math.Max(x1 - x0, y1 - y0):0.00}; " +
+                    $"to faces: x {hw - Math.Max(Math.Abs(x0), Math.Abs(x1)):0.00}, y {hh - Math.Max(Math.Abs(y0), Math.Abs(y1)):0.00}");
+            }
+        }
+
+        /// <summary>
+        /// How far a centreline is from each long curve of the file, along it.
+        /// </summary>
+        static void CompareWithCurves(File3dm model, Curve centreline, string label)
+        {
+            double length = centreline.GetLength();
+            foreach (var reference in model.Objects.Select(o => o.Geometry).OfType<Curve>().Where(c => c.GetLength() > 0.8 * length && c.GetLength() < 1.2 * length))
+            {
+                var offs = centreline.DivideByCount(10, true).Select(t =>
+                {
+                    var p = centreline.PointAt(t);
+                    reference.ClosestPoint(p, out double u);
+                    return p.DistanceTo(reference.PointAt(u));
+                }).ToList();
+                if (offs.Max() > 100) continue;
+                Console.WriteLine($"  [brep] {label} vs curve of length {reference.GetLength():0}: " + string.Join(" ", offs.Select(d => d.ToString("0.0"))));
+            }
         }
     }
 }

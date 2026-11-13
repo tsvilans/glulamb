@@ -120,33 +120,49 @@ namespace GluLamb.Reconstruction
         /// </summary>
         public static Curve Recentre(Beam beam, EdgeSet clusterEdges, int main = 0, ReconstructionTolerances tol = null)
         {
+            var frames = EdgeFrames(beam, clusterEdges, main, tol);
+            return frames == null ? beam.Centreline : new InterpolatingSpline(frames.Select(f => f.Origin).ToArray()).ToNurbsCurve();
+        }
+
+        /// <summary>
+        /// Frames along a beam that follow the cluster's edges in place and in rotation. At each
+        /// station the cut edges are fitted to their usual places (2D rigid fit). The frame moves
+        /// to where the fit puts the centreline and turns by the fit's angle, so every edge keeps
+        /// its place in the frames. A station without edges takes the fit of the nearest station
+        /// with edges. Null if fewer than two edges have a usual place, or fewer than four
+        /// stations can be fitted.
+        /// </summary>
+        public static Plane[] EdgeFrames(Beam beam, EdgeSet clusterEdges, int main = 0, ReconstructionTolerances tol = null)
+        {
             tol ??= new ReconstructionTolerances();
             var curve = beam.Centreline;
             int count = tol.StationCount(curve.GetLength());
             Stations(beam, clusterEdges, count, out Plane[] planes, out var local, out var offsets, main, tol);
-            if (offsets.Count < 2) return curve;
+            if (offsets.Count < 2) return null;
 
-            // The place of the centreline at each station, from at least two cut edges
-            var correction = new Vector3d?[count];
+            // The place and turn of the centreline at each station, from at least two cut edges
+            var fit = new (double X, double Y, double Angle)?[count];
             for (int i = 0; i < count; ++i)
-                if (local[i] != null && TryPlace(local[i], offsets, out double dx, out double dy, out _, out _, tol.ResidualTolerance(Math.Min(beam.Width, beam.Height)), main))
-                    correction[i] = new Vector3d(dx, dy, 0);
-            if (correction.Count(c => c.HasValue) < 4) return curve;
+                if (local[i] != null && TryPlace(local[i], offsets, out double dx, out double dy, out double angle, out _, tol.ResidualTolerance(Math.Min(beam.Width, beam.Height)), main))
+                    fit[i] = (dx, dy, angle);
+            if (fit.Count(c => c.HasValue) < 4) return null;
 
-            // A station without edges takes the correction of the nearest station with edges
-            var points = new Point3d[count];
+            var frames = new Plane[count];
             for (int i = 0; i < count; ++i)
             {
                 int j = i;
-                for (int k = 1; !correction[j].HasValue; ++k)
+                for (int k = 1; !fit[j].HasValue; ++k)
                 {
-                    if (i - k >= 0 && correction[i - k].HasValue) j = i - k;
-                    else if (i + k < count && correction[i + k].HasValue) j = i + k;
+                    if (i - k >= 0 && fit[i - k].HasValue) j = i - k;
+                    else if (i + k < count && fit[i + k].HasValue) j = i + k;
                 }
-                points[i] = planes[i].PointAt(correction[j].Value.X, correction[j].Value.Y);
+                var frame = planes[i];
+                var origin = frame.PointAt(fit[j].Value.X, fit[j].Value.Y);
+                frame.Rotate(fit[j].Value.Angle, frame.ZAxis);
+                frame.Origin = origin;
+                frames[i] = frame;
             }
-
-            return new InterpolatingSpline(points).ToNurbsCurve();
+            return frames;
         }
 
         /// <summary>

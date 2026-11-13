@@ -83,6 +83,12 @@ This is for detailed beam Breps (joints, cuts, drillings, shaped profiles). It i
    Their bounding box gives the width, height and length, and the centreline is moved to the box's
    centre.
 
+Guides (`BrepBlankOptions.Guides`, two or more edges, e.g. the long edges of one face): the blank
+lies along them. At stations along the centreline the guides are fitted to their usual places in
+the section (2D rigid fit), and the frame moves and turns with the fit. The guides then keep their
+places in the blank. On a beam that tapers, the taper goes to the other side. Without guides the
+blank is centred on the sections, so a taper is split between both sides.
+
 If the mesh centreline fails, or is turned off, the older route is used: the Brep's long edges are
 compared for parallelness (mean angle plus spread of distances, either way round) and clustered
 with average linkage; the longest edge of the cluster with the most length is the starting

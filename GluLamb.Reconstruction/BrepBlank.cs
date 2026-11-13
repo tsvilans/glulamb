@@ -34,6 +34,13 @@ namespace GluLamb.Reconstruction
 
         /// <summary>Number and range (0 to 1) of the sections that give the orientation.</summary>
         public int SectionSamples = 30;
+
+        /// <summary>Edges that the blank lies along (two or more, e.g. the edges of one face).
+        /// They keep their places in the blank's section, so a beam that tapers has its taper on
+        /// the other side. Null: the blank is centred on the sections. GuidePasses: number of
+        /// passes. Clustering.EdgeSamples: points per guide.</summary>
+        public List<Curve> Guides;
+        public int GuidePasses = 2;
         public Interval SectionRange = new Interval(0.02, 0.98);
 
         /// <summary>Number of extra passes from the centred centreline.</summary>
@@ -128,7 +135,34 @@ namespace GluLamb.Reconstruction
                 var sections = BrepSections(brep, fromMesh.Beam.Centreline, new EdgeSet(result.Cluster), options, tol);
                 if (sections.Count == 0) sections = fromMesh.Sections;
                 result.Sections = sections;
-                if (!Envelope(brepPoints, fromMesh.Beam.Centreline, sections, options, tol, true, result, out beam))
+                var curve = fromMesh.Beam.Centreline;
+                var frames = sections.Select(s => s.Plane).ToList();
+
+                // Guide edges give the place and rotation of the blank: they keep their places in
+                // its section, so the blank lies along them
+                if (options.Guides != null && options.Guides.Count >= 2)
+                {
+                    var polylines = options.Guides.Where(g => g != null)
+                        .Select(g => new Polyline(g.DivideByCount(Math.Max(2, options.Clustering.EdgeSamples) - 1, true).Select(t => g.PointAt(t)))).ToList();
+                    var guides = new EdgeSet(polylines, tol.RectangleAngle);
+                    int passes = 0;
+                    for (int pass = 0; pass < Math.Max(1, options.GuidePasses); ++pass)
+                    {
+                        var probe = new Beam { Centreline = curve, Width = fromMesh.Beam.Width, Height = fromMesh.Beam.Height };
+                        probe.Orientation = MeshBeam.Orientation(curve, frames, false, 0, new List<string>());
+                        var followed = EdgeClusters.EdgeFrames(probe, guides, 0, tol);
+                        if (followed == null) break;
+                        frames = followed.ToList();
+                        curve = new InterpolatingSpline(followed.Select(f => f.Origin).ToArray()).ToNurbsCurve();
+                        ++passes;
+                    }
+                    if (passes > 0) result.Cluster = polylines;
+                    result.Messages.Add(passes > 0
+                        ? $"Follows {polylines.Count} guide edges ({passes} passes)."
+                        : "Couldn't follow the guide edges; using the sections.");
+                }
+
+                if (!Envelope(brepPoints, curve, frames, options, tol, true, result, out beam))
                     return result;
             }
             else
@@ -181,7 +215,7 @@ namespace GluLamb.Reconstruction
             var sections = BrepSections(brep, curve, clusterEdges, options, tol);
             if (sections.Count == 0) { result.Messages.Add("No sections of the Brep found along the centreline."); return false; }
             result.Sections = sections;
-            return Envelope(brepPoints, curve, sections, options, tol, last, result, out beam);
+            return Envelope(brepPoints, curve, sections.Select(s => s.Plane).ToList(), options, tol, last, result, out beam);
         }
 
         /// <summary>
@@ -214,7 +248,7 @@ namespace GluLamb.Reconstruction
         /// Sizes the section from the Brep's extents in the curved space of a beam along the
         /// centreline. Moves the curve to the section centre and trims it to the Brep's length.
         /// </summary>
-        static bool Envelope(List<Point3d> brepPoints, Curve curve, List<Section> sections, BrepBlankOptions options, ReconstructionTolerances tol, bool last, BrepBlankResult result, out Beam beam)
+        static bool Envelope(List<Point3d> brepPoints, Curve curve, List<Plane> frames, BrepBlankOptions options, ReconstructionTolerances tol, bool last, BrepBlankResult result, out Beam beam)
         {
             beam = null;
             var messages = last ? result.Messages : new List<string>();
@@ -224,7 +258,7 @@ namespace GluLamb.Reconstruction
             extended.Domain = new Interval(0, 1);
 
             var probe = new Beam { Centreline = extended };
-            probe.Orientation = MeshBeam.Orientation(extended, sections.Select(s => s.Plane).ToList(), false, 0, messages);
+            probe.Orientation = MeshBeam.Orientation(extended, frames, false, 0, messages);
 
             var extents = new BoundingBox(probe.ToBeamSpace(brepPoints, true, 200));
             result.Extents = extents;
@@ -254,9 +288,9 @@ namespace GluLamb.Reconstruction
             centreline.Domain = new Interval(0, 1);
 
             // Orientation on the centred curve, from the moved section frames
-            var moved = sections.Select(s =>
+            var moved = frames.Select(f =>
             {
-                var p = s.Plane;
+                var p = f;
                 p.Origin = p.PointAt(offset.OffsetX, offset.OffsetY);
                 return p;
             }).ToList();
