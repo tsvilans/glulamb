@@ -59,6 +59,14 @@ namespace GluLamb.Blanks
         /// G1's boards, "press" for the layers) and the thickness are added.</summary>
         public Context Material = new Context();
 
+        /// <summary>A copy with another stacking axis.</summary>
+        public TwoStepOptions WithStackAxis(int stackAxis)
+        {
+            var copy = (TwoStepOptions)MemberwiseClone();
+            copy.StackAxis = stackAxis;
+            return copy;
+        }
+
         /// <summary>Spacing of the samples along the beam.</summary>
         public double SampleSpacing = Globals.FromMillimeters(20);
     }
@@ -316,6 +324,20 @@ namespace GluLamb.Blanks
             foreach (var rule in result.Decided) result.Messages.Add($"Rule ({rules.Name}): {rule}");
 
             return result;
+        }
+
+        /// <summary>
+        /// The layers of the blank for a stacking axis, with their thickness, the beam's width
+        /// across them, and the allowed strains. Empty if the beam cannot be developed.
+        /// </summary>
+        internal static List<DevelopedLayer> Layers(Beam beam, int stackAxis, TwoStepOptions options, out double thickness, out double width, out double allowed, out double allowedTwist)
+        {
+            var result = Develop(beam, options.WithStackAxis(stackAxis));
+            thickness = result.LayerThickness;
+            width = stackAxis != 0 ? beam.Width : beam.Height;
+            allowed = result.AllowedPressStrain;
+            allowedTwist = result.AllowedTwistStrain;
+            return result.Layers;
         }
 
         /// <summary>
