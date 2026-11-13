@@ -46,6 +46,11 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddNumberParameter("End Allowance", "EA", "Extra length at each end.", GH_ParamAccess.item, defaults.EndAllowance);
             pManager.AddNumberParameter("Cluster Threshold", "T", "Largest distance between edges in one group: mean angle (radians) plus spread of their distances / 100 mm.", GH_ParamAccess.item, defaults.Clustering.ClusterThreshold);
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if all section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
+            pManager.AddCurveParameter("Guides", "G", "Edges that the blank lies along: two or more, e.g. the long edges of one face. They keep their places in the blank's section. " +
+                "On a beam that tapers, the taper goes to the other side. Without guides the blank is centred on the sections.", GH_ParamAccess.list);
+            pManager.AddIntegerParameter("Sections", "S", "Number of sections of the Brep that give the orientation.", GH_ParamAccess.item, defaults.SectionSamples);
+            pManager.AddIntegerParameter("Edge Samples", "ES", "Number of points on each edge and guide.", GH_ParamAccess.item, defaults.Clustering.EdgeSamples);
+            pManager[5].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -53,7 +58,7 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddGenericParameter("Beam", "B", "Simplified beam: centred on its section, encloses the Brep.", GH_ParamAccess.item);
             pManager.AddGenericParameter("Blank", "Bl", "Glulam blank from the beam. Its section is rounded up to whole lamellae.", GH_ParamAccess.item);
             pManager.AddGenericParameter("Placement", "Pl", "Placement of the beam in the blank.", GH_ParamAccess.item);
-            pManager.AddCurveParameter("Edges", "E", "Parallel edges that the centreline follows.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Edges", "E", "Parallel edges that the centreline follows, or the guides.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Sections", "S", "Sections of the Brep that give the orientation.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
         }
@@ -68,6 +73,16 @@ namespace GluLamb.Reconstruction.GH
             DA.GetData(2, ref options.EndAllowance);
             DA.GetData(3, ref options.Clustering.ClusterThreshold);
             DA.GetData(4, ref options.SimplifyOrientation);
+            var guides = new List<Curve>();
+            if (DA.GetDataList(5, guides) && guides.Count > 0)
+            {
+                if (guides.Count < 2) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Guides needs two or more edges. Ignored.");
+                else options.Guides = guides;
+            }
+            DA.GetData(6, ref options.SectionSamples);
+            DA.GetData(7, ref options.Clustering.EdgeSamples);
+            options.SectionSamples = Math.Max(3, options.SectionSamples);
+            options.Clustering.EdgeSamples = Math.Max(10, options.Clustering.EdgeSamples);
 
             var result = BrepBlank.Reconstruct(brep, options);
 
