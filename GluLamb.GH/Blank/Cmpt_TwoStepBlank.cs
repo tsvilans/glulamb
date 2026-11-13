@@ -165,7 +165,8 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_AnalyzeGlulam()
           : base("Analyze Glulam", "Analyze",
-              "Prototype. Opens the analysis of a blank (from Two-Step Blank): layers, flat lamellas, true shape, curvatures, twist and strains.",
+              "Prototype. Analyses a glulam, or opens the analysis from Two-Step Blank. A glulam gives the strains of its lamellae. " +
+              "A two-step analysis also gives layers, flat lamellas, true shape, curvatures and twist.",
               "GluLamb", UiNames.BlankSection)
         {
         }
@@ -176,7 +177,9 @@ namespace GluLamb.GH.Components
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Analysis", "A", "Analysis from Two-Step Blank.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Glulam", "G", "A glulam, or the analysis from Two-Step Blank.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Rules", "R", "For a glulam: a Rule Set, or the name of a standard (Eurocode, APA, None). Default: Eurocode.", GH_ParamAccess.item);
+            pManager[1].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -195,13 +198,43 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Edge Margin", "EM", "Smallest distance from a lamella edge to the beam's section. Negative: the beam sticks out.", GH_ParamAccess.item);
             pManager.AddTextParameter("Straight", "St", "Whether straight lamellas can make the beam, for stacking along Y and along X.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "Sizes, strains and the rules that decided them.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Utilisation", "U", "Strain over allowed strain along each lamella (bending or twist, the larger). Above 1: too much. " +
+                "One branch per lamella, in the order of Delaminate. Connect to Visualize Lamella.", GH_ParamAccess.tree);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            if (!Unwrap.Get(DA, 0, out GlulamAnalysis a)) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Analysis is not a glulam analysis."); return; }
+            object input = null;
+            if (!DA.GetData(0, ref input) || input == null) return;
+            if (input is IGH_Goo goo) input = goo.ScriptVariable();
+
+            var a = input as GlulamAnalysis;
+            if (a == null && input is Glulam glulam)
+            {
+                RuleSet rules = null;
+                object r = null;
+                if (DA.GetData(1, ref r) && r != null)
+                {
+                    if (r is IGH_Goo rg) r = rg.ScriptVariable();
+                    if (r is RuleSet set) rules = set;
+                    else if (r is string name && Enum.TryParse(name, true, out Standards.Standard standard)) rules = LaminationRules.For(standard);
+                    else { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Rules must be a Rule Set or the name of a standard (Eurocode, APA, None)."); return; }
+                }
+                a = GlulamAnalysis.FromGlulam(glulam, rules);
+            }
+            if (a == null) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "The input is not a glulam or a glulam analysis."); return; }
+
             DA.SetDataList(13, a.Messages);
             if (!a.Success) return;
+
+            var utilisation = new DataTree<double>();
+            foreach (var lamella in a.Lamellas)
+                utilisation.AddRange(lamella.Utilisation, new GH_Path(lamella.X, lamella.Y));
+            DA.SetDataTree(14, utilisation);
+            DA.SetDataList(7, new[] { a.BendStrain, a.AllowedBendStrain, a.PressStrain, a.AllowedPressStrain, a.TwistStrain, a.AllowedTwistStrain });
+            if (a.Lamellas.Any(l => l.Utilisation.Max() > 1.0001))
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "A lamella exceeds its allowed strain.");
+            if (!a.IsTwoStep) return;
 
             var twist = new DataTree<double>();
             var kg = new DataTree<double>();
@@ -221,12 +254,69 @@ namespace GluLamb.GH.Components
             DA.SetDataList(4, a.TrueShape);
             DA.SetDataList(5, a.BoardLengths);
             DA.SetDataList(6, new[] { a.BoardThickness, a.LayerThickness });
-            DA.SetDataList(7, new[] { a.BendStrain, a.AllowedBendStrain, a.PressStrain, a.AllowedPressStrain, a.TwistStrain, a.AllowedTwistStrain });
             DA.SetDataTree(8, twist);
             DA.SetDataTree(9, kg);
             DA.SetDataTree(10, kn);
             DA.SetData(11, a.EdgeMargin);
             DA.SetDataList(12, a.StraightLamellas.Select(c => c.ToString()));
+        }
+    }
+
+    public class Cmpt_VisualizeLamella : GH_Component
+    {
+        public Cmpt_VisualizeLamella()
+          : base("Visualize Lamella", "VisLam",
+              "A coloured mesh of each lamella of a glulam, from values per lamella: one value, or values along its length.",
+              "GluLamb", UiNames.BlankSection)
+        {
+        }
+
+        protected override System.Drawing.Bitmap Icon => null;
+        public override Guid ComponentGuid => new Guid("b93e6d17-2a48-4f05-9c7b-4e1d8a5f0c32");
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
+
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
+        {
+            pManager.AddGenericParameter("Glulam", "G", "Glulam.", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Values", "V", "Values for the lamellae. One branch per lamella, in the order of Delaminate: one value, or values along its length. " +
+                "A single list with one value per lamella also works.", GH_ParamAccess.tree);
+            pManager.AddIntervalParameter("Domain", "D", "The values of the first and the last colour. Default: the smallest and largest value.", GH_ParamAccess.item);
+            pManager.AddColourParameter("Colours", "C", "The gradient. Default: blue, green, yellow, red.", GH_ParamAccess.list);
+            pManager[2].Optional = true;
+            pManager[3].Optional = true;
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+        {
+            pManager.AddMeshParameter("Mesh", "M", "A coloured mesh of each lamella.", GH_ParamAccess.list);
+            pManager.AddIntervalParameter("Domain", "D", "The domain that the colours show.", GH_ParamAccess.item);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            Glulam glulam = null;
+            if (!DA.GetData(0, ref glulam) || glulam == null) return;
+            if (!DA.GetDataTree(1, out GH_Structure<GH_Number> tree)) return;
+
+            int lamellae = glulam.Data.NumWidth * glulam.Data.NumHeight;
+            var values = new List<IList<double>>();
+            if (tree.PathCount == 1 && tree.Branches[0].Count == lamellae && lamellae > 1)
+                values.AddRange(tree.Branches[0].Select(v => (IList<double>)new[] { v.Value }));
+            else
+                values.AddRange(tree.Branches.Select(b => (IList<double>)b.Where(v => v != null).Select(v => v.Value).ToList()));
+
+            if (values.Count != lamellae)
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"The glulam has {lamellae} lamellae, but there are values for {values.Count}.");
+
+            var all = values.SelectMany(v => v).ToList();
+            var domain = all.Count > 0 ? new Interval(all.Min(), all.Max()) : new Interval(0, 1);
+            DA.GetData(2, ref domain);
+
+            var colours = new List<System.Drawing.Color>();
+            DA.GetDataList(3, colours);
+
+            DA.SetDataList(0, TwoStepLamination.LamellaMeshes(glulam, values, domain, colours.Count > 0 ? colours : null));
+            DA.SetData(1, domain);
         }
     }
 }
