@@ -168,7 +168,7 @@ each layer needs a slightly different flat shape. Two things follow:
   slices are equally long, the layers are not, so the ends stagger.
 
 `TwoStepLamination` gives that true shape: `DevelopedLayer.TrueMesh` is each lamella where it
-really sits (steps and all), `TwoStepResult.TrueShape` the outside through the lamellas' edges,
+really sits (steps and all), `GlulamAnalysis.TrueShape` the outside through the lamellas' edges,
 and `EdgeMargin` says how much material is left outside the beam's section at the worst place.
 
 ## Straight lamellas

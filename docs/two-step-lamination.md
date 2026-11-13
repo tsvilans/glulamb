@@ -3,6 +3,15 @@
 `GluLamb/Blanks/TwoStepLamination.cs` and `LeastTwist.cs`; Grasshopper: Two-Step Blank and Least
 Twist Orientation, under "4. Blank". Written 2026-11-12.
 
+## Components
+
+- **Lamination Options**: stacking axis, thicknesses, allowances, rules and material.
+- **Two-Step Blank**: a beam and options in; G1, G3 and an analysis out.
+- **Analyze Glulam**: opens the analysis (`GlulamAnalysis`): layers, flat lamellas, slice, true
+  shape, boards, thicknesses, strains, curvatures, twist, edge margin, the straight-lamella check.
+- **Named Frame**: gets a named plane of a beam or blank. The plane "press" orients a blank for
+  the press (X along its chord, Y towards its bulge). G1 already lies along the world X-axis.
+
 ## The process
 
 1. Flat boards (G0) are bent into a single-curved glulam (G1).
@@ -31,7 +40,7 @@ the stack of slices, layers x (thickness + planing) + (layers - 1) x kerf.
 
 ## The true shape of the blank
 
-Every lamella is the same flat slice of G1 (`TwoStepResult.SliceOutline`), but each layer needs a
+Every lamella is the same flat slice of G1 (`GlulamAnalysis.SliceOutline`), but each layer needs a
 slightly different flat shape, so a slice lands a little differently on each layer and the pressed
 blank is not a clean swept rectangle. Each point of the slice's outline is found in a layer's
 development (how far along the beam, how far across the layer) and put at that place on the layer
@@ -39,7 +48,7 @@ in the blank, at the lamella's bottom and top faces:
 
 - `DevelopedLayer.TrueMesh` / `TrueEdges`: each lamella where it really sits. Together they show
   the steps between neighbours and the staggered ends (the high-resolution shape).
-- `TwoStepResult.TrueShape`: the outside through the lamellas' edges, sides skewed, steps smoothed
+- `GlulamAnalysis.TrueShape`: the outside through the lamellas' edges, sides skewed, steps smoothed
   over.
 - `EdgeMargin`: the least material left outside the beam's section.
 

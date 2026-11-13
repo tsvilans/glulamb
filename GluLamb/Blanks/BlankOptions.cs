@@ -116,6 +116,7 @@ namespace GluLamb.Blanks
                         : LeastTwist.Suggest(envelope, TwistMode.None).DesignTwist,
                     Handle = PressAlignment.Handle(glulam.Centreline, glulam.GetPlane(glulam.Centreline.Domain.Mid).YAxis)
                 };
+                glulam.Frames[GlulamAnalysis.PressFrame] = option.Handle;
                 option.Waste = option.Volume > 0 ? Math.Max(0, 1 - beamVolume / option.Volume) : 0;
                 option.Summary = $"{kind}: {option.Width:0.#} x {option.Height:0.#} x {option.Length:0}, waste {option.Waste * 100:0.#}%, " +
                     $"lamellae {option.LamellaeX} x {option.LamellaeY}, twist {Rhino.RhinoMath.ToDegrees(option.Twist) * Globals.FromMillimeters(1000):0.##} deg/m";
