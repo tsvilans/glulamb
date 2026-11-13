@@ -29,8 +29,7 @@ namespace GluLamb.Reconstruction.GH
     {
         public Cmpt_BlankFromBrep()
           : base("Blank From Brep", "BrepBlank",
-              "Reconstruct the blank of a detailed beam Brep (with joints, cuts, drillings): a rectangular section swept along a " +
-              "centreline that follows the Brep's longest run of parallel edges, big enough to enclose the Brep.",
+              "The blank of a detailed beam Brep (joints, cuts, drillings): a rectangular section along a centreline that encloses the Brep.",
               "GluLamb", UiNames.ReconstructionSection)
         {
         }
@@ -45,17 +44,16 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddBrepParameter("Brep", "B", "Detailed Brep of one beam.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Allowance", "A", "Extra material on each side of the section.", GH_ParamAccess.item, defaults.Allowance);
             pManager.AddNumberParameter("End Allowance", "EA", "Extra length at each end.", GH_ParamAccess.item, defaults.EndAllowance);
-            pManager.AddNumberParameter("Cluster Threshold", "T", "How parallel edges must be to be grouped: mean angle (radians) plus " +
-                "the spread of their distances divided by 100 mm.", GH_ParamAccess.item, defaults.Clustering.ClusterThreshold);
-            pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
+            pManager.AddNumberParameter("Cluster Threshold", "T", "Largest distance between edges in one group: mean angle (radians) plus spread of their distances / 100 mm.", GH_ParamAccess.item, defaults.Clustering.ClusterThreshold);
+            pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if all section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Beam", "B", "Simplified beam: centred on its section, enclosing the Brep.", GH_ParamAccess.item);
-            pManager.AddGenericParameter("Blank", "Bl", "Glulam blank made from the beam (its section rounded up to whole lamellae).", GH_ParamAccess.item);
-            pManager.AddGenericParameter("Placement", "Pl", "Where the beam sits in the blank.", GH_ParamAccess.item);
-            pManager.AddCurveParameter("Edges", "E", "The parallel edges the centreline follows.", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Beam", "B", "Simplified beam: centred on its section, encloses the Brep.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Blank", "Bl", "Glulam blank from the beam. Its section is rounded up to whole lamellae.", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Placement", "Pl", "Placement of the beam in the blank.", GH_ParamAccess.item);
+            pManager.AddCurveParameter("Edges", "E", "Parallel edges that the centreline follows.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Sections", "S", "Sections of the Brep that give the orientation.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
         }

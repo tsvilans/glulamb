@@ -28,15 +28,14 @@ namespace GluLamb.Reconstruction
     public static class Edges
     {
         /// <summary>
-        /// Sharp edges of a mesh, joined into polylines. An edge is sharp if the normals of its two
-        /// faces differ by more than sharpAngle; sharp edges that meet at a vertex and run within
-        /// joinAngle of each other are joined. The mesh is not changed.
+        /// Sharp edges of a mesh, joined into polylines. An edge is sharp if its two face normals
+        /// differ by more than sharpAngle. Sharp edges that meet at a vertex within joinAngle are
+        /// joined. Does not change the mesh.
         /// </summary>
-        /// <param name="mesh">Mesh, e.g. from an IFC, OBJ or STL file.</param>
-        /// <param name="sharpAngle">Smallest angle (radians) between face normals for a sharp edge.</param>
-        /// <param name="joinAngle">Largest angle (radians) between two sharp edges that are joined.</param>
-        /// <param name="weldAngle">Angle (radians) to weld the mesh's vertices at first, so that
-        /// unwelded meshes (e.g. STL) have a topology.</param>
+        /// <param name="mesh">Mesh, e.g. from IFC, OBJ or STL.</param>
+        /// <param name="sharpAngle">Smallest angle (radians) between face normals of a sharp edge.</param>
+        /// <param name="joinAngle">Largest angle (radians) between two joined edges.</param>
+        /// <param name="weldAngle">Weld angle (radians). Gives an unwelded mesh (STL) a topology.</param>
         public static List<Polyline> SharpMeshEdges(Mesh mesh, double sharpAngle, double joinAngle, double weldAngle)
         {
             var m = mesh.DuplicateMesh();
@@ -53,7 +52,7 @@ namespace GluLamb.Reconstruction
                     sharp.Add(e);
             }
 
-            // Join sharp edges that share a vertex and run in about the same direction
+            // Join sharp edges that share a vertex and have about the same direction
             int n = sharp.Count;
             var directions = new Vector3d[n];
             var byVertex = new Dictionary<int, List<int>>();
@@ -99,8 +98,7 @@ namespace GluLamb.Reconstruction
         }
 
         /// <summary>
-        /// The edges of a Brep as polylines: straight edges as two points, others divided into
-        /// segments.
+        /// The edges of a Brep as polylines. Straight edges: two points. Others: divided into segments.
         /// </summary>
         public static List<Polyline> BrepEdges(Brep brep, int segments = 20)
         {

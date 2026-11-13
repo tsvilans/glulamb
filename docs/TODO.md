@@ -42,7 +42,7 @@ Kept up to date as items are done or added. Last updated 2026-11-12.
 - Which axis to stack along can depend on the beam's geometry, so the blank's section orientation may differ from the beam's; choose it per beam.
 - Twist strain uses the larger of the edge stretch of a twisted strip, (w/2)^2 tau^2 / 2, and half the face shear, t tau / 2, against the bending limit 1 / (2 x radius ratio). Check that rule against how lamellas actually take twist.
 - True shape: the lamellas are lined up by best fit over their length; add lining up at a mark (locators), as the press does it.
-- Allowed strain per standard, species and thickness: a rule set to query (see the constraint-system proposal) instead of one radius ratio.
+- Constraints (docs/constraints.md): move `GlulamData.Compute` and `Glulam.RadiusMultiplier` to rule sets and remove the `Standards` classes; check the rule values against the standards; add quantities for lengths, press and machine limits.
 - `Utility.GetTrueGlulamBlank` / `GetGlulamBlankSurfaces` (Unroller and Sporph) are superseded by `TwoStepLamination`; retire them once it is confirmed.
 
 ## Reconstruction

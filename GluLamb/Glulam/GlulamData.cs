@@ -274,7 +274,9 @@ namespace GluLamb
             return data;
         }
 
-        public void Compute(Beam beam, Standard standard = Standard.Eurocode, int k_samples = 100)
+        /// <param name="rules">The rules that limit the lamella thickness. Null: the rule set of the standard.</param>
+        /// <param name="material">The facts for the rules (species, species group).</param>
+        public void Compute(Beam beam, Standard standard = Standard.Eurocode, int k_samples = 100, Constraints.RuleSet rules = null, Constraints.Context material = null)
         {
             // Store the beam dimensions because setting the beam values changes
             // the dimensions
@@ -331,25 +333,17 @@ namespace GluLamb
                 maxKY = 1 / ((1 / maxKY) - beamHeight / 2);
             }
 
-            switch (standard)
+            // The thickest lamella that the rules allow for each radius (see docs/constraints.md)
+            if (standard == Standard.CSA) throw new NotImplementedException("There are no rules for CSA yet.");
+            rules ??= Constraints.LaminationRules.For(standard);
+            material ??= new Constraints.Context();
+            double Thickest(double k)
             {
-                case (Standard.Eurocode):
-                    tempLamWidth = Eurocode.Instance.CalculateLaminationThickness(maxKX);
-                    tempLamHeight = Eurocode.Instance.CalculateLaminationThickness(maxKY);
-                    break;
-                case (Standard.APA):
-                    tempLamWidth = ANSI.Instance.CalculateLaminationThickness(maxKX);
-                    tempLamHeight = ANSI.Instance.CalculateLaminationThickness(maxKY);
-                    break;
-                case (Standard.CSA):
-                    tempLamWidth = CSA.Instance.CalculateLaminationThickness(maxKX);
-                    tempLamHeight = CSA.Instance.CalculateLaminationThickness(maxKY);
-                    break;
-                default:
-                    tempLamWidth = NoStandard.Instance.CalculateLaminationThickness(maxKX);
-                    tempLamHeight = NoStandard.Instance.CalculateLaminationThickness(maxKY);
-                    break;
+                var decision = Constraints.LaminationRules.ThickestLamella(rules, k > 0 ? 1 / k : double.MaxValue, material);
+                return decision.Found ? decision.Value : double.MaxValue;
             }
+            tempLamWidth = Thickest(maxKX);
+            tempLamHeight = Thickest(maxKY);
 
             // What the standard allows; lamellae aren't made thinner than the minimum
             MaxLamWidth = tempLamWidth;

@@ -26,6 +26,7 @@ using Grasshopper.Kernel.Data;
 using Rhino.Geometry;
 
 using GluLamb.Blanks;
+using GluLamb.Constraints;
 
 namespace GluLamb.GH.Components
 {
@@ -56,7 +57,10 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Planing", "P", "What planing takes off each slice (both faces together).", GH_ParamAccess.item, d.Planing);
             pManager.AddNumberParameter("Edge Allowance", "EA", "Extra width on each edge of a layer.", GH_ParamAccess.item, d.EdgeAllowance);
             pManager.AddNumberParameter("End Allowance", "EnA", "Extra length at each end.", GH_ParamAccess.item, d.EndAllowance);
-            pManager.AddNumberParameter("Radius Ratio", "RR", "Smallest radius over lamella thickness (Eurocode: 200). The allowed strain, for bending and twist, is 1 / (2 x this).", GH_ParamAccess.item, d.RadiusRatio);
+            pManager.AddGenericParameter("Rules", "R", "The rules that limit radius over thickness, thickness and twist strain: a Rule Set, or the name of a standard (Eurocode, APA, None). Default: Eurocode.", GH_ParamAccess.item);
+            pManager.AddTextParameter("Material", "M", "What the rules are asked about, as key=value items, e.g. species=southern-pine, species-group=softwood.", GH_ParamAccess.list);
+            pManager[8].Optional = true;
+            pManager[9].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -68,7 +72,7 @@ namespace GluLamb.GH.Components
             pManager.AddNumberParameter("Boards", "G0", "Length of each board of G1.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Board Thickness", "BT", "Thickness of the boards of G1.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Layer Thickness", "LT", "Thickness of the final layers.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Strain", "S", "Allowed strain, then the largest strains of step 1 (boards of G1), step 3 (pressing the layers) and twist.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Strain", "S", "Allowed strain of step 3, then the largest strains of step 1 (boards of G1), step 3 (pressing the layers) and twist, then the allowed strains of step 1 and of twist.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Twist", "T", "Geodesic torsion (twist per unit length) along each layer: zero for a developable layer.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Geodesic Curvature", "Kg", "In-plane curvature along each layer (made in step 1).", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Normal Curvature", "Kn", "Out-of-plane curvature along each layer (made in step 3).", GH_ParamAccess.tree);
@@ -77,6 +81,7 @@ namespace GluLamb.GH.Components
                 "Neighbours' edges don't line up, so the blank's sides are skewed and stepped.", GH_ParamAccess.list);
             pManager.AddBrepParameter("True Shape", "TS", "The outside of the blank through the lamellas' edges: skewed sides (steps smoothed over), bottom and top.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Slice", "Sl", "The flat outline of a slice of G1: every lamella as it is sawn.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Handle", "H", "A plane to orient the blank for the press: X along its chord, Y towards its bulge. The flat outputs (G1, G2, Slice) already lie along the world X-axis.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Edge Margin", "EM", "The least any lamella's edges stand out past the beam's section (negative: the beam sticks out).", GH_ParamAccess.item);
         }
 
@@ -93,8 +98,17 @@ namespace GluLamb.GH.Components
             DA.GetData(5, ref options.Planing);
             DA.GetData(6, ref options.EdgeAllowance);
             DA.GetData(7, ref options.EndAllowance);
-            DA.GetData(8, ref options.RadiusRatio);
-            if (options.RadiusRatio <= 0) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Radius Ratio must be positive."); return; }
+            object rules = null;
+            if (DA.GetData(8, ref rules))
+            {
+                if (rules is Grasshopper.Kernel.Types.IGH_Goo goo) rules = goo.ScriptVariable();
+                if (rules is RuleSet set) options.Rules = set;
+                else if (rules is string name && Enum.TryParse(name, true, out Standards.Standard standard)) options.Rules = LaminationRules.For(standard);
+                else { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Rules must be a Rule Set or the name of a standard (Eurocode, APA, None)."); return; }
+            }
+            var material = new System.Collections.Generic.List<string>();
+            DA.GetDataList(9, material);
+            options.Material = Context.Parse(material);
 
             var result = TwoStepLamination.Develop(beam, options);
             DA.SetDataList(11, result.Messages);
@@ -125,14 +139,15 @@ namespace GluLamb.GH.Components
             DA.SetDataList(4, result.BoardLengths);
             DA.SetData(5, result.BoardThickness);
             DA.SetData(6, result.LayerThickness);
-            DA.SetDataList(7, new[] { result.AllowedStrain, result.BendStrain, result.PressStrain, result.TwistStrain });
+            DA.SetDataList(7, new[] { result.AllowedStrain, result.BendStrain, result.PressStrain, result.TwistStrain, result.AllowedBendStrain, result.AllowedTwistStrain });
             DA.SetDataTree(8, twist);
             DA.SetDataTree(9, kg);
             DA.SetDataTree(10, kn);
             DA.SetDataList(12, result.Layers.Select(l => l.TrueMesh));
             DA.SetDataList(13, result.TrueShape);
             DA.SetData(14, new PolylineCurve(result.SliceOutline));
-            DA.SetData(15, result.EdgeMargin);
+            DA.SetData(15, result.BlankHandle);
+            DA.SetData(16, result.EdgeMargin);
             Message = $"{result.Layers.Count} x {result.LayerThickness:0.#}";
         }
     }

@@ -28,8 +28,7 @@ namespace GluLamb.Reconstruction.GH
     {
         public Cmpt_BeamFromMesh()
           : base("Beam From Mesh", "MeshBeam",
-              "Reconstruct a free-form beam from a mesh of it (e.g. from IFC, OBJ or STL): a centreline fitted through the centres " +
-              "of its sections, the section frames as its orientation, and the largest section width and height.",
+              "A free-form beam from a mesh (IFC, OBJ, STL): a centreline through the section centres, with orientation, width and height.",
               "GluLamb", UiNames.ReconstructionSection)
         {
         }
@@ -42,36 +41,32 @@ namespace GluLamb.Reconstruction.GH
         {
             var defaults = new MeshBeamOptions();
             pManager.AddMeshParameter("Mesh", "M", "Mesh of one beam.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Spacing", "S", "Spacing of the points the centreline is fitted through. It isn't taken below 0.3 x the section's depth, where closer points add freedom but no information.", GH_ParamAccess.item, defaults.SampleSpacing);
+            pManager.AddNumberParameter("Spacing", "S", "Spacing of the fitted points. Minimum: 0.3 x the section depth.", GH_ParamAccess.item, defaults.SampleSpacing);
             pManager.AddIntegerParameter("Iterations", "I", "Iterations of the fit.", GH_ParamAccess.item, defaults.Iterations);
-            pManager.AddIntegerParameter("Start", "St", "What the fit starts from: 0 sections walked along the beam, 1 legacy: an arc through three sections (assumes constant curvature), 2 a straight line.", GH_ParamAccess.item, 0);
-            pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if the section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
-            pManager.AddAngleParameter("Sharp Angle", "A", "Smallest angle between face normals for an edge to count as a sharp edge of the beam.", GH_ParamAccess.item, defaults.SharpAngle);
-            pManager.AddIntegerParameter("End", "E", "How the centreline is run out past its first and last typical sections to the ends of the mesh: " +
-                "0 continue the curvature and its rate of change (trend), 1 legacy: a circle (assumes constant curvature), 2 straight, 3 Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
-            pManager.AddNumberParameter("End Length", "EL", "Length at each end of the fitted centreline that the curvature (and its trend) to continue is taken from. 0: 15% of its length.", GH_ParamAccess.item, defaults.EndFitLength);
-            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of an optional penalty on changes of curvature (default 0, off). It holds the curve to an even curvature, so it suits beams that have one and fights beams whose curvature changes.", GH_ParamAccess.item, defaults.Smoothness);
-            pManager.AddNumberParameter("Typical Tolerance", "TT", "How much a section's size may differ from the beam's typical section (as a fraction) and still count fully in the fit. " +
-                "Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
-            pManager.AddIntegerParameter("Fit", "F", "How the centreline is fitted to the section centres: 0 L-BFGS on the fit error, " +
-                "1 alternating section centres and weighted least squares.", GH_ParamAccess.item, (int)defaults.Fit);
+            pManager.AddIntegerParameter("Start", "St", "Start of the fit. 0: sections along the beam. 1: legacy arc (assumes constant curvature). 2: straight line.", GH_ParamAccess.item, 0);
+            pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if all section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
+            pManager.AddAngleParameter("Sharp Angle", "A", "Smallest angle between face normals of a sharp edge.", GH_ParamAccess.item, defaults.SharpAngle);
+            pManager.AddIntegerParameter("End", "E", "How the centreline continues to the mesh ends. 0: trend of the curvature. 1: legacy circle (assumes constant curvature). 2: straight. 3: Rhino's smooth extension.", GH_ParamAccess.item, (int)defaults.End);
+            pManager.AddNumberParameter("End Length", "EL", "Length at each end that gives the curvature to continue. 0: 15% of the length.", GH_ParamAccess.item, defaults.EndFitLength);
+            pManager.AddNumberParameter("Smoothness", "Sm", "Weight of the penalty on changes of curvature. 0: off. Use only for beams with even curvature. Lbfgs only.", GH_ParamAccess.item, defaults.Smoothness);
+            pManager.AddNumberParameter("Typical Tolerance", "TT", "Allowed difference (fraction) between a section and the typical section. Sections that differ more (tapers, joints, end cuts) count less.", GH_ParamAccess.item, defaults.TypicalTolerance);
+            pManager.AddIntegerParameter("Fit", "F", "Fit method. 0: L-BFGS. 1: least squares (faster).", GH_ParamAccess.item, (int)defaults.Fit);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Beam", "B", "Reconstructed beam.", GH_ParamAccess.item);
-            pManager.AddCurveParameter("Edges", "E", "Sharp edges of the mesh that the fit uses.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Edges", "E", "Sharp edges that the fit uses.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Sections", "S", "Section outlines that give the frames, width and height.", GH_ParamAccess.list);
-            pManager.AddPointParameter("Points", "P", "Points the fitted centreline passes through.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Error", "Er", "Fit error before and after (weighted distances of the samples from their section centres, plus the curvature penalty).", GH_ParamAccess.list);
+            pManager.AddPointParameter("Points", "P", "Points of the fitted centreline.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Error", "Er", "Fit error before and after.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Weights", "W", "Weight of each fit sample in the last round: 1 a typical section, 0 a taper, joint or end cut.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Weights", "W", "Weight of each fit sample. 1: typical section. 0: taper, joint or end cut.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Centreline", "C", "The beam's centreline.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Width", "Wi", "The beam's width.", GH_ParamAccess.item);
             pManager.AddNumberParameter("Height", "H", "The beam's height.", GH_ParamAccess.item);
-            pManager.AddPlaneParameter("Principal Plane", "PP", "The mesh's principal axes (area-weighted), at the centre of the box along them: " +
-                "X along the largest spread, Y the direction the beam bends in most.", GH_ParamAccess.item);
-            pManager.AddBoxParameter("Principal Box", "PB", "The box around the mesh along its principal axes.", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Principal Plane", "PP", "Principal axes of the mesh, at the box centre. X: along the beam. Y: the main bend direction.", GH_ParamAccess.item);
+            pManager.AddBoxParameter("Principal Box", "PB", "Box around the mesh along its principal axes.", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
