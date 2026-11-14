@@ -17,7 +17,9 @@
  *
  */
 
+using GH_IO.Serialization;
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Parameters;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
 
@@ -25,7 +27,11 @@ using GluLamb.GH;
 
 namespace GluLamb.Reconstruction.GH
 {
-    public class Cmpt_BlankFromBrep : GH_Component
+    /// <summary>
+    /// Right-click menu: "Edge guides" (default) shows the Guides input, "Face" swaps it for a
+    /// Face input that the blank lies flush on.
+    /// </summary>
+    public class Cmpt_BlankFromBrep : GH_Component, IGH_VariableParameterComponent
     {
         public Cmpt_BlankFromBrep()
           : base("Blank From Brep", "BrepBlank",
@@ -38,6 +44,62 @@ namespace GluLamb.Reconstruction.GH
         public override Guid ComponentGuid => new Guid("7a9d3e15-2b6c-4f08-8e41-d5c2a0b9f736");
         public override GH_Exposure Exposure => GH_Exposure.primary;
 
+        const string GuidesName = "Guides", FaceName = "Face";
+        const int GuideIndex = 5;
+        bool m_face;
+
+        const string GuidesDescription = "Edges that the blank lies along: two or more, e.g. the long edges of one face. They keep their places in the blank's section. " +
+            "On a beam that tapers, the taper goes to the other side. Without guides the blank is centred on the sections.";
+
+        static IGH_Param FaceParam() => new Param_Surface
+        {
+            Name = FaceName, NickName = "F", Access = GH_ParamAccess.item,
+            Description = "Face that the blank lies flush on: a face of the Brep, or a copy of it in place. The centreline runs along it and its normals give the section's rotation, " +
+                "up to both ends. The section's height is measured from the face."
+        };
+
+        static IGH_Param GuidesParam() => new Param_Curve
+        {
+            Name = GuidesName, NickName = "G", Access = GH_ParamAccess.list, Optional = true, Description = GuidesDescription
+        };
+
+        protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, "Edge guides", (s, e) => SetFaceMode(false), true, !m_face)
+                .ToolTipText = "The blank lies along two or more guide edges, or is centred on the sections.";
+            Menu_AppendItem(menu, "Face", (s, e) => SetFaceMode(true), true, m_face)
+                .ToolTipText = "The blank lies flush on a face.";
+        }
+
+        void SetFaceMode(bool face)
+        {
+            if (face == m_face) return;
+            RecordUndoEvent(face ? "Blank on a face" : "Blank along edge guides");
+            m_face = face;
+
+            // Swap the Guides and Face inputs, in the same place
+            int index = Params.Input.FindIndex(p => p.Name == (face ? GuidesName : FaceName));
+            if (index >= 0) Params.UnregisterInputParameter(Params.Input[index], true);
+            else index = Math.Min(GuideIndex, Params.Input.Count);
+            Params.RegisterInputParam(face ? FaceParam() : GuidesParam(), index);
+
+            Params.OnParametersChanged();
+            ExpireSolution(true);
+        }
+
+        public override bool Write(GH_IWriter writer)
+        {
+            writer.SetBoolean("FaceMode", m_face);
+            return base.Write(writer);
+        }
+
+        public override bool Read(GH_IReader reader)
+        {
+            m_face = false;
+            reader.TryGetBoolean("FaceMode", ref m_face);
+            return base.Read(reader);
+        }
+
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             var defaults = new BrepBlankOptions();
@@ -46,11 +108,10 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddNumberParameter("End Allowance", "EA", "Extra length at each end.", GH_ParamAccess.item, defaults.EndAllowance);
             pManager.AddNumberParameter("Cluster Threshold", "T", "Largest distance between edges in one group: mean angle (radians) plus spread of their distances / 100 mm.", GH_ParamAccess.item, defaults.Clustering.ClusterThreshold);
             pManager.AddBooleanParameter("Planar", "P", "Use a PlanarOrientation if all section frames lie in one plane.", GH_ParamAccess.item, defaults.SimplifyOrientation);
-            pManager.AddCurveParameter("Guides", "G", "Edges that the blank lies along: two or more, e.g. the long edges of one face. They keep their places in the blank's section. " +
-                "On a beam that tapers, the taper goes to the other side. Without guides the blank is centred on the sections.", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Sections", "S", "Number of sections of the Brep that give the orientation.", GH_ParamAccess.item, defaults.SectionSamples);
+            pManager.AddCurveParameter(GuidesName, "G", GuidesDescription, GH_ParamAccess.list);
+            pManager.AddIntegerParameter("Sections", "S", "Number of sections of the Brep that give the orientation (with a face: stations along the face).", GH_ParamAccess.item, defaults.SectionSamples);
             pManager.AddIntegerParameter("Edge Samples", "ES", "Number of points on each edge and guide.", GH_ParamAccess.item, defaults.Clustering.EdgeSamples);
-            pManager[5].Optional = true;
+            pManager[GuideIndex].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -58,7 +119,7 @@ namespace GluLamb.Reconstruction.GH
             pManager.AddGenericParameter("Beam", "B", "Simplified beam: centred on its section, encloses the Brep.", GH_ParamAccess.item);
             pManager.AddGenericParameter("Blank", "Bl", "Glulam blank from the beam. Its section is rounded up to whole lamellae.", GH_ParamAccess.item);
             pManager.AddGenericParameter("Placement", "Pl", "Placement of the beam in the blank.", GH_ParamAccess.item);
-            pManager.AddCurveParameter("Edges", "E", "Parallel edges that the centreline follows, or the guides.", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Edges", "E", "Parallel edges that the centreline follows, the guides, or the path along the face.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Sections", "S", "Sections of the Brep that give the orientation.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "What happened.", GH_ParamAccess.list);
         }
@@ -73,11 +134,21 @@ namespace GluLamb.Reconstruction.GH
             DA.GetData(2, ref options.EndAllowance);
             DA.GetData(3, ref options.Clustering.ClusterThreshold);
             DA.GetData(4, ref options.SimplifyOrientation);
-            var guides = new List<Curve>();
-            if (DA.GetDataList(5, guides) && guides.Count > 0)
+            if (m_face)
             {
-                if (guides.Count < 2) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Guides needs two or more edges. Ignored.");
-                else options.Guides = guides;
+                GH_Surface face = null;
+                if (!DA.GetData(FaceName, ref face) || face?.Value == null || face.Value.Faces.Count == 0) return;
+                if (face.Value.Faces.Count > 1) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Face has more than one face; using the first.");
+                options.Face = face.Value.Faces[0];
+            }
+            else
+            {
+                var guides = new List<Curve>();
+                if (DA.GetDataList(GuidesName, guides) && guides.Count > 0)
+                {
+                    if (guides.Count < 2) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Guides needs two or more edges. Ignored.");
+                    else options.Guides = guides;
+                }
             }
             DA.GetData(6, ref options.SectionSamples);
             DA.GetData(7, ref options.Clustering.EdgeSamples);
@@ -101,5 +172,11 @@ namespace GluLamb.Reconstruction.GH
             if (result.Blank != null) DA.SetData(1, new GH_Glulam(result.Blank));
             if (result.Placement != null) DA.SetData(2, new GH_ObjectWrapper(result.Placement));
         }
+
+        bool IGH_VariableParameterComponent.CanInsertParameter(GH_ParameterSide side, int index) => false;
+        bool IGH_VariableParameterComponent.CanRemoveParameter(GH_ParameterSide side, int index) => false;
+        IGH_Param IGH_VariableParameterComponent.CreateParameter(GH_ParameterSide side, int index) => null;
+        bool IGH_VariableParameterComponent.DestroyParameter(GH_ParameterSide side, int index) => false;
+        void IGH_VariableParameterComponent.VariableParameterMaintenance() { }
     }
 }

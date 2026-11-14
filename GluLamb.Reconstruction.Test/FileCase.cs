@@ -71,6 +71,24 @@ namespace GluLamb.Reconstruction.Test
                                 output.Objects.AddBrep(guided.Beam.ToBrep(), On(lBeam, "brep blank, " + side));
                             }
                         }
+                        // Flush on the face that each open, single-face Brep of the file is a copy of
+                        foreach (var faceBrep in model.Objects.Select(o => o.Geometry).OfType<Brep>().Where(b => brep.IsSolid && !b.IsSolid && b.Faces.Count == 1))
+                        {
+                            var faceWatch = System.Diagnostics.Stopwatch.StartNew();
+                            // The copy may have been moved: use the Brep's face of the same area
+                            double area = AreaMassProperties.Compute(faceBrep).Area;
+                            var own = brep.Faces.OrderBy(f => Math.Abs(AreaMassProperties.Compute(f.DuplicateFace(false)).Area - area)).First();
+                            Console.WriteLine($"  [face] face {own.FaceIndex} of the Brep (area {area:0} in the file's open surface)");
+                            var onFace = BrepBlank.Reconstruct(brep, new BrepBlankOptions { Face = own });
+                            faceWatch.Stop();
+                            foreach (var m in onFace.Messages) Console.WriteLine($"  [face] {m}");
+                            if (!onFace.Success) { Console.WriteLine("  [face] failed"); continue; }
+                            Console.WriteLine($"  [face] beam {onFace.Beam.Width:0.#} x {onFace.Beam.Height:0.#}, length {onFace.Beam.Centreline.GetLength():0.#}, {onFace.Beam.Orientation} ({faceWatch.Elapsed.TotalSeconds:0.0} s)");
+                            CompareWithCurves(model, onFace.Beam.Centreline, "face");
+                            CompareWithLines(model, onFace.Beam);
+                            output.Objects.AddBrep(onFace.Beam.ToBrep(), On(lBeam, "brep blank, face"));
+                            output.Objects.AddCurve(onFace.Beam.Centreline, On(lBeam, "brep blank centreline, face"));
+                        }
                         output.Objects.AddBrep(brep, On(lInput));
                         // Also try it as a mesh
                         mesh = new Mesh();
@@ -204,6 +222,25 @@ namespace GluLamb.Reconstruction.Test
                     Console.WriteLine("      along: " + string.Join(" ", Enumerable.Range(0, 13).Select(i => local[Math.Min(local.Length - 1, i * (local.Length - 1) / 12)]).Select(p => $"({p.X:0.0},{p.Y:0.0},{p.Z:0})")));
                 Console.WriteLine($"    length {edge.Length,7:0}: x {x0,8:0.00}..{x1,8:0.00}, y {y0,8:0.00}..{y1,8:0.00}; drift {Math.Max(x1 - x0, y1 - y0):0.00}; " +
                     $"to faces: x {hw - Math.Max(Math.Abs(x0), Math.Abs(x1)):0.00}, y {hh - Math.Max(Math.Abs(y0), Math.Abs(y1)):0.00}");
+            }
+        }
+
+        /// <summary>
+        /// Each curve of the file (e.g. the edges of an intended blank) against the beam's
+        /// box: how far its points are from the nearest edge of the box, along the curve.
+        /// </summary>
+        static void CompareWithLines(File3dm model, Beam beam)
+        {
+            var edges = beam.ToBrep().Edges.Select(e => (Curve)e.DuplicateCurve()).ToList();
+            var c = beam.Centreline;
+            foreach (var obj in model.Objects.Where(o => o.Geometry is Curve))
+            {
+                var curve = (Curve)obj.Geometry;
+                var layer = obj.Attributes.LayerIndex >= 0 ? model.AllLayers.FindIndex(obj.Attributes.LayerIndex)?.FullPath : "?";
+                double Off(Point3d p, IEnumerable<Curve> to) => to.Min(e => { e.ClosestPoint(p, out double t); return p.DistanceTo(e.PointAt(t)); });
+                var offs = curve.DivideByCount(10, true).Select(t => curve.PointAt(t)).Select(p => Math.Min(Off(p, edges), Off(p, new[] { c }))).ToList();
+                if (offs.Max() > 100) continue;
+                Console.WriteLine($"  [face] '{layer}' curve, length {curve.GetLength():0.#}, off the blank's edges or centreline: " + string.Join(" ", offs.Select(d => d.ToString("0.0"))));
             }
         }
 

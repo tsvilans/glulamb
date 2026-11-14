@@ -133,6 +133,9 @@ namespace GluLamb.Reconstruction.Test
                 BrepCase("straight-joints", straight, outDir);
                 BrepCase("curved-joints", curved, outDir);
                 BrepCase("twisted-joints", twisted, outDir);
+                FaceCase("curved-joints", curved, outDir);
+                FaceCase("twisted-joints", twisted, outDir);
+                FaceCase("spiral-joints", spiralBeam, outDir);
             }
 
             Console.WriteLine(s_failures == 0 ? "All checks passed." : $"{s_failures} check(s) failed.");
@@ -277,6 +280,31 @@ namespace GluLamb.Reconstruction.Test
             Check(outside < 1.0, $"encloses the Brep (furthest point {outside:0.###} outside)");
 
             Write(outDir, name + "-brep", brep, beam, result.Beam, result.Cluster, result.Sections.Select(s => s.Outline), result.Blank?.ToBrep());
+        }
+
+        /// <summary>
+        /// A blank flush on one face: the bottom face of the uncut beam (like a copy of one face
+        /// of the Brep) and the Brep with joints. Should give the original beam back.
+        /// </summary>
+        static void FaceCase(string name, Beam beam, string outDir)
+        {
+            Console.WriteLine($"Face: {name}");
+            var brep = WithJoints(beam, out bool cut);
+            Console.WriteLine($"  {(cut ? "joints cut" : "joints NOT cut (Boolean failed)")}");
+            var bottom = beam.ToBrep().Faces.OrderBy(f =>
+            {
+                var p = f.PointAt(f.Domain(0).Mid, f.Domain(1).Mid);
+                return beam.ToBeamSpace(new[] { p })[0].Y;
+            }).First();
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var result = BrepBlank.Reconstruct(brep, new BrepBlankOptions { Face = bottom });
+            watch.Stop();
+            foreach (var m in result.Messages) Console.WriteLine($"  {m}");
+            Check(result.Success, $"reconstructed ({watch.Elapsed.TotalSeconds:0.0} s)");
+            if (!result.Success) return;
+            Compare(beam, result.Beam, 2, 2, new Interval(0, 1));
+            Write(outDir, name + "-face", brep, beam, result.Beam, result.Cluster, Enumerable.Empty<Polyline>(), result.Blank?.ToBrep());
         }
 
         /// <summary>
