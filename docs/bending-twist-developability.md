@@ -61,11 +61,12 @@ What each costs:
 
 | | Limited by | Strain |
 | --- | --- | --- |
-| kn (step 3) | the layer thickness t2 | t2 kn / 2 |
-| kg (step 1) | the board thickness t1 of the single-curved glulam, at its inner face | t1 kg / 2 |
+| kn (step 3) | the layer thickness t2, at its inner face | t2 / (2 r) |
+| kg (step 1) | the board thickness t1 of the single-curved glulam, at its inner face | t1 / (2 r) |
 
-Both are held to the allowed strain 1 / (2 x radius ratio), which is the usual rule "thickness at
-most radius / 200" written as a strain (1 / 400).
+r is the radius of the lamella's inner face, the smallest: 1 / k - t / 2 for a lamella whose middle
+has curvature k. Both are held to the allowed strain 1 / (2 x radius ratio), which is the usual
+rule "thickness at most radius / 200" written as a strain (1 / 400).
 
 ## Twist
 

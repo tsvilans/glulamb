@@ -108,7 +108,7 @@ namespace GluLamb.Blanks
                 check.TwistStrain = Math.Max(check.TwistStrain, layer.TwistStrain);
                 check.PressStrain = Math.Max(check.PressStrain, layer.PressStrain);
             }
-            check.EdgeBendStrain = check.GeodesicCurvature * width / 2;
+            check.EdgeBendStrain = TwoStepLamination.InnerFaceStrain(width, check.GeodesicCurvature);
 
             const double slack = 1.0001;
             check.TwistOk = check.TwistStrain <= allowedTwist * slack;

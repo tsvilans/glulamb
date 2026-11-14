@@ -217,7 +217,7 @@ namespace GluLamb.Blanks
             analysis.Messages.Add($"{glulam.Data.NumWidth} x {glulam.Data.NumHeight} lamellae of {glulam.Data.LamWidth:0.##} x {glulam.Data.LamHeight:0.##}. " +
                 $"Strain per mille: bending {analysis.PressStrain * 1000:0.###}, twist {analysis.TwistStrain * 1000:0.###}. Largest utilisation {worst:0.##}.");
 
-            // The smallest radius in each direction (over all lamellae) against the thickness it bends
+            // The smallest radius of a lamella's inner face in each direction, against the thickness it bends
             var context = analysis.Options.Material.Duplicate().With(ContextKeys.Step, "press");
             foreach (var (label, thickness, k) in new[]
             {
@@ -227,8 +227,9 @@ namespace GluLamb.Blanks
             {
                 if (k < 1e-9) { analysis.Messages.Add($"Bending {label}: straight."); continue; }
                 double allowed = analysis.Options.Rules.AllowedStrain(thickness, context, out _);
-                string limit = double.IsInfinity(allowed) ? "no limit" : $"smallest allowed radius {thickness / (2 * allowed):0.#} (ratio {1 / (2 * allowed):0.#})";
-                analysis.Messages.Add($"Bending {label}: smallest radius {1 / k:0.#} (curvature {k:0.######}), lamella thickness {thickness:0.##}, ratio {1 / k / thickness:0.#}; {limit}.");
+                double inner = 1 / k - thickness / 2;
+                string limit = double.IsInfinity(allowed) ? "no limit" : $"smallest allowed {thickness / (2 * allowed):0.#} (ratio {1 / (2 * allowed):0.#})";
+                analysis.Messages.Add($"Bending {label}: smallest inner-face radius {inner:0.#} (lamella middle {1 / k:0.#}), lamella thickness {thickness:0.##}, ratio {inner / thickness:0.#}; {limit}.");
             }
             if (worst > 1.0001) analysis.Messages.Add("A lamella exceeds its allowed strain: thinner lamellae or less twist are needed.");
             return analysis;
@@ -258,9 +259,23 @@ namespace GluLamb.Blanks
     public static class TwoStepLamination
     {
         /// <summary>
+        /// Bending strain of a lamella of a thickness, from the curvature at its middle: thickness
+        /// over twice the radius of its inner face (1 / curvature - thickness / 2), which is what
+        /// the radius ratio of the rules limits. Infinite if the inner face folds over.
+        /// </summary>
+        internal static double InnerFaceStrain(double thickness, double curvature)
+        {
+            double k = Math.Abs(curvature);
+            if (k < 1e-12 || thickness <= 0) return 0;
+            double inner = 1 / k - thickness / 2;
+            return inner > 0 ? thickness / (2 * inner) : double.PositiveInfinity;
+        }
+
+        /// <summary>
         /// Fills the lamella strains of an analysis from a glulam. A lamella bends about its
         /// height (thickness LamHeight) and about its width (thickness LamWidth); the bending strain
-        /// is the larger. Twist strain: edge stretch or half the face shear, as for the layers.
+        /// is the larger, measured at the lamella's inner face. Twist strain: edge stretch or half
+        /// the face shear, as for the layers.
         /// </summary>
         /// <param name="trim">Length at each end to leave out (an end allowance, where the
         /// orientation is held still): its strains take the value of the nearest station inside.</param>
@@ -296,8 +311,8 @@ namespace GluLamb.Blanks
                     var lamella = new LamellaStrain { X = x, Y = y, S = m.S, Bend = new double[n], Twist = new double[n], Utilisation = new double[n], KWidth = m.Kg, KHeight = m.Kn, Tau = m.Tg };
                     for (int i = 0; i < n; ++i)
                     {
-                        double bendY = preCurved == 1 ? 0 : data.LamHeight * Math.Abs(m.Kn[i]) / 2;
-                        double bendX = preCurved == 0 ? 0 : data.LamWidth * Math.Abs(m.Kg[i]) / 2;
+                        double bendY = preCurved == 1 ? 0 : InnerFaceStrain(data.LamHeight, m.Kn[i]);
+                        double bendX = preCurved == 0 ? 0 : InnerFaceStrain(data.LamWidth, m.Kg[i]);
                         double tau = Math.Abs(m.Tg[i]);
                         lamella.Bend[i] = Math.Max(bendX, bendY);
                         lamella.Twist[i] = Math.Max(0.5 * (wide / 2) * (wide / 2) * tau * tau, thin * tau / 2);
@@ -614,7 +629,7 @@ namespace GluLamb.Blanks
             // of a twisted strip (w/2)^2 tau^2 / 2 (also the in-plane strain a non-developable layer
             // needs) or the shear of its faces t tau / 2, whichever is larger
             double kn = m.Kn.Max(Math.Abs), tau = m.Tg.Max(Math.Abs);
-            layer.PressStrain = thickness * kn / 2;
+            layer.PressStrain = InnerFaceStrain(thickness, kn);
             layer.StretchStrain = 0.5 * (width / 2) * (width / 2) * tau * tau;
             layer.ShearStrain = thickness * tau / 2;
             layer.TwistStrain = Math.Max(layer.StretchStrain, layer.ShearStrain);
