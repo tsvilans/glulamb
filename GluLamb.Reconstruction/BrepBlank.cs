@@ -43,6 +43,13 @@ namespace GluLamb.Reconstruction
         public int GuidePasses = 2;
         public Interval SectionRange = new Interval(0.02, 0.98);
 
+        /// <summary>A face that the blank lies flush on, e.g. a face of the Brep or a copy of it.
+        /// The centreline follows the face along its long direction; the face's normals give the
+        /// section's rotation, up to both ends. The section's Y-axis is the face normal, into the
+        /// Brep. SectionSamples: number of stations along the face. Guides and the mesh
+        /// centreline are not used.</summary>
+        public Surface Face;
+
         /// <summary>Number of extra passes from the centred centreline.</summary>
         public int Refinements = 2;
 
@@ -116,7 +123,21 @@ namespace GluLamb.Reconstruction
 
             Beam beam = null;
             MeshBeamResult fromMesh = null;
-            if (options.UseMeshCentreline)
+            if (options.Face != null)
+            {
+                if (!FaceFrames(options.Face, brepPoints, options, result, out Curve faceCurve, out List<Plane> faceFrames))
+                    return result;
+                // The Brep's far side is a whole section away from a curve on the face, so its
+                // points can fall past the curve's ends. Size it again from the centred curve.
+                if (!Envelope(brepPoints, faceCurve, faceFrames, options, tol, false, result, out beam))
+                    return result;
+                var centred = beam.Centreline;
+                var centredFrames = Sampling.Linspace(0, 1, faceFrames.Count).Select(t => beam.GetPlane(centred.Domain.ParameterAt(t))).ToList();
+                if (!Envelope(brepPoints, centred, centredFrames, options, tol, true, result, out beam))
+                    return result;
+                FaceGap(options.Face, beam, tol, result);
+            }
+            else if (options.UseMeshCentreline)
             {
                 var meshOptions = options.Mesh ?? new MeshBeamOptions();
                 meshOptions.Clustering = options.Clustering;
@@ -124,7 +145,7 @@ namespace GluLamb.Reconstruction
                 if (!fromMesh.Success) result.Messages.Add("The mesh centreline failed; following the parallel edges instead.");
             }
 
-            if (fromMesh != null && fromMesh.Success)
+            if (options.Face == null && fromMesh != null && fromMesh.Success)
             {
                 // Use the mesh's sharp edges and their longest parallel run in place of the Brep's
                 result.Edges = fromMesh.Edges;
@@ -165,7 +186,7 @@ namespace GluLamb.Reconstruction
                 if (!Envelope(brepPoints, curve, frames, options, tol, true, result, out beam))
                     return result;
             }
-            else
+            else if (options.Face == null)
             {
                 // The longest run of parallel Brep edges. Its longest edge is the start centreline.
                 var curves = brep.Edges.Select(e => (Curve)e).Where(c => c != null).ToList();
@@ -298,6 +319,115 @@ namespace GluLamb.Reconstruction
             beam = new Beam { Centreline = centreline, Width = offset.Width, Height = offset.Height };
             beam.Orientation = MeshBeam.Orientation(centreline, moved, last && options.SimplifyOrientation, options.PlanarAngleTolerance, messages);
             return true;
+        }
+
+        /// <summary>
+        /// Centreline and section frames from a face: the centreline follows the middles of the
+        /// face's sections along its long direction (starting from the isocurve through its
+        /// middle); at each station the frame's Y-axis is the face normal (into the Brep) and its
+        /// X-axis lies across the face. Works on any curved or twisted face, up to its ends, as
+        /// the frames come from the surface itself.
+        /// </summary>
+        static bool FaceFrames(Surface face, List<Point3d> brepPoints, BrepBlankOptions options, BrepBlankResult result, out Curve curve, out List<Plane> frames)
+        {
+            curve = null;
+            frames = new List<Plane>();
+            var trimmed = face as BrepFace;
+
+            // The middle of the face's domain, or the point nearest its centroid if that is trimmed away
+            double u0 = face.Domain(0).Mid, v0 = face.Domain(1).Mid;
+            if (trimmed != null && trimmed.IsPointOnFace(u0, v0) == PointFaceRelation.Exterior)
+            {
+                var area = AreaMassProperties.Compute(trimmed.DuplicateFace(false));
+                if (area == null || !face.ClosestPoint(area.Centroid, out u0, out v0)) { result.Messages.Add("Couldn't find the middle of the face."); return false; }
+            }
+            var centroid = face.PointAt(u0, v0);
+
+            // The isocurves through it; the longer one is the centreline. IsoCurve(0, v): u varies.
+            Curve Iso(int direction, double constant)
+            {
+                var pieces = trimmed != null ? trimmed.TrimAwareIsoCurve(direction, constant) : new[] { face.IsoCurve(direction, constant) };
+                return pieces?.Where(c => c != null)
+                    .OrderBy(c => { c.ClosestPoint(centroid, out double t); return c.PointAt(t).DistanceTo(centroid); })
+                    .ThenByDescending(c => c.GetLength()).FirstOrDefault();
+            }
+            var isoU = Iso(0, v0);
+            var isoV = Iso(1, u0);
+            curve = (isoU?.GetLength() ?? 0) >= (isoV?.GetLength() ?? 0) ? isoU : isoV;
+            if (curve == null || curve.GetLength() < Globals.Tolerance) { result.Messages.Add("The face has no isocurve to follow."); return false; }
+            curve = curve.DuplicateCurve();
+            curve.Domain = new Interval(0, 1);
+
+            // The isocurve can run across the face at a slant. Follow the middles of the face's
+            // sections instead: sections normal to the curve, through their midpoints, twice.
+            // Partial sections (at a skew end) are left out of the middles.
+            var faceBrep = trimmed != null ? trimmed.DuplicateFace(false) : Brep.CreateFromSurface(face);
+            if (faceBrep == null) { result.Messages.Add("Couldn't make a Brep of the face."); return false; }
+            int samples = Math.Max(3, options.SectionSamples);
+            Curve SectionAt(Curve path, double t)
+            {
+                var plane = new Plane(path.PointAt(t), path.TangentAt(t));
+                if (!Intersection.BrepPlane(faceBrep, plane, options.Tolerance, out Curve[] cuts, out _) || cuts.Length == 0) return null;
+                return cuts.OrderBy(c => { c.ClosestPoint(plane.Origin, out double u); return c.PointAt(u).DistanceTo(plane.Origin); }).First();
+            }
+            double width = 0;
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                var along = curve;
+                var cuts = Sampling.Linspace(0.001, 0.999, samples).Select(t => SectionAt(along, t)).Where(c => c != null).ToList();
+                if (cuts.Count < 3) break;
+                var lengths = cuts.Select(c => c.GetLength()).OrderBy(l => l).ToList();
+                double median = width = lengths[lengths.Count / 2];
+                var middles = cuts.Where(c => c.GetLength() > 0.9 * median).Select(c => c.PointAtNormalizedLength(0.5)).ToArray();
+                if (middles.Length < 3) break;
+                curve = new InterpolatingSpline(middles).ToNurbsCurve();
+                curve.Domain = new Interval(0, 1);
+            }
+
+            // Frames along the curve: the face normal at the point of each section nearest the curve
+            foreach (var t in Sampling.Linspace(0, 1, samples))
+            {
+                var cut = SectionAt(curve, t);
+                if (cut == null) continue;
+                var p = curve.PointAt(t);
+                cut.ClosestPoint(p, out double tc);
+                var q = cut.PointAt(tc);
+                if (width > 0 && q.DistanceTo(p) > 0.5 * width) continue; // not this part of the face
+                if (!face.ClosestPoint(q, out double u, out double v)) continue;
+                var n = face.NormalAt(u, v);
+                var tangent = curve.TangentAt(t);
+                var y = n - (n * tangent) * tangent;
+                if (!y.IsValid || !y.Unitize()) continue;
+                frames.Add(new Plane(p, Vector3d.CrossProduct(y, tangent), y));
+            }
+            if (frames.Count < 2) { result.Messages.Add("Couldn't find the face's normals along it."); return false; }
+
+            // Normals into the Brep: most of the Brep near the middle frame is on that side
+            var mid = frames[frames.Count / 2];
+            double away = brepPoints.Min(q => q.DistanceTo(mid.Origin));
+            if (away > Math.Max(width, 1)) { result.Messages.Add($"The face isn't on the Brep ({away:0} away)."); return false; }
+            double slab = Math.Max(0.05 * curve.GetLength(), 2 * Globals.Tolerance);
+            var near = brepPoints.Where(q => Math.Abs((q - mid.Origin) * mid.ZAxis) < slab).ToList();
+            if ((near.Count > 0 ? near : brepPoints).Sum(q => (q - mid.Origin) * mid.YAxis) < 0)
+                frames = frames.Select(f => new Plane(f.Origin, -f.XAxis, -f.YAxis)).ToList();
+
+            result.LongestEdge = curve;
+            result.Cluster = new List<Polyline> { new Polyline(curve.DivideByCount(Math.Max(2, options.Clustering.EdgeSamples) - 1, true).Select(curve.PointAt)) };
+            result.Messages.Add($"Lies on the face: centreline and rotation from {frames.Count} stations along it.");
+            return true;
+        }
+
+        /// <summary>
+        /// How far the face is from the blank's side (Y = -Height / 2), as a message.
+        /// </summary>
+        static void FaceGap(Surface face, Beam beam, ReconstructionTolerances tol, BrepBlankResult result)
+        {
+            var faceBrep = face is BrepFace bf ? bf.DuplicateFace(false) : Brep.CreateFromSurface(face);
+            if (faceBrep == null) return;
+            var points = MeshOf(faceBrep, tol).Vertices.ToPoint3dArray();
+            if (points.Length == 0) return;
+            var gaps = beam.ToBeamSpace(points, true, 200).Select(p => p.Y + beam.Height / 2 - beam.OffsetY).ToList();
+            result.Messages.Add($"Face to the blank's side: {gaps.Min():0.##} to {gaps.Max():0.##} (mean {gaps.Average():0.##}).");
         }
 
         /// <summary>
