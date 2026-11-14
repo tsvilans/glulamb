@@ -165,7 +165,7 @@ namespace GluLamb.GH.Components
     {
         public Cmpt_AnalyzeGlulam()
           : base("Analyze Glulam", "Analyze",
-              "Prototype. Analyses a glulam, or opens the analysis from Two-Step Blank. A glulam gives the strains of its lamellae. " +
+              "Prototype. Analyses a glulam, or opens the analysis from Two-Step Blank. A glulam gives the strains, curvatures and twist of its lamellae, and their smallest radii (Messages). " +
               "A two-step analysis also gives layers, flat lamellas, true shape, curvatures and twist.",
               "GluLamb", UiNames.BlankSection)
         {
@@ -187,14 +187,14 @@ namespace GluLamb.GH.Components
             pManager.AddBrepParameter("Layers", "L", "Mid-surfaces of the layers in the final blank.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Lamellas", "G2", "The flat outline that each layer needs, at the height of its slice in G1.", GH_ParamAccess.list);
             pManager.AddCurveParameter("Slice", "Sl", "The flat outline of a slice of G1: each lamella as sawn.", GH_ParamAccess.item);
-            pManager.AddMeshParameter("True Lamellas", "TL", "Each lamella in its true place in the blank. The sides are skewed and stepped.", GH_ParamAccess.list);
+            pManager.AddMeshParameter("True Lamellas", "TL", "Each lamella in its true place in the blank. The sides are skewed and stepped. For a glulam: each lamella, coloured by utilisation (0 to 1).", GH_ParamAccess.list);
             pManager.AddBrepParameter("True Shape", "TS", "The outside of the blank through the lamella edges.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Boards", "G0", "Length of each board of G1.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Thickness", "T", "Board thickness of G1, then layer thickness of the blank.", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Thickness", "T", "Board thickness of G1, then layer thickness of the blank. For a glulam: lamella thickness up the height, then across the width.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Strain", "S", "Actual then allowed strain, for: step 1 (boards of G1), step 3 (press), twist.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Twist", "Tw", "Twist (geodesic torsion) along each layer. Zero: developable.", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Geodesic Curvature", "Kg", "In-plane curvature along each layer (step 1).", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Normal Curvature", "Kn", "Out-of-plane curvature along each layer (step 3).", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Twist", "Tw", "Twist (geodesic torsion) along each layer. Zero: developable. For a glulam: along each lamella, branches as U.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Geodesic Curvature", "Kg", "In-plane curvature along each layer (step 1). For a glulam: curvature across the width along each lamella (radius = 1 / |Kg|), branches as U.", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Normal Curvature", "Kn", "Out-of-plane curvature along each layer (step 3). For a glulam: curvature up the height along each lamella (radius = 1 / |Kn|), branches as U.", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Edge Margin", "EM", "Smallest distance from a lamella edge to the beam's section. Negative: the beam sticks out.", GH_ParamAccess.item);
             pManager.AddTextParameter("Straight", "St", "Whether straight lamellas can make the beam, for stacking along Y and along X.", GH_ParamAccess.list);
             pManager.AddTextParameter("Messages", "Msg", "Sizes, strains and the rules that decided them.", GH_ParamAccess.list);
@@ -234,7 +234,27 @@ namespace GluLamb.GH.Components
             DA.SetDataList(7, new[] { a.BendStrain, a.AllowedBendStrain, a.PressStrain, a.AllowedPressStrain, a.TwistStrain, a.AllowedTwistStrain });
             if (a.Lamellas.Any(l => l.Utilisation.Max() > 1.0001))
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "A lamella exceeds its allowed strain.");
-            if (!a.IsTwoStep) return;
+            if (!a.IsTwoStep)
+            {
+                // A glulam: per lamella (branches as U), its curvatures and twist along it, its
+                // mesh coloured by utilisation, and the lamella thickness up the height and across
+                var tw = new DataTree<double>();
+                var kWidth = new DataTree<double>();
+                var kHeight = new DataTree<double>();
+                foreach (var lamella in a.Lamellas)
+                {
+                    var path = new GH_Path(lamella.X, lamella.Y);
+                    tw.AddRange(lamella.Tau, path);
+                    kWidth.AddRange(lamella.KWidth, path);
+                    kHeight.AddRange(lamella.KHeight, path);
+                }
+                DA.SetDataList(3, TwoStepLamination.LamellaMeshes(a.Glulam, a.Lamellas.Select(l => (IList<double>)l.Utilisation).ToList(), new Interval(0, 1)));
+                DA.SetDataList(6, new[] { a.Glulam.Data.LamHeight, a.Glulam.Data.LamWidth });
+                DA.SetDataTree(8, tw);
+                DA.SetDataTree(9, kWidth);
+                DA.SetDataTree(10, kHeight);
+                return;
+            }
 
             var twist = new DataTree<double>();
             var kg = new DataTree<double>();

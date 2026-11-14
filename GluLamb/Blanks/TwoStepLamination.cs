@@ -216,6 +216,20 @@ namespace GluLamb.Blanks
             double worst = analysis.Lamellas.Max(l => l.Utilisation.Max());
             analysis.Messages.Add($"{glulam.Data.NumWidth} x {glulam.Data.NumHeight} lamellae of {glulam.Data.LamWidth:0.##} x {glulam.Data.LamHeight:0.##}. " +
                 $"Strain per mille: bending {analysis.PressStrain * 1000:0.###}, twist {analysis.TwistStrain * 1000:0.###}. Largest utilisation {worst:0.##}.");
+
+            // The smallest radius in each direction (over all lamellae) against the thickness it bends
+            var context = analysis.Options.Material.Duplicate().With(ContextKeys.Step, "press");
+            foreach (var (label, thickness, k) in new[]
+            {
+                ("up the height", glulam.Data.LamHeight, analysis.Lamellas.Max(l => l.KHeight.Max(Math.Abs))),
+                ("across the width", glulam.Data.LamWidth, analysis.Lamellas.Max(l => l.KWidth.Max(Math.Abs)))
+            })
+            {
+                if (k < 1e-9) { analysis.Messages.Add($"Bending {label}: straight."); continue; }
+                double allowed = analysis.Options.Rules.AllowedStrain(thickness, context, out _);
+                string limit = double.IsInfinity(allowed) ? "no limit" : $"smallest allowed radius {thickness / (2 * allowed):0.#} (ratio {1 / (2 * allowed):0.#})";
+                analysis.Messages.Add($"Bending {label}: smallest radius {1 / k:0.#} (curvature {k:0.######}), lamella thickness {thickness:0.##}, ratio {1 / k / thickness:0.#}; {limit}.");
+            }
             if (worst > 1.0001) analysis.Messages.Add("A lamella exceeds its allowed strain: thinner lamellae or less twist are needed.");
             return analysis;
         }
@@ -232,6 +246,11 @@ namespace GluLamb.Blanks
         /// <summary>Along the lamella: arc length, bending strain (the larger of the two
         /// directions), twist strain, and the larger of each over its allowed strain.</summary>
         public double[] S, Bend, Twist, Utilisation;
+
+        /// <summary>Along the lamella: curvature across the width (in the plane of the lamella,
+        /// against LamWidth), curvature up the height (against LamHeight), and twist per length
+        /// (geodesic torsion). Signed; the radius is 1 / |curvature|.</summary>
+        public double[] KWidth, KHeight, Tau;
 
         public double MaxBend, MaxTwist;
     }
@@ -274,7 +293,7 @@ namespace GluLamb.Blanks
                     var points = frames.Select(f => f.PointAt(ox, oy)).ToArray();
                     var m = Measure(points, normals);
                     int n = points.Length;
-                    var lamella = new LamellaStrain { X = x, Y = y, S = m.S, Bend = new double[n], Twist = new double[n], Utilisation = new double[n] };
+                    var lamella = new LamellaStrain { X = x, Y = y, S = m.S, Bend = new double[n], Twist = new double[n], Utilisation = new double[n], KWidth = m.Kg, KHeight = m.Kn, Tau = m.Tg };
                     for (int i = 0; i < n; ++i)
                     {
                         double bendY = preCurved == 1 ? 0 : data.LamHeight * Math.Abs(m.Kn[i]) / 2;
