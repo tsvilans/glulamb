@@ -1,4 +1,4 @@
-/*
+﻿/*
  * GluLamb
  * A constrained glulam modelling toolkit.
  * Copyright 2020 Tom Svilans
@@ -909,14 +909,25 @@ namespace GluLamb
 
     /// <summary>
     /// Orientation that uses the rotation minimizing frame of the curve. 
-    /// Direction vector is the Y-axis of the RMF.
+    /// Direction vector is the Y-axis of the RMF. With a start vector, the
+    /// RMF is turned about the curve so that its Y-axis at the start of the
+    /// curve lies along the start vector.
     /// </summary>
     [Serializable]
     public class RmfOrientation : CrossSectionOrientation
     {
+        /// <summary>
+        /// Y-axis at the start of the curve. Unset: the curve's own RMF.
+        /// </summary>
+        public Vector3d StartVector = Vector3d.Unset;
 
         public RmfOrientation()
         {
+        }
+
+        public RmfOrientation(Vector3d start)
+        {
+            StartVector = start;
         }
 
         public override string ToString()
@@ -924,28 +935,59 @@ namespace GluLamb
             return "RmfOrientation";
         }
 
+        /// <summary>
+        /// Turn from the RMF's Y-axis at the start (frame0) to the start vector, about the tangent.
+        /// </summary>
+        private double StartAngle(Plane frame0)
+        {
+            if (!StartVector.IsValid || StartVector.IsTiny()) return 0;
+
+            var v = StartVector - frame0.ZAxis * (StartVector * frame0.ZAxis);
+            if (v.IsTiny()) return 0;
+
+            return Vector3d.VectorAngle(frame0.YAxis, v, frame0);
+        }
+
+        private static Vector3d Turn(Plane frame, double angle)
+        {
+            var y = frame.YAxis;
+            if (angle != 0) y.Rotate(angle, frame.ZAxis);
+            return y;
+        }
+
         public override Vector3d GetOrientation(Curve crv, double t)
         {
             crv.Domain.MakeIncreasing();
 
+            Plane[] frames;
+            int i;
             if (t <= crv.Domain.Min)
             {
-                return crv.GetPerpendicularFrames(new double[] { t, crv.Domain.Max })[0].YAxis;
+                frames = crv.GetPerpendicularFrames(new double[] { t, crv.Domain.Max });
+                i = 0;
             }
-            else if (t >= crv.Domain.Max)
+            else
             {
-                return crv.GetPerpendicularFrames(new double[] { crv.Domain.Min, t })[1].YAxis;
+                frames = crv.GetPerpendicularFrames(new double[] { crv.Domain.Min, t });
+                i = 1;
             }
 
-            return crv.GetPerpendicularFrames(new double[] { crv.Domain.Min, t })[1].YAxis;
+            return Turn(frames[i], StartAngle(frames[0]));
         }
+
         public override Vector3d[] GetOrientations(Curve crv, IList<double> t)
         {
-            IEnumerable<double> sorted_t = t.OrderBy(x => x).Where(y => crv.Domain.IncludesParameter(y));
+            var sorted_t = t.OrderBy(x => x).Where(y => crv.Domain.IncludesParameter(y)).ToList();
+
+            // Frames start at the curve's start, so the start vector applies there
+            bool prepend = sorted_t.Count == 0 || sorted_t[0] > crv.Domain.Min;
+            if (prepend) sorted_t.Insert(0, crv.Domain.Min);
+
             try
             {
                 Plane[] planes = crv.GetPerpendicularFrames(sorted_t);
-                return planes.Select(x => x.YAxis).ToArray();
+                double angle = StartAngle(planes[0]);
+                return planes.Skip(prepend ? 1 : 0).Select(x => Turn(x, angle)).ToArray();
             }
             catch
             {
@@ -960,7 +1002,7 @@ namespace GluLamb
 
         public override CrossSectionOrientation Duplicate()
         {
-            return new RmfOrientation();
+            return new RmfOrientation(StartVector);
         }
 
         public override CrossSectionOrientation[] Split(IList<double> t)
@@ -986,7 +1028,7 @@ namespace GluLamb
 
         public override void Transform(Transform x)
         {
-            return;
+            if (StartVector.IsValid) StartVector.Transform(x);
         }
 
         public override bool IsConstant() => true;

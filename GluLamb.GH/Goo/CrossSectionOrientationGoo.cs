@@ -128,6 +128,8 @@ return string.Empty;
             switch (ori)
             {
                 case RmfOrientation rmf:
+                    if (rmf.StartVector.IsValid)
+                        writer.SetPoint3D("orientation_start", new GH_IO.Types.GH_Point3D(rmf.StartVector.X, rmf.StartVector.Y, rmf.StartVector.Z));
                     return;
                 case PlanarOrientation plan:
                     var plane = plan.Plane;
@@ -202,7 +204,13 @@ return string.Empty;
                     orientation = new VectorListOrientation(GH_Convert.ByteArrayToCommonObject<Curve>(vlguide), parameters, vectors);
                     break;
                 default:
-                    orientation = new RmfOrientation();
+                    var start = Vector3d.Unset;
+                    if (reader.ItemExists("orientation_start"))
+                    {
+                        var sv = reader.GetPoint3D("orientation_start");
+                        start = new Vector3d(sv.x, sv.y, sv.z);
+                    }
+                    orientation = new RmfOrientation(start);
 
                 return;
             }
